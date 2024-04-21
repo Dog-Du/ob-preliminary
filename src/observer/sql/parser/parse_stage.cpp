@@ -65,7 +65,7 @@ RC ParseStage::handle_request(SQLStageEvent *sql_event)
         if (it.attr_type() == DATES && !check_date(it.get_date())) {
           rc = RC::VARIABLE_NOT_VALID;
           sql_result->set_return_code(rc);
-          sql_result->set_state_string("Error date");
+          // sql_result->set_state_string("Error date");
           return rc;
         }
       }
@@ -75,14 +75,14 @@ RC ParseStage::handle_request(SQLStageEvent *sql_event)
         if (it.left_value.attr_type() == DATES && it.left_is_attr == 0 && !check_date(it.left_value.get_date())) {
           rc = RC::VARIABLE_NOT_VALID;
           sql_result->set_return_code(rc);
-          sql_result->set_state_string("Error date");
+         // sql_result->set_state_string("Error date");
           return rc;
         }
 
         if (it.right_value.attr_type() == DATES && it.right_is_attr == 0 && !check_date(it.right_value.get_date())) {
           rc = RC::VARIABLE_NOT_VALID;
           sql_result->set_return_code(rc);
-          sql_result->set_state_string("Error date");
+         // sql_result->set_state_string("Error date");
           return rc;
         }
       }
