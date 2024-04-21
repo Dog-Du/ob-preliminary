@@ -101,7 +101,7 @@ public:
     for (int i = 0; i < cell_num - 1; i++) {
       Value cell;
       cell_at(i, cell);
-      str += cell.to_string();
+      str += cell.to_string(); // 在这里的Tuple直接调用了Value的to_string，可以。
       str += ", ";
     }
 

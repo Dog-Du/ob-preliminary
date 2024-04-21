@@ -29,7 +29,7 @@ See the Mulan PSL v2 for more details. */
 
 #include "common/defs.h"
 namespace common {
-
+using date_t = uint32_t;
 /**
  * remove all white space(like ' ', '\t', '\n') from string
  */
@@ -117,6 +117,7 @@ void val_to_str(const T &val, std::string &str, std::ios_base &(*radix)(std::ios
  * @return
  */
 std::string double_to_str(double v);
+std::string date_to_str(date_t v);
 
 bool is_blank(const char *s);
 

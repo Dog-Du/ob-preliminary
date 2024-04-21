@@ -18,23 +18,84 @@ See the Mulan PSL v2 for more details. */
 #include "common/log/log.h"
 #include <sstream>
 
-const char *ATTR_TYPE_NAME[] = {"undefined", "chars", "ints", "floats", "booleans"};
+// 这里的名字数组的下标应该是和value.h中的枚举类型的值是一一对应的，能不能标记清晰一点。
+const char *ATTR_TYPE_NAME[] = {"undefined", "chars", "ints", "floats", "dates", "booleans"};
 
 const char *attr_type_to_string(AttrType type)
 {
-  if (type >= UNDEFINED && type <= FLOATS) {
+  // 妈的，这句话表示了，DATES应该放在,chars 和 dates 中间，不能放在booleans后面，不然会出问题。
+  if (type >= UNDEFINED && type <= DATES) {  // 修改成DATES。
     return ATTR_TYPE_NAME[type];
   }
   return "unknown";
 }
+
 AttrType attr_type_from_string(const char *s)
 {
   for (unsigned int i = 0; i < sizeof(ATTR_TYPE_NAME) / sizeof(ATTR_TYPE_NAME[0]); i++) {
     if (0 == strcmp(ATTR_TYPE_NAME[i], s)) {
-      return (AttrType)i;
+      return (AttrType)i;  // hhh，
     }
   }
   return UNDEFINED;
+}
+
+bool check_date(date_t v)
+{
+  int        y     = v / 10000;
+  int        m     = v / 100 % 100;
+  int        d     = v % 100;
+  static int mon[] = {0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+  bool       leap  = (y % 400 == 0 || (y % 100 && y % 4 == 0));
+  return y > 0 && (m > 0) && (m <= 12) && (d > 0) && (d <= ((m == 2 && leap) ? 1 : 0) + mon[m]);
+}
+
+date_t str_to_date(const char *ch)
+{
+  int i      = -1;
+  int j      = -1;
+  int length = strlen(ch);
+  {
+    int cnt = 0;
+    for (int k = 0; k < length; ++k) {
+      if (ch[k] == '-') {
+        ++cnt;
+        if (i == -1) {
+          i = k;
+        } else {
+          j = k;
+        }
+      }
+    }
+
+    if (cnt != 2) {
+      return 0; //
+    }
+  }
+
+  int y = 0;
+  int m = 0;
+  int d = 0;
+
+  for (int k = 0; k < i; ++k) {
+    if (isdigit(ch[k])) {
+      y = y * 10 + (ch[k] - '0');
+    }
+  }
+
+  for (int k = i + 1; k < j; ++k) {
+    if (isdigit(ch[k])) {
+      m = m * 10 + (ch[k] - '0');
+    }
+  }
+
+  for (int k = j + 1; k < length; ++k) {
+    if (isdigit(ch[k])) {
+      d = d * 10 + (ch[k] - '0');
+    }
+  }
+
+  return y * 10000 + m * 100 + d;
 }
 
 Value::Value(int val) { set_int(val); }
@@ -42,6 +103,8 @@ Value::Value(int val) { set_int(val); }
 Value::Value(float val) { set_float(val); }
 
 Value::Value(bool val) { set_boolean(val); }
+
+Value::Value(date_t val) { set_date(val); }
 
 Value::Value(const char *s, int len /*= 0*/) { set_string(s, len); }
 
@@ -63,6 +126,10 @@ void Value::set_data(char *data, int length)
       num_value_.bool_value_ = *(int *)data != 0;
       length_                = length;
     } break;
+    case DATES: {
+      num_value_.date_value_ = *(date_t *)data;
+      length_                = length;
+    };  // 这里故意不加break，如果check之后不符合，那么打印出来错误信息。符合的话会进行break。
     default: {
       LOG_WARN("unknown data type: %d", attr_type_);
     } break;
@@ -87,6 +154,18 @@ void Value::set_boolean(bool val)
   num_value_.bool_value_ = val;
   length_                = sizeof(val);
 }
+
+void Value::set_date(date_t val)
+{
+  attr_type_             = DATES;
+  num_value_.date_value_ = val;
+  length_                = sizeof(val);
+
+  if (!check_date(val)) {
+    LOG_WARN("%d can't convert to date type. warn in set_date",val);
+  }
+}
+
 void Value::set_string(const char *s, int len /*= 0*/)
 {
   attr_type_ = CHARS;
@@ -116,6 +195,9 @@ void Value::set_value(const Value &value)
     } break;
     case UNDEFINED: {
       ASSERT(false, "got an invalid value type");
+    } break;
+    case DATES: {
+      set_date(value.get_date());
     } break;
   }
 }
@@ -148,6 +230,9 @@ std::string Value::to_string() const
     case CHARS: {
       os << str_value_;
     } break;
+    case DATES: {
+      os << common::date_to_str(num_value_.date_value_);  // 在这里写一个函数。
+    } break;
     default: {
       LOG_WARN("unsupported attr type: %d", attr_type_);
     } break;
@@ -173,6 +258,9 @@ int Value::compare(const Value &other) const
       } break;
       case BOOLEANS: {
         return common::compare_int((void *)&this->num_value_.bool_value_, (void *)&other.num_value_.bool_value_);
+      }
+      case DATES: {
+        return common::compare_int((void *)&this->num_value_.date_value_, (void *)&other.num_value_.date_value_);
       }
       default: {
         LOG_WARN("unsupported type: %d", this->attr_type_);
@@ -209,6 +297,9 @@ int Value::get_int() const
     case BOOLEANS: {
       return (int)(num_value_.bool_value_);
     }
+    case DATES: {
+      return (int)num_value_.date_value_;
+    }
     default: {
       LOG_WARN("unknown data type. type=%d", attr_type_);
       return 0;
@@ -236,6 +327,9 @@ float Value::get_float() const
     } break;
     case BOOLEANS: {
       return float(num_value_.bool_value_);
+    } break;
+    case DATES: {
+      return float(num_value_.date_value_);
     } break;
     default: {
       LOG_WARN("unknown data type. type=%d", attr_type_);
@@ -278,10 +372,44 @@ bool Value::get_boolean() const
     case BOOLEANS: {
       return num_value_.bool_value_;
     } break;
+    case DATES: {
+      return num_value_.date_value_ != 0;
+    } break;
     default: {
       LOG_WARN("unknown data type. type=%d", attr_type_);
       return false;
     }
   }
   return false;
+}
+
+date_t Value::get_date() const
+{
+  switch (attr_type_) {
+    case CHARS: {  // 其实这里应该进行判断，但是懒得管了。
+      try {
+        return (date_t)(std::stol(str_value_));
+      } catch (std::exception const &ex) {
+        LOG_TRACE("failed to convert string to date. s=%s, ex=%s", str_value_.c_str(), ex.what());
+        return 0;
+      }
+    }
+    case INTS: {
+      return date_t(num_value_.int_value_);
+    }
+    case FLOATS: {
+      return date_t(num_value_.float_value_);
+    }
+    case BOOLEANS: {
+      return date_t(num_value_.bool_value_);
+    }
+    case DATES: {
+      return num_value_.date_value_;
+    }
+    default: {
+      LOG_WARN("unknown data type. type=%d", attr_type_);
+      return 0;
+    }
+  }
+  return 0;
 }

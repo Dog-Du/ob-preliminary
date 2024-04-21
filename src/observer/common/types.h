@@ -19,6 +19,7 @@ See the Mulan PSL v2 for more details. */
 #include <cstdint>
 using PageNum = int32_t;
 
+using date_t = uint32_t; // 用unsigned int32_t 作为date类型。
 /// 数据文件中按照页来组织，每一页会存放一些行数据(row)，或称为记录(record)
 /// 每一行(row/record)，都占用一个槽位(slot)，这些槽有一个编号，称为SlotNum
 using SlotNum = int32_t;

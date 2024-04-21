@@ -284,4 +284,17 @@ std::string double_to_str(double v)
 
   return std::string(buf, len);
 }
+
+std::string date_to_str(date_t v)
+{
+  std::stringstream os;
+  int               year  = v / 10000;
+  int               month = v / 100 % 100;
+  int               day   = v % 100;
+
+  os << (year >= 1000 ? "" : "0") << (year >= 100 ? "" : "0") << (year >= 10 ? "" : "0") << year << '-'
+     << (month >= 10 ? "" : "0") << month << '-' << (day >= 10 ? "" : "0") << day;
+  return os.str();
+}
+
 }  // namespace common

@@ -22,16 +22,19 @@ See the Mulan PSL v2 for more details. */
  */
 enum AttrType
 {
-  UNDEFINED,
-  CHARS,     ///< 字符串类型
-  INTS,      ///< 整数类型(4字节)
-  FLOATS,    ///< 浮点数类型(4字节)
+  UNDEFINED = 0,
+  CHARS,   ///< 字符串类型
+  INTS,    ///< 整数类型(4字节)
+  FLOATS,  ///< 浮点数类型(4字节)
+  DATES,  ///< 日期类型，可以用一个int表示。为了初始化的时候与int区分，应该是用unsigned_int，即 uint32_t
   BOOLEANS,  ///< boolean类型，当前不是由parser解析出来的，是程序内部使用的
 };
 
+using date_t = uint32_t;
 const char *attr_type_to_string(AttrType type);
 AttrType    attr_type_from_string(const char *s);
-
+bool        check_date(date_t v);
+date_t      str_to_date(const char *ch);
 /**
  * @brief 属性的值
  *
@@ -43,6 +46,7 @@ public:
 
   Value(AttrType attr_type, char *data, int length = 4) : attr_type_(attr_type) { this->set_data(data, length); }
 
+  explicit Value(date_t val);
   explicit Value(int val);
   explicit Value(float val);
   explicit Value(bool val);
@@ -59,8 +63,9 @@ public:
   void set_boolean(bool val);
   void set_string(const char *s, int len = 0);
   void set_value(const Value &value);
+  void set_date(date_t val);
 
-  std::string to_string() const;
+  std::string to_string() const; // 似乎这样直接输出就行了。
 
   int compare(const Value &other) const;
 
@@ -78,6 +83,7 @@ public:
   float       get_float() const;
   std::string get_string() const;
   bool        get_boolean() const;
+  date_t      get_date() const;
 
 private:
   AttrType attr_type_ = UNDEFINED;
@@ -85,9 +91,10 @@ private:
 
   union
   {
-    int   int_value_;
-    float float_value_;
-    bool  bool_value_;
+    int    int_value_;
+    float  float_value_;
+    bool   bool_value_;
+    date_t date_value_;
   } num_value_;
   std::string str_value_;
 };

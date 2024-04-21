@@ -1,0 +1,15 @@
+{
+	"fields" : 
+	[
+		{
+			"len" : 4,
+			"name" : "b",
+			"offset" : 0,
+			"type" : "dates",
+			"visible" : true
+		}
+	],
+	"indexes" : null,
+	"table_id" : 1,
+	"table_name" : "t3"
+}

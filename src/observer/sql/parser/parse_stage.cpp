@@ -24,6 +24,7 @@ See the Mulan PSL v2 for more details. */
 #include "event/session_event.h"
 #include "event/sql_event.h"
 #include "sql/parser/parse.h"
+#include "sql/parser/value.h"
 
 using namespace common;
 
@@ -48,12 +49,79 @@ RC ParseStage::handle_request(SQLStageEvent *sql_event)
   }
 
   std::unique_ptr<ParsedSqlNode> sql_node = std::move(parsed_sql_result.sql_nodes().front());
+
   if (sql_node->flag == SCF_ERROR) {
     // set error information to event
     rc = RC::SQL_SYNTAX;
     sql_result->set_return_code(rc);
     sql_result->set_state_string("Failed to parse sql");
     return rc;
+  }
+
+  // 枚举所有可能出现 日期字面量 的地方。因为在正则表达式的地方已经进行了筛选，
+  switch (sql_node->flag) {
+    case SCF_SELECT: {
+      for (auto &it : sql_node->selection.conditions) {
+        if (it.left_value.attr_type() == DATES && it.left_is_attr == 0 && !check_date(it.left_value.get_date())) {
+          rc = RC::VARIABLE_NOT_VALID;
+          sql_result->set_return_code(rc);
+          sql_result->set_state_string("Error date");
+          return rc;
+        }
+
+        if (it.right_value.attr_type() == DATES && it.right_is_attr == 0 && !check_date(it.right_value.get_date())) {
+          rc = RC::VARIABLE_NOT_VALID;
+          sql_result->set_return_code(rc);
+          sql_result->set_state_string("Error date");
+          return rc;
+        }
+      }
+    } break;
+    case SCF_INSERT: {
+      for (auto &it : sql_node->insertion.values) {
+        if (it.attr_type() == DATES && !check_date(it.get_date())) {
+          rc = RC::VARIABLE_NOT_VALID;
+          sql_result->set_return_code(rc);
+          sql_result->set_state_string("Error date");
+          return rc;
+        }
+      }
+    } break;
+    case SCF_UPDATE: {
+      for (auto &it : sql_node->update.conditions) {
+        if (it.left_value.attr_type() == DATES && it.left_is_attr == 0 && !check_date(it.left_value.get_date())) {
+          rc = RC::VARIABLE_NOT_VALID;
+          sql_result->set_return_code(rc);
+          sql_result->set_state_string("Error date");
+          return rc;
+        }
+
+        if (it.right_value.attr_type() == DATES && it.right_is_attr == 0 && !check_date(it.right_value.get_date())) {
+          rc = RC::VARIABLE_NOT_VALID;
+          sql_result->set_return_code(rc);
+          sql_result->set_state_string("Error date");
+          return rc;
+        }
+      }
+    } break;
+    case SCF_DELETE: {
+      for (auto &it : sql_node->deletion.conditions) {
+        if (it.left_value.attr_type() == DATES && it.left_is_attr == 0 && !check_date(it.left_value.get_date())) {
+          rc = RC::VARIABLE_NOT_VALID;
+          sql_result->set_return_code(rc);
+          sql_result->set_state_string("Error date");
+          return rc;
+        }
+
+        if (it.right_value.attr_type() == DATES && it.right_is_attr == 0 && !check_date(it.right_value.get_date())) {
+          rc = RC::VARIABLE_NOT_VALID;
+          sql_result->set_return_code(rc);
+          sql_result->set_state_string("Error date");
+          return rc;
+        }
+      }
+    } break;
+    default: break;
   }
 
   sql_event->set_sql_node(std::move(sql_node));
