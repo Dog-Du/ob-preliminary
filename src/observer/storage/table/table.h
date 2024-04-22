@@ -39,6 +39,7 @@ public:
   Table() = default;
   ~Table();
 
+  RC drop(const char *dir);
   /**
    * 创建一个表
    * @param path 元数据保存的文件(完整路径)

@@ -15,6 +15,7 @@ See the Mulan PSL v2 for more details. */
 #include <algorithm>
 #include <limits.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "common/defs.h"
 #include "common/lang/string.h"
@@ -24,10 +25,46 @@ See the Mulan PSL v2 for more details. */
 #include "storage/common/meta_util.h"
 #include "storage/index/bplus_tree_index.h"
 #include "storage/index/index.h"
+#include "storage/index/index_meta.h"
 #include "storage/record/record_manager.h"
 #include "storage/table/table.h"
 #include "storage/table/table_meta.h"
 #include "storage/trx/trx.h"
+
+RC Table::drop(const char *dir)
+{
+  RC          rc   = sync();
+  std::string path = table_meta_file(dir, name());
+  if (unlink(path.c_str()) != 0) {
+    LOG_ERROR("Failed to remove meta file = %s, error=%d",path.c_str(),errno);
+    rc = RC::FILE_REMOVE;
+    return rc;
+  }
+
+  std::string data_file = std::string(dir) + "/" + name() + TABLE_DATA_SUFFIX;
+
+  if (unlink(data_file.c_str()) != 0) {
+    LOG_ERROR("Failed to remove meta file = %s, error=%d",path.c_str(),errno);
+    rc = RC::FILE_REMOVE;
+    return rc;
+  }
+
+  const int index_num = table_meta_.index_num();
+
+  for (int i = 0; i < index_num; ++i) {
+    ((BplusTreeIndex *)indexes_[i])->close();
+    const IndexMeta *index_meta = table_meta_.index(i);
+    std::string      index_file = std::string(dir) + "/" + name() + "-" + index_meta->name() + TABLE_INDEX_SUFFIX;
+
+    if (unlink(index_file.c_str()) != 0) {
+      LOG_ERROR("Failed to remove meta file = %s, error=%d",path.c_str(),errno);
+      rc = RC::FILE_REMOVE;
+      return rc;
+    }
+  }
+  rc = RC::SUCCESS;
+  return rc;
+}
 
 Table::~Table()
 {
@@ -344,7 +381,7 @@ RC Table::create_index(Trx *trx, const FieldMeta *field_meta, const char *index_
 
   RC rc = new_index_meta.init(index_name, *field_meta);
   if (rc != RC::SUCCESS) {
-    LOG_INFO("Failed to init IndexMeta in table:%s, index_name:%s, field_name:%s", 
+    LOG_INFO("Failed to init IndexMeta in table:%s, index_name:%s, field_name:%s",
              name(), index_name, field_meta->name());
     return rc;
   }
@@ -364,7 +401,7 @@ RC Table::create_index(Trx *trx, const FieldMeta *field_meta, const char *index_
   RecordFileScanner scanner;
   rc = get_record_scanner(scanner, trx, true /*readonly*/);
   if (rc != RC::SUCCESS) {
-    LOG_WARN("failed to create scanner while creating index. table=%s, index=%s, rc=%s", 
+    LOG_WARN("failed to create scanner while creating index. table=%s, index=%s, rc=%s",
              name(), index_name, strrc(rc));
     return rc;
   }
@@ -435,7 +472,7 @@ RC Table::delete_record(const Record &record)
   RC rc = RC::SUCCESS;
   for (Index *index : indexes_) {
     rc = index->delete_entry(record.data(), &record.rid());
-    ASSERT(RC::SUCCESS == rc, 
+    ASSERT(RC::SUCCESS == rc,
            "failed to delete entry from index. table name=%s, index name=%s, rid=%s, rc=%s",
            name(), index->index_meta().name(), record.rid().to_string().c_str(), strrc(rc));
   }
