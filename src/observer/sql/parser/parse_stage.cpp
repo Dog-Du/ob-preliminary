@@ -24,6 +24,7 @@ See the Mulan PSL v2 for more details. */
 #include "event/session_event.h"
 #include "event/sql_event.h"
 #include "sql/parser/parse.h"
+#include "sql/parser/parse_defs.h"
 #include "sql/parser/value.h"
 
 using namespace common;
@@ -60,6 +61,23 @@ RC ParseStage::handle_request(SQLStageEvent *sql_event)
 
   // 枚举所有可能出现 日期字面量 的地方。因为在正则表达式的地方已经进行了筛选，
   switch (sql_node->flag) {
+    case SCF_SELECT: {
+      for (auto &it : sql_node->selection.conditions) {
+        if (it.left_value.attr_type() == DATES && it.left_is_attr == 0 && !check_date(it.left_value.get_date())) {
+          rc = RC::VARIABLE_NOT_VALID;
+          sql_result->set_return_code(rc);
+          // sql_result->set_state_string("Error date");
+          return rc;
+        }
+
+        if (it.right_value.attr_type() == DATES && it.right_is_attr == 0 && !check_date(it.right_value.get_date())) {
+          rc = RC::VARIABLE_NOT_VALID;
+          sql_result->set_return_code(rc);
+          // sql_result->set_state_string("Error date");
+          return rc;
+        }
+      }
+    } break;
     case SCF_INSERT: {
       for (auto &it : sql_node->insertion.values) {
         if (it.attr_type() == DATES && !check_date(it.get_date())) {
@@ -75,14 +93,14 @@ RC ParseStage::handle_request(SQLStageEvent *sql_event)
         if (it.left_value.attr_type() == DATES && it.left_is_attr == 0 && !check_date(it.left_value.get_date())) {
           rc = RC::VARIABLE_NOT_VALID;
           sql_result->set_return_code(rc);
-         // sql_result->set_state_string("Error date");
+          // sql_result->set_state_string("Error date");
           return rc;
         }
 
         if (it.right_value.attr_type() == DATES && it.right_is_attr == 0 && !check_date(it.right_value.get_date())) {
           rc = RC::VARIABLE_NOT_VALID;
           sql_result->set_return_code(rc);
-         // sql_result->set_state_string("Error date");
+          // sql_result->set_state_string("Error date");
           return rc;
         }
       }
