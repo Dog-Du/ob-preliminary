@@ -157,13 +157,12 @@ void Value::set_boolean(bool val)
 
 void Value::set_date(date_t val)
 {
+  if (attr_type_ == CHARS) {
+    str_value_.clear();
+  }
   attr_type_             = DATES;
   num_value_.date_value_ = val;
   length_                = sizeof(val);
-
-  if (!check_date(val)) {
-    LOG_WARN("%d can't convert to date type. warn in set_date",val);
-  }
 }
 
 void Value::set_string(const char *s, int len /*= 0*/)
