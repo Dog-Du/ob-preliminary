@@ -61,59 +61,62 @@ RC ParseStage::handle_request(SQLStageEvent *sql_event)
 
   // 枚举所有可能出现 日期字面量 的地方。因为在正则表达式的地方已经进行了筛选，
   // 但是因为部分非法日期，比如'2017-29-21'会被当成chars类型，而继续进行。
-  switch (sql_node->flag) {
-    case SCF_SELECT: {
-      for (auto &it : sql_node->selection.conditions) {
-        // 使用异或，一个是date一个不是date，则返回假，
-        if (it.left_value.attr_type() == DATES && it.left_is_attr == 0 && !check_date(it.left_value.get_date())) {
-          rc = RC::VARIABLE_NOT_VALID;
-          sql_result->set_return_code(rc);
-          // sql_result->set_state_string("Error date");
-          return rc;
-        }
+  // 解决方法：把日期判定放宽，统一在这里进行判断。
+  // 缺陷：因为日期格式是SSS的子集，所以如果类型是chars，而输入 '2024-04-22' 那么会因为类型不一致而无法插入。
+  // 解决缺陷的方法：完全对日期类型不进行过滤，全靠转化，
+  // 但是转化需要确定列的属性类型和插入、更新、查询的值的类型，因此不能放在解析阶段，必须推迟到resolve_stage阶段。
 
-        if (it.right_value.attr_type() == DATES && it.right_is_attr == 0 && !check_date(it.right_value.get_date())) {
-          rc = RC::VARIABLE_NOT_VALID;
-          sql_result->set_return_code(rc);
-          // sql_result->set_state_string("Error date");
-          return rc;
-        }
-      }
-    } break;
-    case SCF_INSERT: {
-      for (auto &it : sql_node->insertion.values) {
-        if (it.attr_type() == DATES && !check_date(it.get_date())) {
-          rc = RC::VARIABLE_NOT_VALID;
-          sql_result->set_return_code(rc);
-          // sql_result->set_state_string("Error date");
-          return rc;
-        }
-      }
-    } break;
-    case SCF_UPDATE: {
-      for (auto &it : sql_node->update.conditions) {
-        if ((it.left_value.attr_type() == DATES) ^ (it.right_value.attr_type() == DATES)) {
-          rc = RC::VARIABLE_NOT_VALID;
-          sql_result->set_return_code(rc);
-          return rc;
-        }
-        if (it.left_value.attr_type() == DATES && it.left_is_attr == 0 && !check_date(it.left_value.get_date())) {
-          rc = RC::VARIABLE_NOT_VALID;
-          sql_result->set_return_code(rc);
-          // sql_result->set_state_string("Error date");
-          return rc;
-        }
+  // switch (sql_node->flag) {
+  //   case SCF_SELECT: {
+  //     for (auto &it : sql_node->selection.conditions) {
+  //       if (it.left_is_attr == 1 && it.right_is_attr == 0 && it.right_value.attr_type() == CHARS &&
+  //           it.left_attr.attribute_name == attr_type_to_string(DATES)) {
+  //         date_t v = str_to_date(it.right_value.data());
 
-        if (it.right_value.attr_type() == DATES && it.right_is_attr == 0 && !check_date(it.right_value.get_date())) {
-          rc = RC::VARIABLE_NOT_VALID;
-          sql_result->set_return_code(rc);
-          // sql_result->set_state_string("Error date");
-          return rc;
-        }
-      }
-    } break;
-    default: break;
-  }
+  //         if (check_date(v)) {
+  //           it.right_value.set_date(v);
+  //         } else {
+  //           rc = RC::VARIABLE_NOT_VALID;
+  //           sql_result->set_return_code(rc);
+  //           return rc;
+  //         }
+  //       }
+  //     }
+  //   } break;
+  //   case SCF_INSERT: {
+  //     for (auto &it : sql_node->insertion.values) {
+  //       if (it.attr_type() == DATES && !check_date(it.get_date())) {
+  //         rc = RC::VARIABLE_NOT_VALID;
+  //         sql_result->set_return_code(rc);
+  //         // sql_result->set_state_string("Error date");
+  //         return rc;
+  //       }
+  //     }
+  //   } break;
+  //   case SCF_UPDATE: {
+  //     for (auto &it : sql_node->update.conditions) {
+  //       if ((it.left_value.attr_type() == DATES) ^ (it.right_value.attr_type() == DATES)) {
+  //         rc = RC::VARIABLE_NOT_VALID;
+  //         sql_result->set_return_code(rc);
+  //         return rc;
+  //       }
+  //       if (it.left_value.attr_type() == DATES && it.left_is_attr == 0 && !check_date(it.left_value.get_date())) {
+  //         rc = RC::VARIABLE_NOT_VALID;
+  //         sql_result->set_return_code(rc);
+  //         // sql_result->set_state_string("Error date");
+  //         return rc;
+  //       }
+
+  //       if (it.right_value.attr_type() == DATES && it.right_is_attr == 0 && !check_date(it.right_value.get_date())) {
+  //         rc = RC::VARIABLE_NOT_VALID;
+  //         sql_result->set_return_code(rc);
+  //         // sql_result->set_state_string("Error date");
+  //         return rc;
+  //       }
+  //     }
+  //   } break;
+  //   default: break;
+  // }
 
   sql_event->set_sql_node(std::move(sql_node));
 

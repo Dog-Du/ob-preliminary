@@ -14,6 +14,7 @@ See the Mulan PSL v2 for more details. */
 
 #include "sql/stmt/insert_stmt.h"
 #include "common/log/log.h"
+#include "sql/parser/value.h"
 #include "storage/db/db.h"
 #include "storage/table/table.h"
 
@@ -38,7 +39,7 @@ RC InsertStmt::create(Db *db, const InsertSqlNode &inserts, Stmt *&stmt)
   }
 
   // check the fields number
-  const Value     *values     = inserts.values.data();
+  Value     *values     = const_cast<Value *>(inserts.values.data());
   const int        value_num  = static_cast<int>(inserts.values.size());
   const TableMeta &table_meta = table->table_meta();
   const int        field_num  = table_meta.field_num() - table_meta.sys_field_num();
@@ -54,6 +55,13 @@ RC InsertStmt::create(Db *db, const InsertSqlNode &inserts, Stmt *&stmt)
     const AttrType   field_type = field_meta->type();
     const AttrType   value_type = values[i].attr_type();
     if (field_type != value_type) {  // TODO try to convert the value type to field type
+      if (value_type == CHARS && field_type == DATES) { // 这个时候获得了值的类型信息，可以转化，转化失败则报错即可。
+        date_t v = str_to_date(values[i].data());
+        if (check_date(v)) {
+          values[i].set_date(v);
+          continue;
+        }
+      }
       LOG_WARN("field type mismatch. table=%s, field=%s, field type=%d, value_type=%d",
           table_name, field_meta->name(), field_type, value_type);
       return RC::SCHEMA_FIELD_TYPE_MISMATCH;

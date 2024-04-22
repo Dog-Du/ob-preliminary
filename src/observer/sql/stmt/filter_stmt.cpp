@@ -16,6 +16,8 @@ See the Mulan PSL v2 for more details. */
 #include "common/lang/string.h"
 #include "common/log/log.h"
 #include "common/rc.h"
+#include "sql/parser/value.h"
+#include "sql/stmt/delete_stmt.h"
 #include "storage/db/db.h"
 #include "storage/table/table.h"
 
@@ -35,7 +37,39 @@ RC FilterStmt::create(Db *db, Table *default_table, std::unordered_map<std::stri
 
   FilterStmt *tmp_stmt = new FilterStmt();
   for (int i = 0; i < condition_num; i++) {
+    // 在这里得知表和值的类型，可以进行转化，
+    // select、delete都需要在这里进行筛选，所以在这里进行修改可以一劳两逸。
+    ///TODO: update暂时不知道需要怎么做。
+    if (conditions[i].left_is_attr == 0 && conditions[i].right_is_attr == 1 &&
+        conditions[i].left_value.attr_type() == CHARS &&
+        default_table->table_meta().field(conditions[i].right_attr.attribute_name.c_str())->type() == DATES) {
+      date_t v = str_to_date(conditions[i].left_value.data());
+
+      if (check_date(v)) {
+        Value *value = const_cast<Value *>(&conditions[i].left_value);
+        value->set_date(v);
+      } else {
+        rc = RC::VARIABLE_NOT_VALID;
+        delete tmp_stmt;
+        return rc;
+      }
+    }
+
     FilterUnit *filter_unit = nullptr;
+    if (conditions[i].right_is_attr == 0 && conditions[i].left_is_attr == 1 &&
+        conditions[i].right_value.attr_type() == CHARS &&
+        default_table->table_meta().field(conditions[i].left_attr.attribute_name.c_str())->type() == DATES) {
+      date_t v = str_to_date(conditions[i].right_value.data());
+
+      if (check_date(v)) {
+        Value *value = const_cast<Value *>(&conditions[i].right_value);
+        value->set_date(v);
+      } else {
+        rc = RC::VARIABLE_NOT_VALID;
+        delete tmp_stmt;
+        return rc;
+      }
+    }
 
     rc = create_filter_unit(db, default_table, tables, conditions[i], filter_unit);
     if (rc != RC::SUCCESS) {
