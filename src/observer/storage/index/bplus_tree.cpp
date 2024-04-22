@@ -598,7 +598,7 @@ bool InternalIndexNodeHandler::validate(const KeyComparator &comparator, DiskBuf
       Frame *child_frame;
       RC     rc = bp->get_this_page(page_num, &child_frame);
       if (rc != RC::SUCCESS) {
-        LOG_WARN("failed to fetch child page while validate internal page. page num=%d, rc=%d:%s", 
+        LOG_WARN("failed to fetch child page while validate internal page. page num=%d, rc=%d:%s",
                  page_num, rc, strrc(rc));
       } else {
         IndexNodeHandler child_node(header_, child_frame);

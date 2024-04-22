@@ -23,6 +23,7 @@ See the Mulan PSL v2 for more details. */
 #include <string.h>
 
 #include "common/lang/comparator.h"
+#include "common/lang/string.h"
 #include "common/log/log.h"
 #include "sql/parser/parse_defs.h"
 #include "storage/buffer/disk_buffer_pool.h"
@@ -148,6 +149,9 @@ public:
           str.push_back(v[i]);
         }
         return str;
+      }
+      case DATES: {
+        return common::date_to_str(*(date_t *)v);
       }
       default: {
         ASSERT(false, "unknown attr type. %d", attr_type_);
