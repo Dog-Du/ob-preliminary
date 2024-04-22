@@ -60,9 +60,11 @@ RC ParseStage::handle_request(SQLStageEvent *sql_event)
   }
 
   // 枚举所有可能出现 日期字面量 的地方。因为在正则表达式的地方已经进行了筛选，
+  // 但是因为部分非法日期，比如'2017-29-21'会被当成chars类型，而继续进行。
   switch (sql_node->flag) {
     case SCF_SELECT: {
       for (auto &it : sql_node->selection.conditions) {
+        // 使用异或，一个是date一个不是date，则返回假，
         if (it.left_value.attr_type() == DATES && it.left_is_attr == 0 && !check_date(it.left_value.get_date())) {
           rc = RC::VARIABLE_NOT_VALID;
           sql_result->set_return_code(rc);
@@ -90,6 +92,11 @@ RC ParseStage::handle_request(SQLStageEvent *sql_event)
     } break;
     case SCF_UPDATE: {
       for (auto &it : sql_node->update.conditions) {
+        if ((it.left_value.attr_type() == DATES) ^ (it.right_value.attr_type() == DATES)) {
+          rc = RC::VARIABLE_NOT_VALID;
+          sql_result->set_return_code(rc);
+          return rc;
+        }
         if (it.left_value.attr_type() == DATES && it.left_is_attr == 0 && !check_date(it.left_value.get_date())) {
           rc = RC::VARIABLE_NOT_VALID;
           sql_result->set_return_code(rc);

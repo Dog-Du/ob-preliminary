@@ -133,7 +133,7 @@ EXPLAIN                                 RETURN_TOKEN(EXPLAIN);
 "*" |
 "/"                                     { return yytext[0]; }
 
-{QUOTE}[0-9]{4}\-(0?[1-9]|1[012])\-(0?[1-9]|[12][0-9]|3[01]){QUOTE} yylval->string=strdup(yytext); RETURN_TOKEN(DATE_STR);  // 使用正则表达式过滤DATE。需要在yacc文件中增加 %token <string> DATE_STR
+{QUOTE}[0-9]{4}\-([0-9]{1}|[0-9]{2})\-([0-9]{1}|[0-9]{2}){QUOTE} yylval->string=strdup(yytext); RETURN_TOKEN(DATE_STR);  // 使用正则表达式过滤DATE。需要在yacc文件中增加 %token <string> DATE_STR.相比参考，这里把DATE的限制给放宽了，只要是 **** - *|** - *|** 的全部可以过滤成DATE。
 \"[^"]*\"                               yylval->string = strdup(yytext); RETURN_TOKEN(SSS);
 '[^']*\'                                yylval->string = strdup(yytext); RETURN_TOKEN(SSS);
 
