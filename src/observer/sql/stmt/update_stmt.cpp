@@ -18,12 +18,14 @@ See the Mulan PSL v2 for more details. */
 #include "sql/parser/value.h"
 #include "sql/stmt/delete_stmt.h"
 #include "sql/stmt/filter_stmt.h"
+#include "storage/field/field_meta.h"
+#include "storage/table/table_meta.h"
 #include <cstddef>
 #include <string>
 #include <unordered_map>
 
-UpdateStmt::UpdateStmt(Table *table, const Value &value, FilterStmt *filter_stmt, const std::string &attr_name)
-    : attr_name_(attr_name), table_(table), value_(new Value(value)), filter_stmt_(filter_stmt)
+UpdateStmt::UpdateStmt(Table *table, const Value &value, FilterStmt *filter_stmt, int index_attr)
+    : attr_index_(index_attr), table_(table), value_(new Value(value)), filter_stmt_(filter_stmt)
 {}
 
 UpdateStmt::~UpdateStmt()
@@ -32,6 +34,7 @@ UpdateStmt::~UpdateStmt()
     delete filter_stmt_;
   }
 }
+
 RC UpdateStmt::create(Db *db, const UpdateSqlNode &update, Stmt *&stmt)
 {
   // TOD
@@ -53,17 +56,42 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update, Stmt *&stmt)
     return rc;
   }
 
-  if (update.value.attr_type() == CHARS && table->table_meta().field(update.attribute_name.c_str())->type() == DATES) {
-    date_t v = str_to_date(update.value.data());
-    if (check_date(v)) {
-      Value *value = const_cast<Value *>(&update.value);
-      value->set_date(v);
-    } else {
-      LOG_WARN("can't convert to date in update.");
+  {
+    const FieldMeta *field_meta = table->table_meta().field(update.attribute_name.c_str());
+
+    if (field_meta == nullptr) {
+      LOG_WARN("invalid value. rc=%d:%s", rc, strrc(rc));
+      return RC::VARIABLE_NOT_VALID;
+    }
+
+    if (update.value.attr_type() == CHARS &&
+        (field_meta = table->table_meta().field(update.attribute_name.c_str())) != nullptr &&
+        field_meta->type() == DATES) {
+      date_t v = str_to_date(update.value.data());
+      if (check_date(v)) {
+        Value *value = const_cast<Value *>(&update.value);
+        value->set_date(v);
+      } else {
+        LOG_WARN("can't convert to date in update.");
+        return RC::VARIABLE_NOT_VALID;
+      }
+    }
+
+    if (field_meta->type() != update.value.attr_type()) {
+      LOG_WARN("invalid value. rc=%d:%s", rc, strrc(rc));
       return RC::VARIABLE_NOT_VALID;
     }
   }
+  const TableMeta table_meta  = table->table_meta();
+  int             field_num   = table_meta.field_num();
+  auto           &field_metas = *table_meta.field_metas();
 
-  stmt = new UpdateStmt(table, update.value, filter_stmt, update.attribute_name);
-  return rc;
+  for (int i = 0; i < field_num; ++i) {
+    if (field_metas[i].name() == update.attribute_name) {
+      stmt = new UpdateStmt(table, update.value, filter_stmt, i);
+      return rc;
+    }
+  }
+
+  return RC::VARIABLE_NOT_VALID;
 }

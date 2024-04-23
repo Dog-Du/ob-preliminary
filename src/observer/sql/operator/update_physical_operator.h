@@ -29,7 +29,9 @@ class UpdateStmt;
 class UpdatePhysicalOperator : public PhysicalOperator
 {
 public:
-  UpdatePhysicalOperator(Table *table, std::shared_ptr<Value> &ptr) : table_(table), value_(ptr) {}
+  UpdatePhysicalOperator(Table *table, std::shared_ptr<Value> &ptr, int attr_index)
+      : table_(table), value_(ptr), attr_index_(attr_index)
+  {}
 
   virtual ~UpdatePhysicalOperator() = default;
 
@@ -45,4 +47,5 @@ private:
   Table                 *table_ = nullptr;
   Trx                   *trx_   = nullptr;
   std::shared_ptr<Value> value_;
+  int                    attr_index_ = 0;
 };

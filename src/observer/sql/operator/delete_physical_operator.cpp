@@ -42,7 +42,9 @@ RC DeletePhysicalOperator::next()
     return RC::RECORD_EOF;
   }
 
-  PhysicalOperator *child = children_[0].get();
+  PhysicalOperator   *child = children_[0].get();
+  std::vector<Record> delete_record;
+
   while (RC::SUCCESS == (rc = child->next())) {
     Tuple *tuple = child->current_tuple();
     if (nullptr == tuple) {
@@ -51,8 +53,11 @@ RC DeletePhysicalOperator::next()
     }
 
     RowTuple *row_tuple = static_cast<RowTuple *>(tuple);
-    Record   &record    = row_tuple->record();
-    rc                  = trx_->delete_record(table_, record);
+    delete_record.emplace_back(row_tuple->record());
+  }
+
+  for (auto &record : delete_record) {
+    rc = trx_->delete_record(table_, record);
     if (rc != RC::SUCCESS) {
       LOG_WARN("failed to delete record: %s", strrc(rc));
       return rc;

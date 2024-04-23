@@ -15,9 +15,11 @@ See the Mulan PSL v2 for more details. */
 #pragma once
 
 #include "common/rc.h"
+#include "sql/parser/value.h"
 #include "sql/stmt/filter_stmt.h"
 #include "sql/stmt/stmt.h"
 #include "storage/db/db.h"
+#include <memory>
 
 class Table;
 
@@ -29,19 +31,24 @@ class UpdateStmt : public Stmt
 {
 public:
   UpdateStmt() = default;
-  UpdateStmt(Table *table, const Value &value, FilterStmt *filter_stmt);
+  UpdateStmt(Table *table, const Value &value, FilterStmt *filter_stmt, int index_attr);
+
   ~UpdateStmt();
+
 public:
   static RC create(Db *db, const UpdateSqlNode &update_sql, Stmt *&stmt);
 
 public:
-  Table       *table() const { return table_; }
-  const Value &value() const { return value_; }
-  StmtType     type() const { return StmtType::UPDATE; }
-  FilterStmt  *filter_stmt() const { return filter_stmt_; }
+  Table                  *table() const { return table_; }
+  const Value            &value() const { return *value_; }
+  StmtType                type() const { return StmtType::UPDATE; }
+  FilterStmt             *filter_stmt() const { return filter_stmt_; }
+  int                     attr_index() const { return attr_index_; }
+  std::shared_ptr<Value> &value_ptr() { return value_; }
 
 private:
-  Table      *table_ = nullptr;
-  Value       value_;
-  FilterStmt *filter_stmt_;
+  int                    attr_index_ = 0;
+  Table                 *table_      = nullptr;
+  std::shared_ptr<Value> value_;
+  FilterStmt            *filter_stmt_;
 };

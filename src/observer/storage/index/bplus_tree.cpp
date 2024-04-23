@@ -1770,9 +1770,9 @@ RC BplusTreeScanner::next_entry(RID &rid)
   LeafIndexNodeHandler node(tree_handler_.file_header_, current_frame_);
   if (iter_index_ < node.size()) {
     if (touch_end()) {
+      latch_memo_.release();
       return RC::RECORD_EOF;
     }
-
     fetch_item(rid);
     return RC::SUCCESS;
   }
@@ -1780,6 +1780,7 @@ RC BplusTreeScanner::next_entry(RID &rid)
   RC      rc            = RC::SUCCESS;
   PageNum next_page_num = node.next_page();
   if (BP_INVALID_PAGE_NUM == next_page_num) {
+    latch_memo_.release();
     return RC::RECORD_EOF;
   }
 

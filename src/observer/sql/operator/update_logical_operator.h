@@ -25,14 +25,16 @@ See the Mulan PSL v2 for more details. */
 class UpdateLogicalOperator : public LogicalOperator
 {
 public:
-  UpdateLogicalOperator(Table *table, std::shared_ptr<Value> &ptr);
+  UpdateLogicalOperator(Table *table, std::shared_ptr<Value> &ptr, int attr_index);
   virtual ~UpdateLogicalOperator() = default;
 
   LogicalOperatorType     type() const override { return LogicalOperatorType::UPDATE; }
   Table                  *table() const { return table_; }
   std::shared_ptr<Value> &value_ptr() { return value_; }
+  int                     attr_index() const { return attr_index_; }
 
 private:
   Table                 *table_ = nullptr;
   std::shared_ptr<Value> value_;
+  int                    attr_index_;
 };
