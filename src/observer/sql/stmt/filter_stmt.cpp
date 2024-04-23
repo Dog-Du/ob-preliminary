@@ -55,7 +55,6 @@ RC FilterStmt::create(Db *db, Table *default_table, std::unordered_map<std::stri
       }
     }
 
-    FilterUnit *filter_unit = nullptr;
     if (conditions[i].right_is_attr == 0 && conditions[i].left_is_attr == 1 &&
         conditions[i].right_value.attr_type() == CHARS &&
         default_table->table_meta().field(conditions[i].left_attr.attribute_name.c_str())->type() == DATES) {
@@ -71,6 +70,7 @@ RC FilterStmt::create(Db *db, Table *default_table, std::unordered_map<std::stri
       }
     }
 
+    FilterUnit *filter_unit = nullptr;
     rc = create_filter_unit(db, default_table, tables, conditions[i], filter_unit);
     if (rc != RC::SUCCESS) {
       delete tmp_stmt;
