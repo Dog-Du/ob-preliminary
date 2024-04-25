@@ -18,6 +18,7 @@ See the Mulan PSL v2 for more details. */
 
 #include "common/rc.h"
 #include "sql/parser/parse_defs.h"
+#include "sql/parser/value.h"
 
 namespace Json {
 class Value;
@@ -42,6 +43,7 @@ public:
   int         offset() const;
   int         len() const;
   bool        visible() const;
+  void        set_attr_type(AttrType attr_type) { attr_type_ = attr_type; }
 
 public:
   void desc(std::ostream &os) const;

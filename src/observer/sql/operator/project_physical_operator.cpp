@@ -38,7 +38,7 @@ RC ProjectPhysicalOperator::next()
   if (children_.empty()) {
     return RC::RECORD_EOF;
   }
-  return children_[0]->next();
+  return children_[0]->next(); // 可见，ProjectPhysicalOperator其实什么也没干，只是套了个壳子。
 }
 
 RC ProjectPhysicalOperator::close()
@@ -48,9 +48,10 @@ RC ProjectPhysicalOperator::close()
   }
   return RC::SUCCESS;
 }
+
 Tuple *ProjectPhysicalOperator::current_tuple()
 {
-  tuple_.set_tuple(children_[0]->current_tuple());
+  tuple_.set_tuple(children_[0]->current_tuple()); // 然后再current_tuple处，把壳子给套上，让他可以变成ProjectPhysical
   return &tuple_;
 }
 

@@ -14,6 +14,8 @@ See the Mulan PSL v2 for more details. */
 
 #pragma once
 
+#include "sql/parser/parse_defs.h"
+#include "sql/parser/value.h"
 #include "storage/field/field_meta.h"
 #include "storage/table/table.h"
 
@@ -25,7 +27,10 @@ class Field
 {
 public:
   Field() = default;
-  Field(const Table *table, const FieldMeta *field) : table_(table), field_(field) {}
+  Field(const Table *table, const FieldMeta *field,
+      AggregationType agg_type = AggregationType::INVALID_TYPE)
+      : table_(table), field_(field), agg_type_(agg_type)
+  {}
   Field(const Field &) = default;
 
   const Table     *table() const { return table_; }
@@ -33,18 +38,18 @@ public:
 
   AttrType attr_type() const { return field_->type(); }
 
-  const char *table_name() const { return table_->name(); }
-  const char *field_name() const { return field_->name(); }
-
-  void set_table(const Table *table) { this->table_ = table; }
-  void set_field(const FieldMeta *field) { this->field_ = field; }
-
-  void set_int(Record &record, int value);
-  int  get_int(const Record &record);
+  const char     *table_name() const { return table_->name(); }
+  const char     *field_name() const { return field_->name(); }
+  AggregationType agg_type() const { return agg_type_; }
+  void            set_table(const Table *table) { this->table_ = table; }
+  void            set_field(const FieldMeta *field) { this->field_ = field; }
+  void            set_int(Record &record, int value);
+  int             get_int(const Record &record);
 
   const char *get_data(const Record &record);
 
 private:
-  const Table     *table_ = nullptr;
-  const FieldMeta *field_ = nullptr;
+  const Table     *table_    = nullptr;
+  const FieldMeta *field_    = nullptr;
+  AggregationType  agg_type_ = AggregationType::INVALID_TYPE;
 };

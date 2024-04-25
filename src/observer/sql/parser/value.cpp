@@ -19,12 +19,13 @@ See the Mulan PSL v2 for more details. */
 #include <sstream>
 
 // 这里的名字数组的下标应该是和value.h中的枚举类型的值是一一对应的，能不能标记清晰一点。
-const char *ATTR_TYPE_NAME[] = {"undefined", "chars", "ints", "floats", "dates", "booleans"};
+const char *ATTR_TYPE_NAME[] = {
+    "undefined", "chars", "ints", "floats", "dates", "nulls", "booleans"};
 
 const char *attr_type_to_string(AttrType type)
 {
   // 妈的，这句话表示了，DATES应该放在,chars 和 dates 中间，不能放在booleans后面，不然会出问题。
-  if (type >= UNDEFINED && type <= DATES) {  // 修改成DATES。
+  if (type >= UNDEFINED && type <= NULLS) {  // 修改成DATES。
     return ATTR_TYPE_NAME[type];
   }
   return "unknown";
@@ -69,7 +70,7 @@ date_t str_to_date(const char *ch)
     }
 
     if (cnt != 2) {
-      return 0; //
+      return 0;  //
     }
   }
 
@@ -96,6 +97,33 @@ date_t str_to_date(const char *ch)
   }
 
   return y * 10000 + m * 100 + d;
+}
+
+void Value::max(const Value &val)
+{
+  if (compare(val) < 0) {
+    *this = val;
+  }
+}
+
+void Value::min(const Value &val)
+{
+  if (compare(val) > 0) {
+    *this = val;
+  }
+}
+
+void Value::add(const Value &val)
+{
+  switch (attr_type_) {
+    case AttrType::INTS: {
+      num_value_.int_value_ += val.num_value_.int_value_;
+    } break;
+    case AttrType::FLOATS: {
+      num_value_.float_value_ += val.num_value_.float_value_;
+    } break;
+    default: break;
+  }
 }
 
 Value::Value(int val) { set_int(val); }
@@ -179,7 +207,7 @@ void Value::set_string(const char *s, int len /*= 0*/)
 
 void Value::set_value(const Value &value)
 {
-  switch (value.attr_type_) {
+  switch (value.attr_type_) {  // null 待修改。
     case INTS: {
       set_int(value.get_int());
     } break;
@@ -198,6 +226,9 @@ void Value::set_value(const Value &value)
     case DATES: {
       set_date(value.get_date());
     } break;
+    case NULLS: {
+      break;
+    }
   }
 }
 
@@ -244,10 +275,12 @@ int Value::compare(const Value &other) const
   if (this->attr_type_ == other.attr_type_) {
     switch (this->attr_type_) {
       case INTS: {
-        return common::compare_int((void *)&this->num_value_.int_value_, (void *)&other.num_value_.int_value_);
+        return common::compare_int(
+            (void *)&this->num_value_.int_value_, (void *)&other.num_value_.int_value_);
       } break;
       case FLOATS: {
-        return common::compare_float((void *)&this->num_value_.float_value_, (void *)&other.num_value_.float_value_);
+        return common::compare_float(
+            (void *)&this->num_value_.float_value_, (void *)&other.num_value_.float_value_);
       } break;
       case CHARS: {
         return common::compare_string((void *)this->str_value_.c_str(),
@@ -256,10 +289,12 @@ int Value::compare(const Value &other) const
             other.str_value_.length());
       } break;
       case BOOLEANS: {
-        return common::compare_int((void *)&this->num_value_.bool_value_, (void *)&other.num_value_.bool_value_);
+        return common::compare_int(
+            (void *)&this->num_value_.bool_value_, (void *)&other.num_value_.bool_value_);
       }
       case DATES: {
-        return common::compare_int((void *)&this->num_value_.date_value_, (void *)&other.num_value_.date_value_);
+        return common::compare_int(
+            (void *)&this->num_value_.date_value_, (void *)&other.num_value_.date_value_);
       }
       default: {
         LOG_WARN("unsupported type: %d", this->attr_type_);

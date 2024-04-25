@@ -15,8 +15,11 @@ See the Mulan PSL v2 for more details. */
 #include "sql/stmt/select_stmt.h"
 #include "common/lang/string.h"
 #include "common/log/log.h"
+#include "sql/parser/parse_defs.h"
+#include "sql/parser/value.h"
 #include "sql/stmt/filter_stmt.h"
 #include "storage/db/db.h"
+#include "storage/field/field_meta.h"
 #include "storage/table/table.h"
 
 SelectStmt::~SelectStmt()
@@ -65,26 +68,42 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
 
   // collect query fields in `select` statement
   std::vector<Field> query_fields;
+
+  // 倒序遍历，应该是为了和输入的顺序一致，至于为什么不一致我也不知道。
   for (int i = static_cast<int>(select_sql.attributes.size()) - 1; i >= 0; i--) {
     const RelAttrSqlNode &relation_attr = select_sql.attributes[i];
-
+    
     if (common::is_blank(relation_attr.relation_name.c_str()) &&
         0 == strcmp(relation_attr.attribute_name.c_str(), "*")) {
-      for (Table *table : tables) {
-        wildcard_fields(table, query_fields);
+      // 这个if考虑了，from中table需要join的情况，所以需要遍历，同时，特判了属性为 *
+      // 的情况，这个地方不需要对agg处理。
+      if (relation_attr.agg_type == AggregationType::COUNT_STAR_TYPE) {
+        FieldMeta *field_meta = new FieldMeta("*", AttrType::INTS, 4, 4, true);
+        Table     *table      = new Table;
+        query_fields.push_back(Field(table, field_meta, AggregationType::COUNT_STAR_TYPE));
+      } else {
+        for (Table *table : tables) {
+          wildcard_fields(table, query_fields);
+        }
       }
-
     } else if (!common::is_blank(relation_attr.relation_name.c_str())) {
-      const char *table_name = relation_attr.relation_name.c_str();
-      const char *field_name = relation_attr.attribute_name.c_str();
+      const char *table_name = relation_attr.relation_name.c_str();   // 表名
+      const char *field_name = relation_attr.attribute_name.c_str();  // 属性名。
 
       if (0 == strcmp(table_name, "*")) {
+        // 同样，这个是特判处理 * 。
         if (0 != strcmp(field_name, "*")) {
           LOG_WARN("invalid field name while table is *. attr=%s", field_name);
           return RC::SCHEMA_FIELD_MISSING;
         }
-        for (Table *table : tables) {
-          wildcard_fields(table, query_fields);
+        if (relation_attr.agg_type == AggregationType::COUNT_STAR_TYPE) {
+          FieldMeta *field_meta = new FieldMeta("*", AttrType::INTS, 4, 4, true);
+          Table     *table      = new Table;
+          query_fields.push_back(Field(table, field_meta, AggregationType::COUNT_STAR_TYPE));
+        } else {
+          for (Table *table : tables) {
+            wildcard_fields(table, query_fields);
+          }
         }
       } else {
         auto iter = table_map.find(table_name);
@@ -94,8 +113,14 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
         }
 
         Table *table = iter->second;
-        if (0 == strcmp(field_name, "*")) {
-          wildcard_fields(table, query_fields);
+        if (0 == strcmp(field_name, "*")) {  // 处理 * 。
+          if (relation_attr.agg_type == AggregationType::COUNT_STAR_TYPE) {
+            FieldMeta *field_meta = new FieldMeta("*", AttrType::INTS, 4, 4, true);
+            Table     *table      = new Table;
+            query_fields.push_back(Field(table, field_meta, AggregationType::COUNT_STAR_TYPE));
+          } else {
+            wildcard_fields(table, query_fields);
+          }
         } else {
           const FieldMeta *field_meta = table->table_meta().field(field_name);
           if (nullptr == field_meta) {
@@ -103,7 +128,7 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
             return RC::SCHEMA_FIELD_MISSING;
           }
 
-          query_fields.push_back(Field(table, field_meta));
+          query_fields.push_back(Field(table, field_meta, relation_attr.agg_type));
         }
       }
     } else {
@@ -119,7 +144,7 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
         return RC::SCHEMA_FIELD_MISSING;
       }
 
-      query_fields.push_back(Field(table, field_meta));
+      query_fields.push_back(Field(table, field_meta, relation_attr.agg_type));
     }
   }
 
@@ -144,7 +169,8 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
   }
 
   // everything alright
-  SelectStmt *select_stmt = new SelectStmt();
+  SelectStmt *select_stmt = new SelectStmt(
+      !query_fields.empty() && query_fields.front().agg_type() != AggregationType::INVALID_TYPE);
   // TODO add expression copy
   select_stmt->tables_.swap(tables);
   select_stmt->query_fields_.swap(query_fields);

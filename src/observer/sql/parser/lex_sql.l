@@ -96,6 +96,13 @@ SYNC                                    RETURN_TOKEN(SYNC);
 SELECT                                  RETURN_TOKEN(SELECT);
 CALC                                    RETURN_TOKEN(CALC);
 FROM                                    RETURN_TOKEN(FROM);
+
+MAX                                     RETURN_TOKEN(MAX);
+SUM                                     RETURN_TOKEN(SUM);
+MIN                                     RETURN_TOKEN(MIN);
+COUNT                                   RETURN_TOKEN(COUNT);
+AVG                                     RETURN_TOKEN(AVG);
+
 WHERE                                   RETURN_TOKEN(WHERE);
 AND                                     RETURN_TOKEN(AND);
 INSERT                                  RETURN_TOKEN(INSERT);
@@ -133,12 +140,11 @@ EXPLAIN                                 RETURN_TOKEN(EXPLAIN);
 "*" |
 "/"                                     { return yytext[0]; }
 
-/**
- * {QUOTE}[0-9]{4}\-([0-9]{1}|[0-9]{2})\-([0-9]{1}|[0-9]{2}){QUOTE} yylval->string=strdup(yytext); RETURN_TOKEN(DATE_STR);
- * 使用正则表达式过滤DATE。需要在yacc文件中增加 %token <string> DATE_STR.相比参考，这里把DATE的限制给放宽了，只要是 **** - *|** - *|** 的全部可以过滤成DATE。至于日期的合理性判断，则由之后的函数判断。
- * 但是，其实最好的是，在这里写一个完备的正则表达式，可以完全找到所有合法的日期。虽然会出现另一个问题：非法日期会被当成chars，需要进一步判断。
- * 所以两害取其轻，选择放宽 -> 进一步发现问题：因为chars和date有交集，所以chars类型可能会被识别成date，这是不合理的，所以完全取消date_str，全靠之后的转化。
-**/
+
+ /*{QUOTE}[0-9]{4}\-([0-9]{1}|[0-9]{2})\-([0-9]{1}|[0-9]{2}){QUOTE} yylval->string=strdup(yytext); RETURN_TOKEN(DATE_STR); */
+ /* 使用正则表达式过滤DATE。需要在yacc文件中增加 %token <string> DATE_STR.相比参考，这里把DATE的限制给放宽了，只要是 **** - *|** - *|** 的全部可以过滤成DATE。至于日期的合理性判断，则由之后的函数判断。*/
+ /* 但是，其实最好的是，在这里写一个完备的正则表达式，可以完全找到所有合法的日期。虽然会出现另一个问题：非法日期会被当成chars，需要进一步判断。*/
+ /* 所以两害取其轻，选择放宽 -> 进一步发现问题：因为chars和date有交集，所以chars类型可能会被识别成date，这是不合理的，所以完全取消date_str，全靠之后的转化。*/
 
 \"[^"]*\"                               yylval->string = strdup(yytext); RETURN_TOKEN(SSS);
 '[^']*\'                                yylval->string = strdup(yytext); RETURN_TOKEN(SSS);

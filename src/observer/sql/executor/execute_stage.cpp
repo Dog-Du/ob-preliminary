@@ -22,12 +22,15 @@ See the Mulan PSL v2 for more details. */
 #include "event/sql_event.h"
 #include "sql/executor/command_executor.h"
 #include "sql/operator/calc_physical_operator.h"
+#include "sql/parser/parse_defs.h"
 #include "sql/stmt/select_stmt.h"
 #include "sql/stmt/stmt.h"
 #include "storage/default/default_handler.h"
 
 using namespace std;
 using namespace common;
+
+const char *AGG_TYPE_NAME[] = {"COUNT", "SUM", "MIN", "MAX", "AVG", "COUNT"};
 
 RC ExecuteStage::handle_request(SQLStageEvent *sql_event)
 {
@@ -69,16 +72,22 @@ RC ExecuteStage::handle_request_with_physical_operator(SQLStageEvent *sql_event)
       bool        with_table_name = select_stmt->tables().size() > 1;
 
       for (const Field &field : select_stmt->query_fields()) {
-        if (with_table_name) {
-          schema.append_cell(field.table_name(), field.field_name());
+        string field_name = field.field_name();
+        if (field.agg_type() != AggregationType::INVALID_TYPE) {
+          field_name = std::string(AGG_TYPE_NAME[field.agg_type()]) + "(" + field_name + ")";
+        }
+
+        if (with_table_name && field.table() != nullptr) {
+          schema.append_cell(field.table_name(), field_name.c_str());
         } else {
-          schema.append_cell(field.field_name());
+          schema.append_cell(field_name.c_str());
         }
       }
     } break;
 
     case StmtType::CALC: {
-      CalcPhysicalOperator *calc_operator = static_cast<CalcPhysicalOperator *>(physical_operator.get());
+      CalcPhysicalOperator *calc_operator =
+          static_cast<CalcPhysicalOperator *>(physical_operator.get());
       for (const unique_ptr<Expression> &expr : calc_operator->expressions()) {
         schema.append_cell(expr->name().c_str());
       }

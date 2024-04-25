@@ -26,7 +26,9 @@ enum AttrType
   CHARS,   ///< 字符串类型
   INTS,    ///< 整数类型(4字节)
   FLOATS,  ///< 浮点数类型(4字节)
-  DATES,  ///< 日期类型，可以用一个int表示。为了初始化的时候与int区分，应该是用unsigned_int，即 uint32_t
+  DATES,  ///< 日期类型，可以用一个int表示。为了初始化的时候与int区分，应该是用unsigned_int，即
+          ///< uint32_t
+  NULLS,
   BOOLEANS,  ///< boolean类型，当前不是由parser解析出来的，是程序内部使用的
 };
 
@@ -44,7 +46,10 @@ class Value
 public:
   Value() = default;
 
-  Value(AttrType attr_type, char *data, int length = 4) : attr_type_(attr_type) { this->set_data(data, length); }
+  Value(AttrType attr_type, char *data, int length = 4) : attr_type_(attr_type)
+  {
+    this->set_data(data, length);
+  }
 
   explicit Value(date_t val);
   explicit Value(int val);
@@ -64,8 +69,11 @@ public:
   void set_string(const char *s, int len = 0);
   void set_value(const Value &value);
   void set_date(date_t val);
+  void add(const Value &val);
+  void min(const Value &val);
+  void max(const Value &val);
 
-  std::string to_string() const; // 似乎这样直接输出就行了。
+  std::string to_string() const;  // 似乎这样直接输出就行了。
 
   int compare(const Value &other) const;
 

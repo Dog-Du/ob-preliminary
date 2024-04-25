@@ -22,6 +22,18 @@ See the Mulan PSL v2 for more details. */
 
 class Expression;
 
+enum AggregationType
+{
+  COUNT_TYPE = 0,
+  SUM_TYPE,
+  MIN_TYPE,
+  MAX_TYPE,
+  AVG_TYPE,
+  COUNT_STAR_TYPE,
+  INVALID_TYPE,
+  ERROR_TYPE,
+};
+
 /**
  * @defgroup SQLParser SQL Parser
  */
@@ -35,8 +47,9 @@ class Expression;
  */
 struct RelAttrSqlNode
 {
-  std::string relation_name;   ///< relation name (may be NULL) 表名
-  std::string attribute_name;  ///< attribute name              属性名
+  std::string     relation_name;   ///< relation name (may be NULL) 表名
+  std::string     attribute_name;  ///< attribute name              属性名
+  AggregationType agg_type = AggregationType::INVALID_TYPE;
 };
 
 /**
@@ -71,8 +84,8 @@ struct ConditionSqlNode
   CompOp         comp;           ///< comparison operator
   int            right_is_attr;  ///< TRUE if right-hand side is an attribute
                                  ///< 1时，操作符右边是属性名，0时，是属性值
-  RelAttrSqlNode right_attr;     ///< right-hand side attribute if right_is_attr = TRUE 右边的属性
-  Value          right_value;    ///< right-hand side value if right_is_attr = FALSE
+  RelAttrSqlNode right_attr;  ///< right-hand side attribute if right_is_attr = TRUE 右边的属性
+  Value          right_value;  ///< right-hand side value if right_is_attr = FALSE
 };
 
 /**
@@ -321,5 +334,6 @@ public:
   std::vector<std::unique_ptr<ParsedSqlNode>> &sql_nodes() { return sql_nodes_; }
 
 private:
-  std::vector<std::unique_ptr<ParsedSqlNode>> sql_nodes_;  ///< 这里记录SQL命令。虽然看起来支持多个，但是当前仅处理一个
+  std::vector<std::unique_ptr<ParsedSqlNode>>
+      sql_nodes_;  ///< 这里记录SQL命令。虽然看起来支持多个，但是当前仅处理一个
 };

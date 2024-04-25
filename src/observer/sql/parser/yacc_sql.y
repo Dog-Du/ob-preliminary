@@ -62,6 +62,13 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
         INDEX
         CALC
         SELECT
+
+        SUM
+        MAX
+        MIN
+        COUNT
+        AVG
+
         DESC
         SHOW
         SYNC
@@ -143,6 +150,13 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
 %type <rel_attr_list>       attr_list
 %type <expression>          expression
 %type <expression_list>     expression_list
+
+%type <rel_attr>            sum_stmt
+%type <rel_attr>            max_stmt
+%type <rel_attr>            min_stmt
+%type <rel_attr>            count_stmt
+%type <rel_attr>            avg_stmt
+
 %type <sql_node>            calc_stmt
 %type <sql_node>            select_stmt
 %type <sql_node>            insert_stmt
@@ -164,6 +178,7 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
 %type <sql_node>            help_stmt
 %type <sql_node>            exit_stmt
 %type <sql_node>            command_wrapper
+
 // commands should be a list but I use a single command instead
 %type <sql_node>            commands
 
@@ -201,6 +216,93 @@ command_wrapper:
   | help_stmt
   | exit_stmt
     ;
+
+avg_stmt:
+  AVG LBRACE ID RBRACE {
+    $$ = new RelAttrSqlNode;
+    $$->attribute_name = $3;
+    $$->agg_type = ($$->attribute_name == "*") ? AggregationType::ERROR_TYPE : AggregationType::AVG_TYPE;
+    free($3);
+  }
+  | AVG LBRACE ID DOT ID RBRACE {
+    $$ = new RelAttrSqlNode;
+    $$->attribute_name = $5;
+    $$->relation_name = $3;
+    $$->agg_type = ($$->attribute_name == "*") ? AggregationType::ERROR_TYPE : AggregationType::AVG_TYPE;
+    free($3);
+    free($5);
+  }
+  ;
+
+max_stmt:
+  MAX LBRACE ID RBRACE {
+    $$ = new RelAttrSqlNode;
+    $$->attribute_name = $3;
+    $$->agg_type = ($$->attribute_name == "*") ? AggregationType::ERROR_TYPE : AggregationType::MAX_TYPE;
+    free($3);
+  }
+  | MAX LBRACE ID DOT ID RBRACE {
+    $$ = new RelAttrSqlNode;
+    $$->attribute_name = $5;
+    $$->relation_name = $3;
+    $$->agg_type = ($$->attribute_name == "*") ? AggregationType::ERROR_TYPE : AggregationType::MAX_TYPE;
+    free($3);
+    free($5);
+  }
+  ;
+
+min_stmt:
+  MIN LBRACE ID RBRACE {
+    $$ = new RelAttrSqlNode;
+    $$->attribute_name = $3;
+    $$->agg_type = ($$->attribute_name == "*") ? AggregationType::ERROR_TYPE : AggregationType::MIN_TYPE;
+    free($3);
+  }
+  | MIN LBRACE ID DOT ID RBRACE {
+    $$ = new RelAttrSqlNode;
+    $$->attribute_name = $5;
+    $$->relation_name = $3;
+    $$->agg_type = ($$->attribute_name == "*") ? AggregationType::ERROR_TYPE : AggregationType::MIN_TYPE;
+    free($3);
+    free($5);
+  };
+
+count_stmt:
+  COUNT LBRACE ID RBRACE {
+    $$ = new RelAttrSqlNode;
+    $$->attribute_name = $3;
+    $$->agg_type = ($$->attribute_name == "*") ? AggregationType::ERROR_TYPE : AggregationType::COUNT_TYPE;
+    free($3);
+  }
+  | COUNT LBRACE ID DOT ID RBRACE {
+    $$ = new RelAttrSqlNode;
+    $$->attribute_name = $5;
+    $$->relation_name = $3;
+    $$->agg_type = ($$->attribute_name == "*") ? AggregationType::ERROR_TYPE : AggregationType::COUNT_TYPE;
+    free($3);
+    free($5);
+  }
+  | COUNT LBRACE '*' RBRACE {
+    $$ = new RelAttrSqlNode;
+    $$->attribute_name = "*";
+    $$->agg_type = AggregationType::COUNT_STAR_TYPE;
+  };
+
+sum_stmt:
+  SUM LBRACE ID RBRACE {
+    $$ = new RelAttrSqlNode;
+    $$->attribute_name = $3;
+    $$->agg_type = ($$->attribute_name == "*") ? AggregationType::ERROR_TYPE : AggregationType::SUM_TYPE;
+    free($3);
+  }
+  | SUM LBRACE ID DOT ID RBRACE {
+    $$ = new RelAttrSqlNode;
+    $$->attribute_name = $5;
+    $$->relation_name = $3;
+    $$->agg_type = ($$->attribute_name == "*") ? AggregationType::ERROR_TYPE : AggregationType::SUM_TYPE;
+    free($3);
+    free($5);
+  };
 
 exit_stmt:
     EXIT {
@@ -531,6 +633,21 @@ rel_attr:
       free($1);
       free($3);
     }
+    | sum_stmt {
+      $$ = $1;
+    }
+    | max_stmt {
+      $$ = $1;
+    }
+    | min_stmt {
+      $$ = $1;
+    }
+    | count_stmt {
+      $$ = $1;
+    }
+    | avg_stmt {
+      $$ = $1;
+    }
     ;
 
 attr_list:
@@ -538,7 +655,7 @@ attr_list:
     {
       $$ = nullptr;
     }
-    | COMMA rel_attr attr_list {
+    | COMMA rel_attr attr_list { /*我超，递归*/
       if ($3 != nullptr) {
         $$ = $3;
       } else {

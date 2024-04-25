@@ -34,6 +34,7 @@ class SelectStmt : public Stmt
 {
 public:
   SelectStmt() = default;
+  SelectStmt(bool is_agg) : is_agg_(is_agg) {}
   ~SelectStmt() override;
 
   StmtType type() const override { return StmtType::SELECT; }
@@ -45,9 +46,11 @@ public:
   const std::vector<Table *> &tables() const { return tables_; }
   const std::vector<Field>   &query_fields() const { return query_fields_; }
   FilterStmt                 *filter_stmt() const { return filter_stmt_; }
+  bool                       &is_agg() { return is_agg_; }
 
 private:
   std::vector<Field>   query_fields_;
   std::vector<Table *> tables_;
   FilterStmt          *filter_stmt_ = nullptr;
+  bool                 is_agg_      = false;
 };

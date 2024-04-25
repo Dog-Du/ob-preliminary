@@ -22,7 +22,9 @@ See the Mulan PSL v2 for more details. */
 #include "sql/expr/expression.h"
 #include "sql/expr/tuple_cell.h"
 #include "sql/parser/parse.h"
+#include "sql/parser/parse_defs.h"
 #include "sql/parser/value.h"
+#include "storage/field/field.h"
 #include "storage/record/record.h"
 
 class Table;
@@ -52,7 +54,10 @@ class TupleSchema
 {
 public:
   void append_cell(const TupleCellSpec &cell) { cells_.push_back(cell); }
-  void append_cell(const char *table, const char *field) { append_cell(TupleCellSpec(table, field)); }
+  void append_cell(const char *table, const char *field)
+  {
+    append_cell(TupleCellSpec(table, field));
+  }
   void append_cell(const char *alias) { append_cell(TupleCellSpec(alias)); }
   int  cell_num() const { return static_cast<int>(cells_.size()); }
 
@@ -101,7 +106,7 @@ public:
     for (int i = 0; i < cell_num - 1; i++) {
       Value cell;
       cell_at(i, cell);
-      str += cell.to_string(); // 在这里的Tuple直接调用了Value的to_string，可以。
+      str += cell.to_string();  // 在这里的Tuple直接调用了Value的to_string，可以。
       str += ", ";
     }
 
@@ -112,6 +117,52 @@ public:
     }
     return str;
   }
+};
+
+class AggregationTuple : public Tuple
+{
+public:
+  AggregationTuple()          = default;
+  virtual ~AggregationTuple() = default;
+
+  void set_fields(const std::vector<Field> &fields)
+  {
+    fields_ = fields;
+    values_.resize(fields.size());
+  }
+
+  std::vector<Field> &fields() { return fields_; }
+  int                 cell_num() const override { return fields_.size(); }
+
+  RC cell_at(int index, Value &cell) const override
+  {
+    if (index < 0 || index >= static_cast<int>(fields_.size())) {
+      return RC::INTERNAL;
+    }
+
+    cell = values_[index];
+    return RC::SUCCESS;
+  }
+
+  AggregationType agg_type_at(int index) const { return fields_[index].agg_type(); }
+
+  Value &cell_at(int index) { return values_[index]; }
+
+  RC find_cell(const TupleCellSpec &spec, Value &cell) const override { return RC::INTERNAL; }
+
+#if 0
+  RC cell_spec_at(int index, const TupleCellSpec *&spec) const override
+  {
+    if (index < 0 || index >= static_cast<int>(speces_.size())) {
+      return RC::NOTFOUND;
+    }
+    spec = speces_[index];
+    return RC::SUCCESS;
+  }
+#endif
+private:
+  std::vector<Field> fields_;
+  std::vector<Value> values_;
 };
 
 /**
@@ -238,7 +289,10 @@ public:
     return tuple_->find_cell(*spec, cell);
   }
 
-  RC find_cell(const TupleCellSpec &spec, Value &cell) const override { return tuple_->find_cell(spec, cell); }
+  RC find_cell(const TupleCellSpec &spec, Value &cell) const override
+  {
+    return tuple_->find_cell(spec, cell);
+  }
 
 #if 0
   RC cell_spec_at(int index, const TupleCellSpec *&spec) const override
@@ -258,7 +312,8 @@ private:
 class ExpressionTuple : public Tuple
 {
 public:
-  ExpressionTuple(std::vector<std::unique_ptr<Expression>> &expressions) : expressions_(expressions) {}
+  ExpressionTuple(std::vector<std::unique_ptr<Expression>> &expressions) : expressions_(expressions)
+  {}
 
   virtual ~ExpressionTuple() {}
 
@@ -312,7 +367,10 @@ public:
     return RC::SUCCESS;
   }
 
-  virtual RC find_cell(const TupleCellSpec &spec, Value &cell) const override { return RC::INTERNAL; }
+  virtual RC find_cell(const TupleCellSpec &spec, Value &cell) const override
+  {
+    return RC::INTERNAL;
+  }
 
 private:
   std::vector<Value> cells_;

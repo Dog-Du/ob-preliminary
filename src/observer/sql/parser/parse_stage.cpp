@@ -59,6 +59,27 @@ RC ParseStage::handle_request(SQLStageEvent *sql_event)
     return rc;
   }
 
+  if (sql_node->flag == SCF_SELECT) {
+    bool agg    = false;
+    bool common = false;
+
+    for (auto &it : sql_node->selection.attributes) {
+      if (it.agg_type == AggregationType::INVALID_TYPE) {
+        common = true;
+      } else if (it.agg_type == AggregationType::ERROR_TYPE) {
+        rc = RC::VARIABLE_NOT_VALID;
+        // sql_result->set_return_code(rc);
+      } else {
+        agg = true;
+      }
+    }
+
+    if (agg && common) {
+      rc = RC::VARIABLE_NOT_VALID;
+     // sql_result->set_return_code(rc);
+      return rc;
+    }
+  }
   // 枚举所有可能出现 日期字面量 的地方。因为在正则表达式的地方已经进行了筛选，
   // 但是因为部分非法日期，比如'2017-29-21'会被当成chars类型，而继续进行。
   // 解决方法：把日期判定放宽，统一在这里进行判断。
