@@ -53,9 +53,9 @@ RC ParseStage::handle_request(SQLStageEvent *sql_event)
 
   if (sql_node->flag == SCF_ERROR) {
     // set error information to event
-    rc = RC::SQL_SYNTAX;
+    rc = RC::VARIABLE_NOT_VALID;
     sql_result->set_return_code(rc);
-    sql_result->set_state_string("Failed to parse sql");
+    // sql_result->set_state_string("Failed to parse sql");
     return rc;
   }
 
@@ -68,7 +68,7 @@ RC ParseStage::handle_request(SQLStageEvent *sql_event)
         common = true;
       } else if (it.agg_type == AggregationType::ERROR_TYPE) {
         rc = RC::VARIABLE_NOT_VALID;
-        // sql_result->set_return_code(rc);
+        sql_result->set_return_code(rc);
       } else {
         agg = true;
       }
@@ -76,7 +76,7 @@ RC ParseStage::handle_request(SQLStageEvent *sql_event)
 
     if (agg && common) {
       rc = RC::VARIABLE_NOT_VALID;
-     // sql_result->set_return_code(rc);
+      sql_result->set_return_code(rc);
       return rc;
     }
   }
