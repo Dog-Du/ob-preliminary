@@ -102,6 +102,7 @@ private:
 
   void be_null();
   void be_not_null();
+  void be_all_null();
   // char is_null_{'n'};  //
   // 唔，或许我应该更改一下方式，不在纠结怎么一次存储了，直接分两次存储得了。
   // 结果到头来还是需要考虑怎么一次存储。 'n'表示否，'y'表示是。

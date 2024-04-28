@@ -150,6 +150,13 @@ void Value::be_not_null()
       num_value_.is_null_[7]                      = 'n';
 }
 
+void Value::be_all_null()
+{
+  be_null();
+  num_value_.is_null_[0] = num_value_.is_null_[1] = num_value_.is_null_[2] =
+      num_value_.is_null_[3]                      = 'y';
+}
+
 void Value::set_data(char *data, int length)
 {
   memset(&num_value_, 0, sizeof(num_value_));
@@ -163,7 +170,10 @@ void Value::set_data(char *data, int length)
       if (str_value_.front() == 'y') {
         attr_type_ = NULLS;
         str_value_ = "y";
+        be_all_null();
       }
+
+      return;
     } break;
     case INTS: {
       num_value_.int_value_ = *(int *)data;
@@ -183,7 +193,8 @@ void Value::set_data(char *data, int length)
     } break;
     case NULLS: {
       length_ = length;
-      be_null();
+      be_all_null();
+      return;
       ;  // do nothing.
     } break;
     default: {
@@ -208,12 +219,10 @@ void Value::set_null()
   memset(&num_value_, 0, sizeof(num_value_));
   attr_type_ = NULLS;
   length_    = sizeof(num_value_);
-  be_null();
 
   // 如果字段中为chars，而放在存储时，会变成null存储，也就是后面四个为y而前面四个为0
   // 这就导致出错，所以应该在把前4为也变成y。
-  num_value_.is_null_[0] = num_value_.is_null_[1] = num_value_.is_null_[2] =
-      num_value_.is_null_[3]                      = 'y';
+  be_all_null();
   // num_value_.is_null_[7] = 'y';
   str_value_ = "y";
 }
