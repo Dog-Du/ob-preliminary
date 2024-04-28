@@ -49,8 +49,12 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update, Stmt *&stmt)
   table_map.emplace(table->name(), table);
   FilterStmt *filter_stmt = nullptr;
 
-  RC rc = FilterStmt::create(
-      db, table, &table_map, update.conditions.data(), static_cast<int>(update.conditions.size()), filter_stmt);
+  RC rc = FilterStmt::create(db,
+      table,
+      &table_map,
+      update.conditions.data(),
+      static_cast<int>(update.conditions.size()),
+      filter_stmt);
   if (rc != RC::SUCCESS) {
     LOG_WARN("failed to create filter statement. rc=%d:%s", rc, strrc(rc));
     return rc;
@@ -77,7 +81,8 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update, Stmt *&stmt)
       }
     }
 
-    if (field_meta->type() != update.value.attr_type()) {
+    if (!(field_meta->nullable() && update.value.attr_type() == NULLS) &&
+        field_meta->type() != update.value.attr_type()) {
       LOG_WARN("invalid value. rc=%d:%s", rc, strrc(rc));
       return RC::VARIABLE_NOT_VALID;
     }
