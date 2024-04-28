@@ -140,20 +140,20 @@ Value::Value(const char *s, int len /*= 0*/) { set_string(s, len); }
 
 void Value::be_null()
 {
-  for (int i = 4; i <= 7; ++i) {
-    num_value_.is_null_[i] = 'y';
-  }
+  num_value_.is_null_[4] = num_value_.is_null_[5] = num_value_.is_null_[6] =
+      num_value_.is_null_[7]                      = 'y';
 }
 
 void Value::be_not_null()
 {
-  for (int i = 4; i <= 7; ++i) {
-    num_value_.is_null_[i] = 'n';
-  }
+  num_value_.is_null_[4] = num_value_.is_null_[5] = num_value_.is_null_[6] =
+      num_value_.is_null_[7]                      = 'n';
 }
 
 void Value::set_data(char *data, int length)
 {
+  memset(&num_value_, 0, sizeof(num_value_));
+
   switch (attr_type_) {
     case CHARS: {
       set_string(data + 1, length - 1);
@@ -162,12 +162,7 @@ void Value::set_data(char *data, int length)
 
       if (str_value_.front() == 'y') {
         attr_type_ = NULLS;
-        be_null();
-      } else {
-        be_not_null();
       }
-
-
     } break;
     case INTS: {
       num_value_.int_value_ = *(int *)data;
@@ -187,6 +182,7 @@ void Value::set_data(char *data, int length)
     } break;
     case NULLS: {
       length_ = length;
+      be_null();
       ;  // do nothing.
     } break;
     default: {
@@ -208,17 +204,18 @@ void Value::set_data(char *data, int length)
 
 void Value::set_null()
 {
-  attr_type_             = NULLS;
-  length_                = sizeof(num_value_);
-  be_not_null();
+  attr_type_ = NULLS;
+  length_    = sizeof(num_value_);
+  be_null();
+  // num_value_.is_null_[7] = 'y';
   str_value_.clear();
 }
 
 void Value::set_int(int val)
 {
-  attr_type_             = INTS;
-  num_value_.int_value_  = val;
-  length_                = sizeof(num_value_);
+  attr_type_            = INTS;
+  num_value_.int_value_ = val;
+  length_               = sizeof(num_value_);
   be_not_null();
   str_value_.clear();
 }
