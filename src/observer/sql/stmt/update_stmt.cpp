@@ -81,6 +81,7 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update, Stmt *&stmt)
       }
     }
 
+    // 排除一种情况，可为null，且为null
     if (!(field_meta->nullable() && update.value.attr_type() == NULLS) &&
         field_meta->type() != update.value.attr_type()) {
       LOG_WARN("invalid value. rc=%d:%s", rc, strrc(rc));

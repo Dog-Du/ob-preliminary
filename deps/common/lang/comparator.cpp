@@ -61,8 +61,9 @@ CompareResult compare_string(void *arg1, int arg1_max_length, void *arg2, int ar
   }
 
   if (arg2_max_length > maxlen) {
-    return (0 - s2[maxlen]) < 0 ? CompareResult::MORE : CompareResult::EQUAL;
+    return (0 - s2[maxlen]) < 0 ? CompareResult::LESS : CompareResult::EQUAL;
   }
+
   return CompareResult::EQUAL;
 }
 

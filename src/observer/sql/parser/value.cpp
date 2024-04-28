@@ -138,6 +138,20 @@ Value::Value(date_t val) { set_date(val); }
 
 Value::Value(const char *s, int len /*= 0*/) { set_string(s, len); }
 
+void Value::be_null()
+{
+  for (int i = 4; i <= 7; ++i) {
+    num_value_.is_null_[i] = 'y';
+  }
+}
+
+void Value::be_not_null()
+{
+  for (int i = 4; i <= 7; ++i) {
+    num_value_.is_null_[i] = 'n';
+  }
+}
+
 void Value::set_data(char *data, int length)
 {
   switch (attr_type_) {
@@ -197,6 +211,7 @@ void Value::set_null()
   attr_type_             = NULLS;
   length_                = sizeof(num_value_);
   num_value_.is_null_[7] = 'y';
+
   str_value_.clear();
 }
 
