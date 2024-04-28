@@ -162,11 +162,12 @@ void Value::set_data(char *data, int length)
 
       if (str_value_.front() == 'y') {
         attr_type_ = NULLS;
+        be_null();
+      } else {
+        be_not_null();
       }
 
-      if (str_value_.front() != 'y' && str_value_.front() != 'n') {
-        ASSERT(false, "why it is not yes and not no ?\n");
-      }
+
     } break;
     case INTS: {
       num_value_.int_value_ = *(int *)data;
@@ -196,12 +197,11 @@ void Value::set_data(char *data, int length)
   if (attr_type_ >= INTS && attr_type_ <= BOOLEANS) {
     num_value_.is_null_[7] = data[7];
 
-    if (num_value_.is_null_[7] != 'y' && num_value_.is_null_[7] != 'n') {
-      ASSERT(false, "why it is not yes and not no ?\n");
-    }
-
     if (num_value_.is_null_[7] == 'y') {
       attr_type_ = NULLS;
+      be_null();
+    } else {
+      be_not_null();
     }
   }
 }
@@ -210,8 +210,7 @@ void Value::set_null()
 {
   attr_type_             = NULLS;
   length_                = sizeof(num_value_);
-  num_value_.is_null_[7] = 'y';
-
+  be_not_null();
   str_value_.clear();
 }
 
@@ -220,7 +219,7 @@ void Value::set_int(int val)
   attr_type_             = INTS;
   num_value_.int_value_  = val;
   length_                = sizeof(num_value_);
-  num_value_.is_null_[7] = 'n';
+  be_not_null();
   str_value_.clear();
 }
 
@@ -229,7 +228,7 @@ void Value::set_float(float val)
   attr_type_              = FLOATS;
   num_value_.float_value_ = val;
   length_                 = sizeof(num_value_);
-  num_value_.is_null_[7]  = 'n';
+  be_not_null();
   str_value_.clear();
 }
 
@@ -238,7 +237,7 @@ void Value::set_boolean(bool val)
   attr_type_             = BOOLEANS;
   num_value_.bool_value_ = val;
   length_                = sizeof(num_value_);
-  num_value_.is_null_[7] = 'n';
+  be_not_null();
   str_value_.clear();
 }
 
@@ -250,7 +249,7 @@ void Value::set_date(date_t val)
   attr_type_             = DATES;
   num_value_.date_value_ = val;
   length_                = sizeof(num_value_);
-  num_value_.is_null_[7] = 'n';
+  be_not_null();
   str_value_.clear();
 }
 
@@ -265,6 +264,7 @@ void Value::set_string(const char *s, int len /*= 0*/)
   }
   str_value_.insert(str_value_.begin(), 'n');
   length_ = str_value_.length();
+  be_not_null();
 }
 
 void Value::set_value(const Value &value)
@@ -290,6 +290,7 @@ void Value::set_value(const Value &value)
     } break;
     case NULLS: {
       length_ = sizeof(num_value_);
+      be_null();
       break;
     }
   }
