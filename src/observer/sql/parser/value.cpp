@@ -162,6 +162,7 @@ void Value::set_data(char *data, int length)
 
       if (str_value_.front() == 'y') {
         attr_type_ = NULLS;
+        str_value_ = "y";
       }
     } break;
     case INTS: {
@@ -208,8 +209,13 @@ void Value::set_null()
   attr_type_ = NULLS;
   length_    = sizeof(num_value_);
   be_null();
+
+  // 如果字段中为chars，而放在存储时，会变成null存储，也就是后面四个为y而前面四个为0
+  // 这就导致出错，所以应该在把前4为也变成y。
+  num_value_.is_null_[0] = num_value_.is_null_[1] = num_value_.is_null_[2] =
+      num_value_.is_null_[3]                      = 'y';
   // num_value_.is_null_[7] = 'y';
-  // str_value_.clear();
+  str_value_ = "y";
 }
 
 void Value::set_int(int val)
@@ -219,7 +225,7 @@ void Value::set_int(int val)
   num_value_.int_value_ = val;
   length_               = sizeof(num_value_);
   be_not_null();
-  // str_value_.clear();
+  str_value_ = "n";
 }
 
 void Value::set_float(float val)
@@ -229,7 +235,7 @@ void Value::set_float(float val)
   num_value_.float_value_ = val;
   length_                 = sizeof(num_value_);
   be_not_null();
-  // str_value_.clear();
+  str_value_ = "n";
 }
 
 void Value::set_boolean(bool val)
@@ -239,7 +245,7 @@ void Value::set_boolean(bool val)
   num_value_.bool_value_ = val;
   length_                = sizeof(num_value_);
   be_not_null();
-  // str_value_.clear();
+  str_value_ = "n";
 }
 
 void Value::set_date(date_t val)
@@ -250,7 +256,7 @@ void Value::set_date(date_t val)
   num_value_.date_value_ = val;
   length_                = sizeof(num_value_);
   be_not_null();
-  // str_value_.clear();
+  str_value_ = "n";
 }
 
 void Value::set_string(const char *s, int len /*= 0*/)
