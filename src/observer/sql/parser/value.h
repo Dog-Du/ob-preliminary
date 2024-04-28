@@ -15,7 +15,8 @@ See the Mulan PSL v2 for more details. */
 #pragma once
 
 #include <string>
-
+#include "common/defs.h"
+#include "common/lang/comparator.h"
 /**
  * @brief 属性的类型
  *
@@ -66,6 +67,7 @@ public:
   void set_int(int val);
   void set_float(float val);
   void set_boolean(bool val);
+  void set_null();
   void set_string(const char *s, int len = 0);
   void set_value(const Value &value);
   void set_date(date_t val);
@@ -75,12 +77,13 @@ public:
 
   std::string to_string() const;  // 似乎这样直接输出就行了。
 
-  int compare(const Value &other) const;
+  CompareResult compare(const Value &other) const;
 
   const char *data() const;
   int         length() const { return length_; }
 
-  AttrType attr_type() const { return attr_type_; }
+  AttrType    attr_type() const { return attr_type_; }
+  const bool *is_null_ptr() const { return &is_null_; }
 
 public:
   /**
@@ -97,6 +100,7 @@ private:
   AttrType attr_type_ = UNDEFINED;
   int      length_    = 0;
 
+  bool is_null_{false};  // 唔，或许我应该更改一下方式，不在纠结怎么一次存储了，直接分两次存储得了。
   union
   {
     int    int_value_;
@@ -104,5 +108,8 @@ private:
     bool   bool_value_;
     date_t date_value_;
   } num_value_;
-  std::string str_value_;
+  // bool is_null_{false};  // 一定一定把is_null放在紧挨着null_value_的地方。
+  // 对于字符串的话，在value中没办法提前知道表中规定的长度，所以bool值不能放在尾端，只能放在首端。
+
+  std::string str_value_;  // 让它的第一位始终是 is_null_。
 };

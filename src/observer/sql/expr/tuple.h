@@ -129,6 +129,7 @@ public:
   {
     fields_ = fields;
     values_.resize(fields.size());
+    field_count_.resize(fields.size());
   }
 
   std::vector<Field> &fields() { return fields_; }
@@ -147,6 +148,7 @@ public:
   AggregationType agg_type_at(int index) const { return fields_[index].agg_type(); }
 
   Value &cell_at(int index) { return values_[index]; }
+  int   &count_at(int index) { return field_count_[index]; }
 
   RC find_cell(const TupleCellSpec &spec, Value &cell) const override { return RC::INTERNAL; }
 
@@ -163,6 +165,7 @@ public:
 private:
   std::vector<Field> fields_;
   std::vector<Value> values_;
+  std::vector<int>   field_count_;
 };
 
 /**

@@ -43,7 +43,8 @@ void TableMeta::swap(TableMeta &other) noexcept
   std::swap(record_size_, other.record_size_);
 }
 
-RC TableMeta::init(int32_t table_id, const char *name, int field_num, const AttrInfoSqlNode attributes[])
+RC TableMeta::init(
+    int32_t table_id, const char *name, int field_num, const AttrInfoSqlNode attributes[])
 {
   if (common::is_blank(name)) {
     LOG_ERROR("Name cannot be empty");
@@ -66,7 +67,12 @@ RC TableMeta::init(int32_t table_id, const char *name, int field_num, const Attr
 
     for (size_t i = 0; i < trx_fields->size(); i++) {
       const FieldMeta &field_meta = (*trx_fields)[i];
-      fields_[i] = FieldMeta(field_meta.name(), field_meta.type(), field_offset, field_meta.len(), false /*visible*/);
+      fields_[i]                  = FieldMeta(field_meta.name(),
+          field_meta.type(),
+          field_offset,
+          field_meta.len(),
+          false,
+          field_meta.nullable() /*visible*/);
       field_offset += field_meta.len();
     }
 
@@ -77,8 +83,13 @@ RC TableMeta::init(int32_t table_id, const char *name, int field_num, const Attr
 
   for (int i = 0; i < field_num; i++) {
     const AttrInfoSqlNode &attr_info = attributes[i];
-    rc                               = fields_[i + trx_field_num].init(
-        attr_info.name.c_str(), attr_info.type, field_offset, attr_info.length, true /*visible*/);
+    rc                               = fields_[i + trx_field_num].init(attr_info.name.c_str(),
+        attr_info.type,
+        field_offset,
+        attr_info.length,
+        true,
+        attr_info.nullable /*visible*/);
+
     if (rc != RC::SUCCESS) {
       LOG_ERROR("Failed to init field meta. table name=%s, field name: %s", name, attr_info.name.c_str());
       return rc;
@@ -181,11 +192,11 @@ int TableMeta::serialize(std::ostream &ss) const
   for (const FieldMeta &field : fields_) {
     Json::Value field_value;
     field.to_json(field_value);
+    // std::cout << field_value.toStyledString() << std::endl;
     fields_value.append(std::move(field_value));
   }
 
   table_value[FIELD_FIELDS] = std::move(fields_value);
-
   Json::Value indexes_value;
   for (const auto &index : indexes_) {
     Json::Value index_value;
@@ -254,7 +265,9 @@ int TableMeta::deserialize(std::istream &is)
     }
   }
 
-  auto comparator = [](const FieldMeta &f1, const FieldMeta &f2) { return f1.offset() < f2.offset(); };
+  auto comparator = [](const FieldMeta &f1, const FieldMeta &f2) {
+    return f1.offset() < f2.offset();
+  };
   std::sort(fields.begin(), fields.end(), comparator);
 
   table_id_ = table_id;

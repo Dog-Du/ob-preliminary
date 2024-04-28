@@ -31,6 +31,8 @@ void AggregationPhysicalOperator::set_cell_at(int index, const Value &value)
     return;
   }
 
+  tuple_.count_at(index)++;
+
   switch (tuple_.agg_type_at(index)) {
     case AggregationType::AVG_TYPE: {
       tuple_.cell_at(index).add(value);
@@ -59,15 +61,21 @@ void AggregationPhysicalOperator::init_tuple(Tuple *tuple)
   int cell_num = tuple->cell_num();
 
   for (int i = 0; i < cell_num; ++i) {
+    Value val;
+    tuple->cell_at(i, val);
     switch (tuple_.agg_type_at(i)) {
-      case AggregationType::COUNT_STAR_TYPE:
-      case AggregationType::COUNT_TYPE: tuple_.cell_at(i).set_int(1); break;
-      default:
-        Value val;
-        tuple->cell_at(i, val);
+      case AggregationType::COUNT_STAR_TYPE: {
+        tuple_.cell_at(i).set_int(1);
+      } break;
+      case AggregationType::COUNT_TYPE: {
+        tuple_.cell_at(i).set_int( (val.attr_type() == NULLS ? 0 : 1));
+      } break;
+      default: {
         tuple_.cell_at(i) = val;
-        break;
+      } break;
     }
+
+    tuple_.count_at(i) = (val.attr_type() == NULLS ? 0 : 1);
   }
 }
 
@@ -110,7 +118,6 @@ RC AggregationPhysicalOperator::next()
   init_tuple(tuple);
   int   cell_num = tuple_.cell_num();
   Value val;
-  int   cnt = 1;
 
   // std::cout << "tuple : " << tuple->to_string() << std::endl;
   // std::cout << tuple_.to_string() << std::endl;
@@ -122,21 +129,25 @@ RC AggregationPhysicalOperator::next()
     }
     // std::cout << "tuple : " << tuple->to_string() << std::endl;
     // std::cout << tuple_.to_string() << std::endl;
-    ++cnt;
   }
 
   for (int i = 0; i < cell_num; ++i) {
+
+    if (tuple_.count_at(i) == 0 && (tuple_.agg_type_at(i) == AggregationType::AVG_TYPE ||
+                                       tuple_.agg_type_at(i) == AggregationType::SUM_TYPE)) {
+      tuple_.cell_at(i).set_type(NULLS);
+      continue;
+    }
+
     if (tuple_.agg_type_at(i) == AggregationType::AVG_TYPE) {
       if (tuple_.cell_at(i).attr_type() == AttrType::INTS) {
         int sum = tuple_.cell_at(i).get_int();
-        tuple_.cell_at(i).set_float(1.0 * sum / cnt);
+        tuple_.cell_at(i).set_float(1.0 * sum / tuple_.count_at(i));
       } else {
-        tuple_.cell_at(i).set_float(tuple_.cell_at(i).get_float() / cnt);
+        tuple_.cell_at(i).set_float(tuple_.cell_at(i).get_float() / tuple_.count_at(i));
       }
     }
   }
-
-  cnt = 0;
 
   if (!used_) {
     used_ = true;

@@ -1,0 +1,37 @@
+digraph G{
+ranksep = 1;
+	rankdir=LR;
+	size="1920,1080";
+	node [fontsize=16,fontcolor=blue,style=filled,fillcolor=Wheat,shape=box];
+	"main" -> "set_signal_handler";
+	"main" -> "quit_signal_handle";
+	"quit_signal_handle" -> "set_signal_handler";
+	"quit_signal_handle" -> "pthread_create";
+	"quit_signal_handle" -> "quit_thread_func";
+	"main" -> "parse_parameter";
+	"parse_parameter" -> "get_process_name";
+	"parse_parameter" -> "the_process_param";
+	"parse_parameter" -> "getopt";
+	"parse_parameter" -> "atoi";
+	"parse_parameter" -> "usage";
+	"parse_parameter" -> "exit";
+	"main" -> "init";
+	"main" -> "the_process_param";
+	"main" -> "cleanup";
+	"main" -> "init_server";
+	"init_server" -> "get_properties";
+	"init_server" -> "the_process_param";
+	"init_server" -> "str_to_val";
+	"init_server" -> "LOG_INFO";
+	"init_server" -> "strcasecmp";
+	"init_server" -> "CliServer";
+	"init_server" -> "NetServer";
+	"main" -> "LOG_INFO";
+
+	subgraph "cluster_main.cpp" { label="main.cpp";init_server;}
+	subgraph "cluster_main.cpp" { label="main.cpp";main;}
+	subgraph "cluster_main.cpp" { label="main.cpp";parse_parameter;}
+	subgraph "cluster_main.cpp" { label="main.cpp";quit_signal_handle;}
+	subgraph "cluster_main.cpp" { label="main.cpp";quit_thread_func;}
+	subgraph "cluster_main.cpp" { label="main.cpp";usage;}
+}

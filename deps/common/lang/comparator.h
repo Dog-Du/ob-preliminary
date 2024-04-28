@@ -14,10 +14,18 @@ See the Mulan PSL v2 for more details. */
 
 #pragma once
 
+enum CompareResult
+{
+  LESS    = -1,
+  MORE    = 1,
+  EQUAL   = 0,
+  INVALID = 2,
+};
+
 namespace common {
 
-int compare_int(void *arg1, void *arg2);
-int compare_float(void *arg1, void *arg2);
-int compare_string(void *arg1, int arg1_max_length, void *arg2, int arg2_max_length);
+CompareResult compare_int(void *arg1, void *arg2);
+CompareResult compare_float(void *arg1, void *arg2);
+CompareResult compare_string(void *arg1, int arg1_max_length, void *arg2, int arg2_max_length);
 
 }  // namespace common

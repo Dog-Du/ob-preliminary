@@ -114,7 +114,9 @@ RC LogicalPlanGenerator::create_plan(
               case AttrType::CHARS:
               case AttrType::DATES:
               case AttrType::NULLS:
-              case AttrType::UNDEFINED: return RC::VARIABLE_NOT_VALID; break;
+              case AttrType::UNDEFINED: {
+                return RC::VARIABLE_NOT_VALID;
+              } break;
               default: break;
             }
           }

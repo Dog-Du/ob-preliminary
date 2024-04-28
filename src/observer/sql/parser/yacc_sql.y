@@ -68,6 +68,10 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
         MIN
         COUNT
         AVG
+        IS_T
+
+        NOT
+        NULL_T
 
         DESC
         SHOW
@@ -426,7 +430,8 @@ attr_def:
       $$ = new AttrInfoSqlNode;
       $$->type = (AttrType)$2;
       $$->name = $1;
-      $$->length = $4;
+      $$->length = $4 + 1;
+      $$->nullable = false;
       free($1);
     }
     | ID type
@@ -434,7 +439,44 @@ attr_def:
       $$ = new AttrInfoSqlNode;
       $$->type = (AttrType)$2;
       $$->name = $1;
-      $$->length = 4;
+      $$->length = 4 + 1;
+      $$->nullable = false;
+      free($1);
+    }
+    | ID type LBRACE number RBRACE NULL_T
+    {
+      $$ = new AttrInfoSqlNode;
+      $$->type = (AttrType)$2;
+      $$->name = $1;
+      $$->length = $4 + 1;
+      $$->nullable = true;
+      free($1);
+    }
+    | ID type LBRACE number RBRACE NOT NULL_T
+    {
+      $$ = new AttrInfoSqlNode;
+      $$->type = (AttrType)$2;
+      $$->name = $1;
+      $$->length = $4 + 1;
+      $$->nullable = false;
+      free($1);
+    }
+    | ID type NULL_T
+    {
+      $$ = new AttrInfoSqlNode;
+      $$->type = (AttrType)$2;
+      $$->name = $1;
+      $$->length = 4 + 1;
+      $$->nullable = true;
+      free($1);
+    }
+    | ID type NOT NULL_T
+    {
+      $$ = new AttrInfoSqlNode;
+      $$->type = (AttrType)$2;
+      $$->name = $1;
+      $$->length = 4 + 1;
+      $$->nullable = false;
       free($1);
     }
     ;
@@ -496,6 +538,11 @@ value:
       $$ = new Value(tmp);
       free(tmp);
       free($1);
+    }
+    |NULL_T {
+      $$ = new Value(false);
+      $$->set_null();
+      @$ = @1;
     }
     ;
 
@@ -766,6 +813,8 @@ comp_op:
     | LE { $$ = LESS_EQUAL; }
     | GE { $$ = GREAT_EQUAL; }
     | NE { $$ = NOT_EQUAL; }
+    | IS_T { $$ = IS; }
+    | IS_T NOT { $$ = IS_NOT; }
     ;
 
 load_data_stmt:

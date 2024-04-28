@@ -16,6 +16,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/lang/string.h"
 #include "common/log/log.h"
 #include "common/rc.h"
+#include "sql/parser/parse_defs.h"
 #include "sql/parser/value.h"
 #include "sql/stmt/delete_stmt.h"
 #include "storage/db/db.h"
@@ -118,7 +119,7 @@ RC FilterStmt::create_filter_unit(Db *db, Table *default_table, std::unordered_m
   RC rc = RC::SUCCESS;
 
   CompOp comp = condition.comp;
-  if (comp < EQUAL_TO || comp >= NO_OP) {
+  if (comp < EQUAL_TO || comp > IS_NOT) {
     LOG_WARN("invalid compare operator : %d", comp);
     return RC::INVALID_ARGUMENT;
   }

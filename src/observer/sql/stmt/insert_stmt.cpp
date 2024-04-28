@@ -39,7 +39,7 @@ RC InsertStmt::create(Db *db, const InsertSqlNode &inserts, Stmt *&stmt)
   }
 
   // check the fields number
-  Value     *values     = const_cast<Value *>(inserts.values.data());
+  Value           *values     = const_cast<Value *>(inserts.values.data());
   const int        value_num  = static_cast<int>(inserts.values.size());
   const TableMeta &table_meta = table->table_meta();
   const int        field_num  = table_meta.field_num() - table_meta.sys_field_num();
@@ -54,8 +54,19 @@ RC InsertStmt::create(Db *db, const InsertSqlNode &inserts, Stmt *&stmt)
     const FieldMeta *field_meta = table_meta.field(i + sys_field_num);
     const AttrType   field_type = field_meta->type();
     const AttrType   value_type = values[i].attr_type();
+
+    // 特判空。
+    if (!field_meta->nullable() && value_type == AttrType::NULLS) {
+      return RC::EMPTY;
+    }
+
+    if (value_type == AttrType::NULLS) {
+      continue;
+    }
+
     if (field_type != value_type) {  // TODO try to convert the value type to field type
-      if (value_type == CHARS && field_type == DATES) { // 这个时候获得了值的类型信息，可以转化，转化失败则报错即可。
+      if (value_type == CHARS &&
+          field_type == DATES) {  // 这个时候获得了值的类型信息，可以转化，转化失败则报错即可。
         date_t v = str_to_date(values[i].data());
         if (check_date(v)) {
           values[i].set_date(v);

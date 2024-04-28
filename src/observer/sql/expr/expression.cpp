@@ -13,7 +13,9 @@ See the Mulan PSL v2 for more details. */
 //
 
 #include "sql/expr/expression.h"
+#include "common/lang/comparator.h"
 #include "sql/expr/tuple.h"
+#include "sql/parser/value.h"
 
 using namespace std;
 
@@ -29,7 +31,8 @@ RC ValueExpr::get_value(const Tuple &tuple, Value &value) const
 }
 
 /////////////////////////////////////////////////////////////////////////////////
-CastExpr::CastExpr(unique_ptr<Expression> child, AttrType cast_type) : child_(std::move(child)), cast_type_(cast_type)
+CastExpr::CastExpr(unique_ptr<Expression> child, AttrType cast_type)
+    : child_(std::move(child)), cast_type_(cast_type)
 {}
 
 CastExpr::~CastExpr() {}
@@ -77,7 +80,8 @@ RC CastExpr::try_get_value(Value &value) const
 
 ////////////////////////////////////////////////////////////////////////////////
 
-ComparisonExpr::ComparisonExpr(CompOp comp, unique_ptr<Expression> left, unique_ptr<Expression> right)
+ComparisonExpr::ComparisonExpr(
+    CompOp comp, unique_ptr<Expression> left, unique_ptr<Expression> right)
     : comp_(comp), left_(std::move(left)), right_(std::move(right))
 {}
 
@@ -85,27 +89,37 @@ ComparisonExpr::~ComparisonExpr() {}
 
 RC ComparisonExpr::compare_value(const Value &left, const Value &right, bool &result) const
 {
-  RC  rc         = RC::SUCCESS;
-  int cmp_result = left.compare(right);
-  result         = false;
+  RC rc = RC::SUCCESS;
+
+  CompareResult cmp_result = left.compare(right);
+  result                   = false;
+  bool is_valid            = (cmp_result != CompareResult::INVALID);
+
   switch (comp_) {
     case EQUAL_TO: {
-      result = (0 == cmp_result);
+      result = (0 == cmp_result) && is_valid;
     } break;
     case LESS_EQUAL: {
-      result = (cmp_result <= 0);
+      result = (cmp_result <= 0) && is_valid;
     } break;
     case NOT_EQUAL: {
-      result = (cmp_result != 0);
+      result = (cmp_result != 0) && is_valid;
     } break;
     case LESS_THAN: {
-      result = (cmp_result < 0);
+      result = (cmp_result < 0) && is_valid;
     } break;
     case GREAT_EQUAL: {
-      result = (cmp_result >= 0);
+      result = (cmp_result >= 0) && is_valid;
     } break;
     case GREAT_THAN: {
-      result = (cmp_result > 0);
+      result = (cmp_result > 0) && is_valid;
+    } break;
+    case IS: {
+      result = (left.attr_type() == NULLS) && (right.attr_type() == NULLS);
+    } break;
+    case IS_NOT: {
+      result = (left.attr_type() == NULLS) && (right.attr_type() == NULLS);
+      result = !result;
     } break;
     default: {
       LOG_WARN("unsupported comparison. %d", comp_);
@@ -183,7 +197,8 @@ RC ConjunctionExpr::get_value(const Tuple &tuple, Value &value) const
       return rc;
     }
     bool bool_value = tmp_value.get_boolean();
-    if ((conjunction_type_ == Type::AND && !bool_value) || (conjunction_type_ == Type::OR && bool_value)) {
+    if ((conjunction_type_ == Type::AND && !bool_value) ||
+        (conjunction_type_ == Type::OR && bool_value)) {
       value.set_boolean(bool_value);
       return rc;
     }
@@ -199,7 +214,8 @@ RC ConjunctionExpr::get_value(const Tuple &tuple, Value &value) const
 ArithmeticExpr::ArithmeticExpr(ArithmeticExpr::Type type, Expression *left, Expression *right)
     : arithmetic_type_(type), left_(left), right_(right)
 {}
-ArithmeticExpr::ArithmeticExpr(ArithmeticExpr::Type type, unique_ptr<Expression> left, unique_ptr<Expression> right)
+ArithmeticExpr::ArithmeticExpr(
+    ArithmeticExpr::Type type, unique_ptr<Expression> left, unique_ptr<Expression> right)
     : arithmetic_type_(type), left_(std::move(left)), right_(std::move(right))
 {}
 

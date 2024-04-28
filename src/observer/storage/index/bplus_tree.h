@@ -1,7 +1,6 @@
-/* Copyright (c) 2021 Xie Meiyi(xiemeiyi@hust.edu.cn) and OceanBase and/or its affiliates. All rights reserved.
-miniob is licensed under Mulan PSL v2.
-You can use this software according to the terms and conditions of the Mulan PSL v2.
-You may obtain a copy of Mulan PSL v2 at:
+/* Copyright (c) 2021 Xie Meiyi(xiemeiyi@hust.edu.cn) and OceanBase and/or its affiliates. All
+rights reserved. miniob is licensed under Mulan PSL v2. You can use this software according to the
+terms and conditions of the Mulan PSL v2. You may obtain a copy of Mulan PSL v2 at:
          http://license.coscl.org.cn/MulanPSL2
 THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
 EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
@@ -26,6 +25,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/lang/string.h"
 #include "common/log/log.h"
 #include "sql/parser/parse_defs.h"
+#include "sql/parser/value.h"
 #include "storage/buffer/disk_buffer_pool.h"
 #include "storage/record/record_manager.h"
 #include "storage/trx/latch_memo.h"
@@ -63,24 +63,55 @@ public:
 
   int operator()(const char *v1, const char *v2) const
   {
+    Value vl, vr;
+
     switch (attr_type_) {
       case INTS: {
-        return common::compare_int((void *)v1, (void *)v2);
+        vl.set_type(AttrType::INTS);
+        vl.set_data(v1, attr_length_);
+        vr.set_type(AttrType::INTS);
+        vr.set_data(v2, attr_length_);
+        // return common::compare_int((void *)v1, (void *)v2);
       } break;
       case FLOATS: {
-        return common::compare_float((void *)v1, (void *)v2);
+        vl.set_type(AttrType::FLOATS);
+        vr.set_type(AttrType::FLOATS);
+        // return common::compare_float((void *)v1, (void *)v2);
       }
       case CHARS: {
-        return common::compare_string((void *)v1, attr_length_, (void *)v2, attr_length_);
+        vl.set_type(AttrType::CHARS);
+        vr.set_type(AttrType::CHARS);
+        // return common::compare_string((void *)v1, attr_length_, (void *)v2, attr_length_);
       }
       case DATES: {
-        return common::compare_int((void *)v1, (void *)v2);
+        vl.set_type(AttrType::DATES);
+        vr.set_type(AttrType::DATES);
+        // return common::compare_int((void *)v1, (void *)v2);
       }
       default: {
         ASSERT(false, "unknown attr type. %d", attr_type_);
         return 0;
       }
     }
+
+    vl.set_data(v1, attr_length_);
+    vr.set_data(v2, attr_length_);
+
+    CompareResult cmp_res = vl.compare(vr);
+
+    if (cmp_res != CompareResult::INVALID) {
+      return cmp_res;
+    }
+
+    if (vl.attr_type() == NULLS) {
+      return CompareResult::LESS;
+    }
+
+    if (vr.attr_type() == NULLS) {
+      return CompareResult::MORE;
+    }
+
+    return CompareResult::EQUAL;
   }
 
 private:
@@ -409,8 +440,8 @@ public:
    * @param[out] found 如果是有效指针，将会返回当前是否存在指定的键值
    * @param[out] insert_position 如果是有效指针，将会返回可以插入指定键值的位置
    */
-  int lookup(
-      const KeyComparator &comparator, const char *key, bool *found = nullptr, int *insert_position = nullptr) const;
+  int lookup(const KeyComparator &comparator, const char *key, bool *found = nullptr,
+      int *insert_position = nullptr) const;
 
   RC move_to(InternalIndexNodeHandler &other, DiskBufferPool *disk_buffer_pool);
   RC move_first_to_end(InternalIndexNodeHandler &other, DiskBufferPool *disk_buffer_pool);
@@ -449,8 +480,8 @@ public:
    * 此函数创建一个名为fileName的索引。
    * attrType描述被索引属性的类型，attrLength描述被索引属性的长度
    */
-  RC create(
-      const char *file_name, AttrType attr_type, int attr_length, int internal_max_size = -1, int leaf_max_size = -1);
+  RC create(const char *file_name, AttrType attr_type, int attr_length, int internal_max_size = -1,
+      int leaf_max_size = -1);
 
   /**
    * 打开名为fileName的索引文件。
@@ -519,11 +550,11 @@ protected:
   RC left_most_page(LatchMemo &latch_memo, Frame *&frame);
   RC find_leaf_internal(LatchMemo &latch_memo, BplusTreeOperationType op,
       const std::function<PageNum(InternalIndexNodeHandler &)> &child_page_getter, Frame *&frame);
-  RC crabing_protocal_fetch_page(
-      LatchMemo &latch_memo, BplusTreeOperationType op, PageNum page_num, bool is_root_page, Frame *&frame);
+  RC crabing_protocal_fetch_page(LatchMemo &latch_memo, BplusTreeOperationType op, PageNum page_num,
+      bool is_root_page, Frame *&frame);
 
-  RC insert_into_parent(
-      LatchMemo &latch_memo, PageNum parent_page, Frame *left_frame, const char *pkey, Frame &right_frame);
+  RC insert_into_parent(LatchMemo &latch_memo, PageNum parent_page, Frame *left_frame,
+      const char *pkey, Frame &right_frame);
 
   RC delete_entry_internal(LatchMemo &latch_memo, Frame *leaf_frame, const char *key);
 
@@ -532,12 +563,15 @@ protected:
   template <typename IndexNodeHandlerType>
   RC coalesce_or_redistribute(LatchMemo &latch_memo, Frame *frame);
   template <typename IndexNodeHandlerType>
-  RC coalesce(LatchMemo &latch_memo, Frame *neighbor_frame, Frame *frame, Frame *parent_frame, int index);
+  RC coalesce(
+      LatchMemo &latch_memo, Frame *neighbor_frame, Frame *frame, Frame *parent_frame, int index);
   template <typename IndexNodeHandlerType>
   RC redistribute(Frame *neighbor_frame, Frame *frame, Frame *parent_frame, int index);
 
-  RC insert_entry_into_parent(LatchMemo &latch_memo, Frame *frame, Frame *new_frame, const char *key);
-  RC insert_entry_into_leaf_node(LatchMemo &latch_memo, Frame *frame, const char *pkey, const RID *rid);
+  RC insert_entry_into_parent(
+      LatchMemo &latch_memo, Frame *frame, Frame *new_frame, const char *key);
+  RC insert_entry_into_leaf_node(
+      LatchMemo &latch_memo, Frame *frame, const char *pkey, const RID *rid);
   RC create_new_tree(const char *key, const RID *rid);
 
   void update_root_page_num(PageNum root_page_num);
@@ -587,8 +621,8 @@ public:
    * @param right_len right_user_key 的内存大小(只有在变长字段中才会关注)
    * @param right_inclusive 右边界的值是否包含在内
    */
-  RC open(const char *left_user_key, int left_len, bool left_inclusive, const char *right_user_key, int right_len,
-      bool right_inclusive);
+  RC open(const char *left_user_key, int left_len, bool left_inclusive, const char *right_user_key,
+      int right_len, bool right_inclusive);
 
   RC next_entry(RID &rid);
 
@@ -598,7 +632,8 @@ private:
   /**
    * 如果key的类型是CHARS, 扩展或缩减user_key的大小刚好是schema中定义的大小
    */
-  RC fix_user_key(const char *user_key, int key_len, bool want_greater, char **fixed_key, bool *should_inclusive);
+  RC fix_user_key(const char *user_key, int key_len, bool want_greater, char **fixed_key,
+      bool *should_inclusive);
 
   void fetch_item(RID &rid);
   bool touch_end();

@@ -1,7 +1,6 @@
-/* Copyright (c) 2021 Xie Meiyi(xiemeiyi@hust.edu.cn) and OceanBase and/or its affiliates. All rights reserved.
-miniob is licensed under Mulan PSL v2.
-You can use this software according to the terms and conditions of the Mulan PSL v2.
-You may obtain a copy of Mulan PSL v2 at:
+/* Copyright (c) 2021 Xie Meiyi(xiemeiyi@hust.edu.cn) and OceanBase and/or its affiliates. All
+rights reserved. miniob is licensed under Mulan PSL v2. You can use this software according to the
+terms and conditions of the Mulan PSL v2. You may obtain a copy of Mulan PSL v2 at:
          http://license.coscl.org.cn/MulanPSL2
 THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
 EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
@@ -20,6 +19,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/defs.h"
 #include "common/lang/string.h"
 #include "common/log/log.h"
+#include "sql/parser/value.h"
 #include "storage/buffer/disk_buffer_pool.h"
 #include "storage/common/condition_filter.h"
 #include "storage/common/meta_util.h"
@@ -54,7 +54,8 @@ RC Table::drop(const char *dir)
   for (int i = 0; i < index_num; ++i) {
     ((BplusTreeIndex *)indexes_[i])->close();
     const IndexMeta *index_meta = table_meta_.index(i);
-    std::string      index_file = std::string(dir) + "/" + name() + "-" + index_meta->name() + TABLE_INDEX_SUFFIX;
+    std::string      index_file =
+        std::string(dir) + "/" + name() + "-" + index_meta->name() + TABLE_INDEX_SUFFIX;
 
     if (unlink(index_file.c_str()) != 0) {
       LOG_ERROR("Failed to remove meta file = %s, error=%d",path.c_str(),errno);
@@ -87,8 +88,8 @@ Table::~Table()
   LOG_INFO("Table has been closed: %s", name());
 }
 
-RC Table::create(int32_t table_id, const char *path, const char *name, const char *base_dir, int attribute_count,
-    const AttrInfoSqlNode attributes[])
+RC Table::create(int32_t table_id, const char *path, const char *name, const char *base_dir,
+    int attribute_count, const AttrInfoSqlNode attributes[])
 {
   if (table_id < 0) {
     LOG_WARN("invalid table id. table_id=%d, table_name=%s", table_id, name);
@@ -270,7 +271,8 @@ RC Table::get_record(const RID &rid, Record &record)
 RC Table::recover_insert_record(Record &record)
 {
   RC rc = RC::SUCCESS;
-  rc    = record_handler_->recover_insert_record(record.data(), table_meta_.record_size(), record.rid());
+  rc    = record_handler_->recover_insert_record(
+      record.data(), table_meta_.record_size(), record.rid());
   if (rc != RC::SUCCESS) {
     LOG_ERROR("Insert record failed. table name=%s, rc=%s", table_meta_.name(), strrc(rc));
     return rc;
@@ -308,7 +310,7 @@ RC Table::make_record(int value_num, const Value *values, Record &record)
   for (int i = 0; i < value_num; i++) {
     const FieldMeta *field = table_meta_.field(i + normal_field_start_index);
     const Value     &value = values[i];
-    if (field->type() != value.attr_type()) {
+    if (value.attr_type() != AttrType::NULLS && field->type() != value.attr_type()) {
       LOG_ERROR("Invalid value type. table name =%s, field name=%s, type=%d, but given=%d",
                 table_meta_.name(), field->name(), field->type(), value.attr_type());
       return RC::SCHEMA_FIELD_TYPE_MISMATCH;
@@ -329,7 +331,11 @@ RC Table::make_record(int value_num, const Value *values, Record &record)
         copy_len = data_len + 1;
       }
     }
-    memcpy(record_data + field->offset(), value.data(), copy_len);
+
+    memcpy(record_data + field->offset(), value.is_null_ptr(), 1);
+    // 这里如果copy_len > data_len 那么 copy来适应data_len
+    // 但是如果data_len 大于 copy_len，那么数据会被截断，也就是只保留前几位。
+    memcpy(record_data + field->offset() + 1, value.data(), copy_len - 1);
   }
 
   record.set_data_owner(record_data, record_size);
