@@ -209,7 +209,7 @@ void Value::set_null()
   length_    = sizeof(num_value_);
   be_null();
   // num_value_.is_null_[7] = 'y';
-  str_value_.clear();
+  // str_value_.clear();
 }
 
 void Value::set_int(int val)
@@ -219,7 +219,7 @@ void Value::set_int(int val)
   num_value_.int_value_ = val;
   length_               = sizeof(num_value_);
   be_not_null();
-  str_value_.clear();
+  // str_value_.clear();
 }
 
 void Value::set_float(float val)
@@ -229,7 +229,7 @@ void Value::set_float(float val)
   num_value_.float_value_ = val;
   length_                 = sizeof(num_value_);
   be_not_null();
-  str_value_.clear();
+  // str_value_.clear();
 }
 
 void Value::set_boolean(bool val)
@@ -239,7 +239,7 @@ void Value::set_boolean(bool val)
   num_value_.bool_value_ = val;
   length_                = sizeof(num_value_);
   be_not_null();
-  str_value_.clear();
+  // str_value_.clear();
 }
 
 void Value::set_date(date_t val)
@@ -250,7 +250,7 @@ void Value::set_date(date_t val)
   num_value_.date_value_ = val;
   length_                = sizeof(num_value_);
   be_not_null();
-  str_value_.clear();
+  // str_value_.clear();
 }
 
 void Value::set_string(const char *s, int len /*= 0*/)
