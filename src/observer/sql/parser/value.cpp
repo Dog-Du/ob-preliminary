@@ -17,6 +17,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/lang/comparator.h"
 #include "common/lang/string.h"
 #include "common/log/log.h"
+#include <cstring>
 #include <sstream>
 
 // 这里的名字数组的下标应该是和value.h中的枚举类型的值是一一对应的，能不能标记清晰一点。
@@ -139,12 +140,19 @@ Value::Value(const char *s, int len /*= 0*/) { set_string(s, len); }
 
 void Value::set_data(char *data, int length)
 {
-  char is_null = *(data++);  // 首端是is_null。
-
   switch (attr_type_) {
     case CHARS: {
-      set_string(data, length - 1);
-      str_value_.insert(str_value_.begin(), is_null);
+      set_string(data + 1, length - 1);
+      length_            = str_value_.size();
+      str_value_.front() = *data;
+
+      if (str_value_.front() == 'y') {
+        attr_type_ = NULLS;
+      }
+
+      if (str_value_.front() != 'y' && str_value_.front() != 'n') {
+        ASSERT(false, "why it is not yes and not no ?\n");
+      }
     } break;
     case INTS: {
       num_value_.int_value_ = *(int *)data;
@@ -163,7 +171,7 @@ void Value::set_data(char *data, int length)
       length_                = length;
     } break;
     case NULLS: {
-      length_ = 1;
+      length_ = length;
       ;  // do nothing.
     } break;
     default: {
@@ -171,26 +179,33 @@ void Value::set_data(char *data, int length)
     } break;
   }
 
-  is_null_ = is_null;
-  if (is_null_ == 'y') {
-    attr_type_ = AttrType::NULLS;
+  if (attr_type_ >= INTS && attr_type_ <= BOOLEANS) {
+    num_value_.is_null_[7] = data[7];
+
+    if (num_value_.is_null_[7] != 'y' && num_value_.is_null_[7] != 'n') {
+      ASSERT(false, "why it is not yes and not no ?\n");
+    }
+
+    if (num_value_.is_null_[7] == 'y') {
+      attr_type_ = NULLS;
+    }
   }
 }
 
 void Value::set_null()
 {
-  attr_type_ = NULLS;
-  length_    = 1;
-  is_null_   = 'y';
+  attr_type_             = NULLS;
+  length_                = sizeof(num_value_);
+  num_value_.is_null_[7] = 'y';
   str_value_.clear();
 }
 
 void Value::set_int(int val)
 {
-  attr_type_            = INTS;
-  num_value_.int_value_ = val;
-  length_               = sizeof(num_value_) + 1;
-  is_null_              = 'n';
+  attr_type_             = INTS;
+  num_value_.int_value_  = val;
+  length_                = sizeof(num_value_);
+  num_value_.is_null_[7] = 'n';
   str_value_.clear();
 }
 
@@ -198,8 +213,8 @@ void Value::set_float(float val)
 {
   attr_type_              = FLOATS;
   num_value_.float_value_ = val;
-  length_                 = sizeof(num_value_) + 1;
-  is_null_                = 'n';
+  length_                 = sizeof(num_value_);
+  num_value_.is_null_[7]  = 'n';
   str_value_.clear();
 }
 
@@ -207,8 +222,8 @@ void Value::set_boolean(bool val)
 {
   attr_type_             = BOOLEANS;
   num_value_.bool_value_ = val;
-  length_                = sizeof(num_value_) + 1;
-  is_null_               = 'n';
+  length_                = sizeof(num_value_);
+  num_value_.is_null_[7] = 'n';
   str_value_.clear();
 }
 
@@ -219,8 +234,8 @@ void Value::set_date(date_t val)
   }
   attr_type_             = DATES;
   num_value_.date_value_ = val;
-  length_                = sizeof(num_value_) + 1;
-  is_null_               = 'n';
+  length_                = sizeof(num_value_);
+  num_value_.is_null_[7] = 'n';
   str_value_.clear();
 }
 
@@ -233,8 +248,8 @@ void Value::set_string(const char *s, int len /*= 0*/)
   } else {
     str_value_.assign(s);
   }
-  length_  = str_value_.length() + 1;
-  is_null_ = 'n';
+  str_value_.insert(str_value_.begin(), 'n');
+  length_ = str_value_.length();
 }
 
 void Value::set_value(const Value &value)
@@ -259,7 +274,7 @@ void Value::set_value(const Value &value)
       set_date(value.get_date());
     } break;
     case NULLS: {
-      length_ = 1;
+      length_ = sizeof(num_value_);
       break;
     }
   }
@@ -272,7 +287,7 @@ const char *Value::data() const
       return const_cast<char *>(str_value_.c_str());
     } break;
     default: {
-      return (const char *)&is_null_;
+      return (const char *)&num_value_;
     } break;
   }
 }

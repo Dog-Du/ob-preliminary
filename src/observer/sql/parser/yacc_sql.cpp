@@ -2063,7 +2063,7 @@ yyreduce:
       (yyval.attr_info) = new AttrInfoSqlNode;
       (yyval.attr_info)->type = (AttrType)(yyvsp[0].number);
       (yyval.attr_info)->name = (yyvsp[-1].string);
-      (yyval.attr_info)->length = 4 + 1;
+      (yyval.attr_info)->length = 8;
       (yyval.attr_info)->nullable = false;
       free((yyvsp[-1].string));
     }
@@ -2102,7 +2102,7 @@ yyreduce:
       (yyval.attr_info) = new AttrInfoSqlNode;
       (yyval.attr_info)->type = (AttrType)(yyvsp[-1].number);
       (yyval.attr_info)->name = (yyvsp[-2].string);
-      (yyval.attr_info)->length = 4 + 1;
+      (yyval.attr_info)->length = 8;
       (yyval.attr_info)->nullable = true;
       free((yyvsp[-2].string));
     }
@@ -2115,7 +2115,7 @@ yyreduce:
       (yyval.attr_info) = new AttrInfoSqlNode;
       (yyval.attr_info)->type = (AttrType)(yyvsp[-2].number);
       (yyval.attr_info)->name = (yyvsp[-3].string);
-      (yyval.attr_info)->length = 4 + 1;
+      (yyval.attr_info)->length = 8;
       (yyval.attr_info)->nullable = false;
       free((yyvsp[-3].string));
     }
