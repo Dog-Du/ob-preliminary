@@ -204,6 +204,7 @@ void Value::set_data(char *data, int length)
 
 void Value::set_null()
 {
+  memset(&num_value_, 0, sizeof(num_value_));
   attr_type_ = NULLS;
   length_    = sizeof(num_value_);
   be_null();
@@ -213,6 +214,7 @@ void Value::set_null()
 
 void Value::set_int(int val)
 {
+  memset(&num_value_, 0, sizeof(num_value_));
   attr_type_            = INTS;
   num_value_.int_value_ = val;
   length_               = sizeof(num_value_);
@@ -222,6 +224,7 @@ void Value::set_int(int val)
 
 void Value::set_float(float val)
 {
+  memset(&num_value_, 0, sizeof(num_value_));
   attr_type_              = FLOATS;
   num_value_.float_value_ = val;
   length_                 = sizeof(num_value_);
@@ -231,6 +234,7 @@ void Value::set_float(float val)
 
 void Value::set_boolean(bool val)
 {
+  memset(&num_value_, 0, sizeof(num_value_));
   attr_type_             = BOOLEANS;
   num_value_.bool_value_ = val;
   length_                = sizeof(num_value_);
@@ -240,9 +244,8 @@ void Value::set_boolean(bool val)
 
 void Value::set_date(date_t val)
 {
-  if (attr_type_ == CHARS) {
-    str_value_.clear();
-  }
+  memset(&num_value_, 0, sizeof(num_value_));
+
   attr_type_             = DATES;
   num_value_.date_value_ = val;
   length_                = sizeof(num_value_);
@@ -252,6 +255,7 @@ void Value::set_date(date_t val)
 
 void Value::set_string(const char *s, int len /*= 0*/)
 {
+  memset(&num_value_, 0, sizeof(num_value_));
   attr_type_ = CHARS;
   if (len > 0) {
     len = strnlen(s, len);
