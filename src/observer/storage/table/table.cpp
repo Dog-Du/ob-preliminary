@@ -332,10 +332,10 @@ RC Table::make_record(int value_num, const Value *values, Record &record)
       }
     }
 
-    memcpy(record_data + field->offset(), value.is_null_ptr(), 1);
+    // memcpy(record_data + field->offset(), value.is_null_ptr(), 1);
     // 这里如果copy_len > data_len 那么 copy来适应data_len
     // 但是如果data_len 大于 copy_len，那么数据会被截断，也就是只保留前几位。
-    memcpy(record_data + field->offset() + 1, value.data(), copy_len - 1);
+    memcpy(record_data + field->offset(), value.data(), copy_len);
   }
 
   record.set_data_owner(record_data, record_size);

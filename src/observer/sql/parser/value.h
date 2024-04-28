@@ -83,7 +83,7 @@ public:
   int         length() const { return length_; }
 
   AttrType    attr_type() const { return attr_type_; }
-  const bool *is_null_ptr() const { return &is_null_; }
+  const char *is_null_ptr() const { return &is_null_; }
 
 public:
   /**
@@ -100,7 +100,8 @@ private:
   AttrType attr_type_ = UNDEFINED;
   int      length_    = 0;
 
-  bool is_null_{false};  // 唔，或许我应该更改一下方式，不在纠结怎么一次存储了，直接分两次存储得了。
+  char is_null_{'n'};  // 唔，或许我应该更改一下方式，不在纠结怎么一次存储了，直接分两次存储得了。
+  // 结果到头来还是需要考虑怎么一次存储。 'n'表示否，'y'表示是。
   union
   {
     int    int_value_;

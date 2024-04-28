@@ -139,12 +139,12 @@ Value::Value(const char *s, int len /*= 0*/) { set_string(s, len); }
 
 void Value::set_data(char *data, int length)
 {
-  bool is_null = *(data++);  // 首端是is_null。
+  char is_null = *(data++);  // 首端是is_null。
 
   switch (attr_type_) {
     case CHARS: {
       set_string(data, length - 1);
-      length_ = length;
+      str_value_.insert(str_value_.begin(), is_null);
     } break;
     case INTS: {
       num_value_.int_value_ = *(int *)data;
@@ -172,7 +172,7 @@ void Value::set_data(char *data, int length)
   }
 
   is_null_ = is_null;
-  if (is_null_) {
+  if (is_null_ == 'y') {
     attr_type_ = AttrType::NULLS;
   }
 }
@@ -181,7 +181,7 @@ void Value::set_null()
 {
   attr_type_ = NULLS;
   length_    = 1;
-  is_null_   = true;
+  is_null_   = 'y';
   str_value_.clear();
 }
 
@@ -190,7 +190,7 @@ void Value::set_int(int val)
   attr_type_            = INTS;
   num_value_.int_value_ = val;
   length_               = sizeof(num_value_) + 1;
-  is_null_              = false;
+  is_null_              = 'n';
   str_value_.clear();
 }
 
@@ -199,7 +199,7 @@ void Value::set_float(float val)
   attr_type_              = FLOATS;
   num_value_.float_value_ = val;
   length_                 = sizeof(num_value_) + 1;
-  is_null_                = false;
+  is_null_                = 'n';
   str_value_.clear();
 }
 
@@ -208,7 +208,7 @@ void Value::set_boolean(bool val)
   attr_type_             = BOOLEANS;
   num_value_.bool_value_ = val;
   length_                = sizeof(num_value_) + 1;
-  is_null_               = false;
+  is_null_               = 'n';
   str_value_.clear();
 }
 
@@ -220,7 +220,7 @@ void Value::set_date(date_t val)
   attr_type_             = DATES;
   num_value_.date_value_ = val;
   length_                = sizeof(num_value_) + 1;
-  is_null_               = false;
+  is_null_               = 'n';
   str_value_.clear();
 }
 
@@ -234,7 +234,7 @@ void Value::set_string(const char *s, int len /*= 0*/)
     str_value_.assign(s);
   }
   length_  = str_value_.length() + 1;
-  is_null_ = false;
+  is_null_ = 'n';
 }
 
 void Value::set_value(const Value &value)
@@ -272,7 +272,7 @@ const char *Value::data() const
       return const_cast<char *>(str_value_.c_str());
     } break;
     default: {
-      return (const char *)&num_value_;
+      return (const char *)&is_null_;
     } break;
   }
 }
@@ -291,7 +291,7 @@ std::string Value::to_string() const
       os << num_value_.bool_value_;
     } break;
     case CHARS: {
-      os << str_value_;
+      os << (str_value_.data() + 1);
     } break;
     case DATES: {
       os << common::date_to_str(num_value_.date_value_);  // 在这里写一个函数。
@@ -319,10 +319,10 @@ CompareResult Value::compare(const Value &other) const
             (void *)&this->num_value_.float_value_, (void *)&other.num_value_.float_value_);
       } break;
       case CHARS: {
-        return common::compare_string((void *)this->str_value_.c_str(),
-            this->str_value_.length(),
-            (void *)other.str_value_.c_str(),
-            other.str_value_.length());
+        return common::compare_string((void *)(this->str_value_.c_str() + 1),
+            this->str_value_.length() - 1,
+            (void *)(other.str_value_.c_str() + 1),
+            other.str_value_.length() - 1);
       } break;
       case BOOLEANS: {
         return common::compare_int(
@@ -342,7 +342,7 @@ CompareResult Value::compare(const Value &other) const
   } else if (this->attr_type_ == FLOATS && other.attr_type_ == INTS) {
     float other_data = other.num_value_.int_value_;
     return common::compare_float((void *)&this->num_value_.float_value_, (void *)&other_data);
-  } 
+  }
 
   LOG_WARN("not supported");
   return CompareResult::INVALID;  // TODO return rc?
@@ -353,7 +353,7 @@ int Value::get_int() const
   switch (attr_type_) {
     case CHARS: {
       try {
-        return (int)(std::stol(str_value_));
+        return (int)(std::stol(str_value_.data() + 1));
       } catch (std::exception const &ex) {
         LOG_TRACE("failed to convert string to number. s=%s, ex=%s", str_value_.c_str(), ex.what());
         return 0;
@@ -387,7 +387,7 @@ float Value::get_float() const
   switch (attr_type_) {
     case CHARS: {
       try {
-        return std::stof(str_value_);
+        return std::stof(str_value_.data() + 1);
       } catch (std::exception const &ex) {
         LOG_TRACE("failed to convert string to float. s=%s, ex=%s", str_value_.c_str(), ex.what());
         return 0.0;
@@ -423,12 +423,12 @@ bool Value::get_boolean() const
   switch (attr_type_) {
     case CHARS: {
       try {
-        float val = std::stof(str_value_);
+        float val = std::stof(str_value_.data() + 1);
         if (val >= EPSILON || val <= -EPSILON) {
           return true;
         }
 
-        int int_val = std::stol(str_value_);
+        int int_val = std::stol(str_value_.data() + 1);
         if (int_val != 0) {
           return true;
         }
@@ -436,7 +436,7 @@ bool Value::get_boolean() const
         return !str_value_.empty();
       } catch (std::exception const &ex) {
         LOG_TRACE("failed to convert string to float or integer. s=%s, ex=%s", str_value_.c_str(), ex.what());
-        return !str_value_.empty();
+        return str_value_.size() > 1;
       }
     } break;
     case INTS: {
@@ -468,7 +468,7 @@ date_t Value::get_date() const
   switch (attr_type_) {
     case CHARS: {  // 其实这里应该进行判断，但是懒得管了。
       try {
-        return (date_t)(std::stol(str_value_));
+        return (date_t)(std::stol(str_value_.data() + 1));
       } catch (std::exception const &ex) {
         LOG_TRACE("failed to convert string to date. s=%s, ex=%s", str_value_.c_str(), ex.what());
         return 0;

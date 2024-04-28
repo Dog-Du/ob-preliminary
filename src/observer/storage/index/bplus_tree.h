@@ -61,6 +61,25 @@ public:
 
   int attr_length() const { return attr_length_; }
 
+  int operator()(const Value &vl, const Value &vr) const
+  {
+    CompareResult cmp_res = vl.compare(vr);
+
+    if (cmp_res != CompareResult::INVALID) {
+      return cmp_res;
+    }
+
+    if (vl.attr_type() == NULLS) {
+      return CompareResult::LESS;
+    }
+
+    if (vr.attr_type() == NULLS) {
+      return CompareResult::MORE;
+    }
+
+    return CompareResult::EQUAL;
+  }
+
   int operator()(const char *v1, const char *v2) const
   {
     Value vl, vr;
@@ -68,9 +87,9 @@ public:
     switch (attr_type_) {
       case INTS: {
         vl.set_type(AttrType::INTS);
-        vl.set_data(v1, attr_length_);
+        // vl.set_data(v1, attr_length_);
         vr.set_type(AttrType::INTS);
-        vr.set_data(v2, attr_length_);
+        // vr.set_data(v2, attr_length_);
         // return common::compare_int((void *)v1, (void *)v2);
       } break;
       case FLOATS: {
@@ -624,6 +643,7 @@ public:
   RC open(const char *left_user_key, int left_len, bool left_inclusive, const char *right_user_key,
       int right_len, bool right_inclusive);
 
+  RC open(const Value &left_key, bool left_inclusive, const Value &right_key, bool right_inclusive);
   RC next_entry(RID &rid);
 
   RC close();
