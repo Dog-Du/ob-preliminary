@@ -73,6 +73,8 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
         NOT
         NULL_T
 
+        LIKE_T
+
         DESC
         SHOW
         SYNC
@@ -815,6 +817,8 @@ comp_op:
     | NE { $$ = NOT_EQUAL; }
     | IS_T { $$ = IS; }
     | IS_T NOT { $$ = IS_NOT; }
+    | LIKE_T { $$ = LIKE; }
+    | NOT LIKE_T { $$ = LIKE_NOT; }
     ;
 
 load_data_stmt:

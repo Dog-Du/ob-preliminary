@@ -108,6 +108,8 @@ NULL                                    RETURN_TOKEN(NULL_T);
 NULLABLE                                RETURN_TOKEN(NULL_T);
 NOT                                     RETURN_TOKEN(NOT);
 
+LIKE                                    RETURN_TOKEN(LIKE_T);
+
 WHERE                                   RETURN_TOKEN(WHERE);
 AND                                     RETURN_TOKEN(AND);
 INSERT                                  RETURN_TOKEN(INSERT);

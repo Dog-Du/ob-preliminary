@@ -96,21 +96,21 @@ public:
         vl.set_type(AttrType::FLOATS);
         vr.set_type(AttrType::FLOATS);
         // return common::compare_float((void *)v1, (void *)v2);
-      }
+      } break;
       case CHARS: {
         vl.set_type(AttrType::CHARS);
         vr.set_type(AttrType::CHARS);
         // return common::compare_string((void *)v1, attr_length_, (void *)v2, attr_length_);
-      }
+      } break;
       case DATES: {
         vl.set_type(AttrType::DATES);
         vr.set_type(AttrType::DATES);
         // return common::compare_int((void *)v1, (void *)v2);
-      }
+      } break;
       default: {
         ASSERT(false, "unknown attr type. %d", attr_type_);
         return 0;
-      }
+      } break;
     }
 
     vl.set_data(v1, attr_length_);

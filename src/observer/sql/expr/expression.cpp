@@ -19,6 +19,49 @@ See the Mulan PSL v2 for more details. */
 
 using namespace std;
 
+bool match_str(const std::string &pattern, const std::string &text)
+{
+
+  int p = 0;  // 模式串的指针
+  int t = 0;  // 待匹配串的指针
+
+  while (t < text.length()) {
+    // 如果模式串当前字符是'_'，则匹配任意单个字符（除了''）
+    if (pattern[p] == '_') {
+      if (text[t] == '\'') {
+        return false;  // 遇到'则不匹配
+      }
+      ++p;
+      ++t;
+    }
+    // 如果模式串当前字符是'%'，则匹配零个到多个任意字符（除了''）
+    else if (pattern[p] == '%') {
+      // 尝试匹配尽可能长的子串，直到遇到不匹配的字符或模式串结束
+      int nextP = p + 1;
+      while (t < text.length() && pattern[nextP] != '_' && pattern[nextP] != '%' &&
+             text[t] != '\'' && pattern[nextP] != text[t]) {
+        ++t;
+      }
+      // 匹配成功后，继续匹配模式串的下一个字符
+      p = nextP;
+    }
+    // 如果模式串当前字符既不是'_'也不是'%'，则直接比较字符是否相等
+    else if (pattern[p] != text[t]) {
+      return false;  // 字符不匹配
+    } else {
+      ++p;
+      ++t;
+    }
+  }
+
+  // 检查模式串是否已完全匹配
+  while (p < pattern.length() && pattern[p] == '%') {
+    ++p;
+  }
+
+  return p == pattern.length();  // 如果模式串完全匹配，则返回true
+}
+
 RC FieldExpr::get_value(const Tuple &tuple, Value &value) const
 {
   return tuple.find_cell(TupleCellSpec(table_name(), field_name()), value);
@@ -120,6 +163,12 @@ RC ComparisonExpr::compare_value(const Value &left, const Value &right, bool &re
     case IS_NOT: {
       result = (left.attr_type() == NULLS) && (right.attr_type() == NULLS);
       result = !result;
+    } break;
+    case LIKE: {
+      result = is_valid && match_str(right.get_string(), left.get_string());
+    } break;
+    case LIKE_NOT: {
+      result = is_valid && !match_str(right.get_string(), left.get_string());
     } break;
     default: {
       LOG_WARN("unsupported comparison. %d", comp_);
