@@ -21,45 +21,36 @@ using namespace std;
 
 bool match_str(const std::string &pattern, const std::string &text)
 {
+  int                  m = pattern.size();
+  int                  n = text.size();
+  vector<vector<bool>> dp(m + 1, vector<bool>(n + 1, false));
 
-  int p = 0;  // 模式串的指针
-  int t = 0;  // 待匹配串的指针
+  dp[0][0] = true;  // Empty pattern matches empty text
 
-  while (t < text.length()) {
-    // 如果模式串当前字符是'_'，则匹配任意单个字符（除了''）
-    if (pattern[p] == '_') {
-      if (text[t] == '\'') {
-        return false;  // 遇到'则不匹配
-      }
-      ++p;
-      ++t;
-    }
-    // 如果模式串当前字符是'%'，则匹配零个到多个任意字符（除了''）
-    else if (pattern[p] == '%') {
-      // 尝试匹配尽可能长的子串，直到遇到不匹配的字符或模式串结束
-      int nextP = p + 1;
-      while (t < text.length() && pattern[nextP] != '_' && pattern[nextP] != '%' &&
-             text[t] != '\'' && pattern[nextP] != text[t]) {
-        ++t;
-      }
-      // 匹配成功后，继续匹配模式串的下一个字符
-      p = nextP;
-    }
-    // 如果模式串当前字符既不是'_'也不是'%'，则直接比较字符是否相等
-    else if (pattern[p] != text[t]) {
-      return false;  // 字符不匹配
-    } else {
-      ++p;
-      ++t;
+  // Initialize the first row (pattern is empty)
+  for (int j = 1; j <= n; ++j) {
+    dp[0][j] = false;
+  }
+
+  // Initialize the first column (text is empty)
+  for (int i = 1; i <= m; ++i) {
+    if (pattern[i - 1] == '%') {
+      dp[i][0] = dp[i - 1][0];
     }
   }
 
-  // 检查模式串是否已完全匹配
-  while (p < pattern.length() && pattern[p] == '%') {
-    ++p;
+  // Fill in the rest of the dp table
+  for (int i = 1; i <= m; ++i) {
+    for (int j = 1; j <= n; ++j) {
+      if (pattern[i - 1] == text[j - 1] || pattern[i - 1] == '_') {
+        dp[i][j] = dp[i - 1][j - 1];
+      } else if (pattern[i - 1] == '%') {
+        dp[i][j] = dp[i - 1][j] || dp[i][j - 1];
+      }
+    }
   }
 
-  return p == pattern.length();  // 如果模式串完全匹配，则返回true
+  return dp[m][n];
 }
 
 RC FieldExpr::get_value(const Tuple &tuple, Value &value) const
