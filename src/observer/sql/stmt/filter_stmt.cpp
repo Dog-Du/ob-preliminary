@@ -37,10 +37,13 @@ RC FilterStmt::create(Db *db, Table *default_table, std::unordered_map<std::stri
   stmt  = nullptr;
 
   FilterStmt *tmp_stmt = new FilterStmt();
+
+  // 循环，遍历所有where里面的condition
   for (int i = 0; i < condition_num; i++) {
     // 在这里得知表和值的类型，可以进行转化，
     // select、delete都需要在这里进行筛选，所以在这里进行修改可以一劳两逸。
     ///TODO: update暂时不知道需要怎么做。
+    // update 已经完成
     if (conditions[i].left_is_attr == 0 && conditions[i].right_is_attr == 1 &&
         conditions[i].left_value.attr_type() == CHARS &&
         default_table->table_meta().field(conditions[i].right_attr.attribute_name.c_str())->type() == DATES) {
@@ -72,6 +75,8 @@ RC FilterStmt::create(Db *db, Table *default_table, std::unordered_map<std::stri
     }
 
     FilterUnit *filter_unit = nullptr;
+
+    // 对第i个condition进行处理。...
     rc = create_filter_unit(db, default_table, tables, conditions[i], filter_unit);
     if (rc != RC::SUCCESS) {
       delete tmp_stmt;
@@ -88,6 +93,7 @@ RC FilterStmt::create(Db *db, Table *default_table, std::unordered_map<std::stri
 RC get_table_and_field(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
     const RelAttrSqlNode &attr, Table *&table, const FieldMeta *&field)
 {
+  // 空白
   if (common::is_blank(attr.relation_name.c_str())) {
     table = default_table;
   } else if (nullptr != tables) {
@@ -98,6 +104,7 @@ RC get_table_and_field(Db *db, Table *default_table, std::unordered_map<std::str
   } else {
     table = db->find_table(attr.relation_name.c_str());
   }
+
   if (nullptr == table) {
     LOG_WARN("No such table: attr.relation_name: %s", attr.relation_name.c_str());
     return RC::SCHEMA_TABLE_NOT_EXIST;
@@ -126,6 +133,9 @@ RC FilterStmt::create_filter_unit(Db *db, Table *default_table, std::unordered_m
 
   filter_unit = new FilterUnit;
 
+  // 在inner join里面下面两个if应该都会进入if。
+
+  // 是属性名称
   if (condition.left_is_attr) {
     Table           *table = nullptr;
     const FieldMeta *field = nullptr;

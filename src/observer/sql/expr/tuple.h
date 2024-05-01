@@ -219,7 +219,7 @@ public:
   {
     const char *table_name = spec.table_name();
     const char *field_name = spec.field_name();
-    if (0 != strcmp(table_name, table_->name())) {
+    if (table_name != nullptr && table_ != nullptr && 0 != strcmp(table_name, table_->name())) {
       return RC::NOTFOUND;
     }
 

@@ -110,6 +110,9 @@ NOT                                     RETURN_TOKEN(NOT);
 
 LIKE                                    RETURN_TOKEN(LIKE_T);
 
+JOIN                                    RETURN_TOKEN(JOIN_T);
+INNER                                   RETURN_TOKEN(INNER_T);
+
 WHERE                                   RETURN_TOKEN(WHERE);
 AND                                     RETURN_TOKEN(AND);
 INSERT                                  RETURN_TOKEN(INSERT);

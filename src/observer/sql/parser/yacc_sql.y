@@ -75,6 +75,9 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
 
         LIKE_T
 
+        INNER_T
+        JOIN_T
+
         DESC
         SHOW
         SYNC
@@ -116,6 +119,10 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
 %union {
   ParsedSqlNode *                   sql_node;
   ConditionSqlNode *                condition;
+
+  JoinSqlNode *                     join;
+  std::vector<JoinSqlNode> *        join_list;
+
   Value *                           value;
   enum CompOp                       comp;
   RelAttrSqlNode *                  rel_attr;
@@ -162,6 +169,9 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
 %type <rel_attr>            min_stmt
 %type <rel_attr>            count_stmt
 %type <rel_attr>            avg_stmt
+
+%type <join>                join
+%type <join_list>           join_list
 
 %type <sql_node>            calc_stmt
 %type <sql_node>            select_stmt
@@ -576,7 +586,7 @@ update_stmt:      /*  update 语句的语法解析树*/
     }
     ;
 select_stmt:        /*  select 语句的语法解析树*/
-    SELECT select_attr FROM ID rel_list where
+    SELECT select_attr FROM ID rel_list join_list where
     {
       $$ = new ParsedSqlNode(SCF_SELECT);
       if ($2 != nullptr) {
@@ -591,12 +601,50 @@ select_stmt:        /*  select 语句的语法解析树*/
       std::reverse($$->selection.relations.begin(), $$->selection.relations.end());
 
       if ($6 != nullptr) {
-        $$->selection.conditions.swap(*$6);
+        $$->selection.joins.swap(*$6);
         delete $6;
+      }
+
+      if ($7 != nullptr) {
+        $$->selection.conditions.swap(*$7);
+        delete $7;
       }
       free($4);
     }
     ;
+
+
+
+join_list:
+  /* empty */
+  {
+    $$ = nullptr;
+  }
+  | join join_list
+  {
+    if ($2 != nullptr) {
+        $$ = $2;
+      } else {
+        $$ = new std::vector<JoinSqlNode>;
+      }
+    $$->emplace_back(*$1);
+    delete $1;
+  }
+  ;
+
+join :
+  INNER_T JOIN_T rel_attr ON condition
+  {
+    $$ = new JoinSqlNode;
+    $$->joined_rel = *$3;
+    /* 这里rel_attr会把表名识别成属性名，交换一下 */
+    $$->joined_rel.relation_name.swap($$->joined_rel.attribute_name);
+    $$->condition = *$5;
+    delete $3;
+    delete $5;
+  }
+  ;
+
 calc_stmt:
     CALC expression_list
     {

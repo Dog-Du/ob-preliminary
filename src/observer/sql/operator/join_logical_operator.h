@@ -14,7 +14,9 @@ See the Mulan PSL v2 for more details. */
 
 #pragma once
 
+#include "sql/expr/expression.h"
 #include "sql/operator/logical_operator.h"
+#include "sql/parser/parse_defs.h"
 
 /**
  * @brief 连接算子
@@ -24,10 +26,16 @@ See the Mulan PSL v2 for more details. */
 class JoinLogicalOperator : public LogicalOperator
 {
 public:
-  JoinLogicalOperator()          = default;
+  JoinLogicalOperator() = default;
+  JoinLogicalOperator(
+      CompOp comp, std::unique_ptr<Expression> left, std::unique_ptr<Expression> right)
+      : join_expr_(comp, std::move(left), std::move(right))
+  {}
   virtual ~JoinLogicalOperator() = default;
 
   LogicalOperatorType type() const override { return LogicalOperatorType::JOIN; }
+  ComparisonExpr     &comp_expr() { return join_expr_; }
 
 private:
+  ComparisonExpr join_expr_;
 };

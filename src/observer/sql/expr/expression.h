@@ -17,6 +17,7 @@ See the Mulan PSL v2 for more details. */
 #include <memory>
 #include <string>
 
+#include "sql/parser/parse_defs.h"
 #include "sql/parser/value.h"
 #include "storage/field/field.h"
 
@@ -186,6 +187,7 @@ class ComparisonExpr : public Expression
 {
 public:
   ComparisonExpr(CompOp comp, std::unique_ptr<Expression> left, std::unique_ptr<Expression> right);
+  ComparisonExpr() = default;
   virtual ~ComparisonExpr();
 
   ExprType type() const override { return ExprType::COMPARISON; }
@@ -209,7 +211,7 @@ public:
   RC compare_value(const Value &left, const Value &right, bool &value) const;
 
 private:
-  CompOp                      comp_;
+  CompOp                      comp_{INVALID_COMP};
   std::unique_ptr<Expression> left_;
   std::unique_ptr<Expression> right_;
 };

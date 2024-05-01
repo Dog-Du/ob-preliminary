@@ -13,8 +13,9 @@ See the Mulan PSL v2 for more details. */
 //
 
 #include "sql/operator/join_physical_operator.h"
-
-NestedLoopJoinPhysicalOperator::NestedLoopJoinPhysicalOperator() {}
+#include "sql/expr/expression.h"
+#include "sql/expr/tuple_cell.h"
+#include "sql/parser/parse_defs.h"
 
 RC NestedLoopJoinPhysicalOperator::open(Trx *trx)
 {
@@ -23,44 +24,80 @@ RC NestedLoopJoinPhysicalOperator::open(Trx *trx)
     return RC::INTERNAL;
   }
 
-  RC rc         = RC::SUCCESS;
-  left_         = children_[0].get();
-  right_        = children_[1].get();
-  right_closed_ = true;
-  round_done_   = true;
+  RC rc  = RC::SUCCESS;
+  left_  = children_[0].get();
+  right_ = children_[1].get();
 
-  rc   = left_->open(trx);
+  right_closed_ = false;
+  round_done_   = false;
+
+  rc = left_->open(trx);
+  left_next();
+  right_->open(trx);
+
+  while (right_->next() == RC::SUCCESS) {
+    Tuple *tuple = right_->current_tuple();
+    right_tuples_.push_back(*tuple);
+  }
+
   trx_ = trx;
   return rc;
 }
 
+bool NestedLoopJoinPhysicalOperator::filter()
+{
+  if (comp_expr_.comp() == INVALID_COMP) {
+    return true;
+  }
+
+  FieldExpr *left_expr  = static_cast<FieldExpr *>(comp_expr_.left().get());
+  FieldExpr *right_expr = static_cast<FieldExpr *>(comp_expr_.right().get());
+
+  TupleCellSpec left_spec(left_expr->table_name(), left_expr->field_name());
+  TupleCellSpec right_spec(right_expr->table_name(), right_expr->field_name());
+
+  Value left_value;
+  Value right_value;
+
+  joined_tuple_.find_cell(left_spec, left_value);
+  joined_tuple_.find_cell(right_spec, right_value);
+
+  bool ret = false;
+
+  comp_expr_.compare_value(left_value, right_value, ret);
+  return ret;
+}
+
 RC NestedLoopJoinPhysicalOperator::next()
 {
-  bool left_need_step = (left_tuple_ == nullptr);
-  RC   rc             = RC::SUCCESS;
-  if (round_done_) {
-    left_need_step = true;
-  } else {
-    rc = right_next();
-    if (rc != RC::SUCCESS) {
-      if (rc == RC::RECORD_EOF) {
-        left_need_step = true;
+  RC rc = RC::SUCCESS;
+
+  do {
+    bool left_need_step = (left_tuple_ == nullptr);
+    bool flag           = true;
+    if (round_done_) {
+      left_need_step = true;
+    } else {
+      rc = right_next();
+      if (rc != RC::SUCCESS) {
+        if (rc == RC::RECORD_EOF) {
+          left_need_step = true;
+        } else {
+          flag = false;
+        }
       } else {
+        flag = false;
+      }
+    }
+
+    if (left_need_step && flag) {
+      rc = left_next();
+      if (rc != RC::SUCCESS) {
         return rc;
       }
-    } else {
-      return rc;  // got one tuple from right
     }
-  }
+  } while (!filter());
 
-  if (left_need_step) {
-    rc = left_next();
-    if (rc != RC::SUCCESS) {
-      return rc;
-    }
-  }
-
-  rc = right_next();
   return rc;
 }
 

@@ -16,8 +16,11 @@ See the Mulan PSL v2 for more details. */
 
 #include <memory>
 #include <vector>
+#include <unordered_set>
+#include <unordered_map>
 
 #include "common/rc.h"
+#include "sql/parser/parse_defs.h"
 #include "sql/stmt/stmt.h"
 #include "storage/field/field.h"
 
@@ -43,14 +46,17 @@ public:
   static RC create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt);
 
 public:
-  const std::vector<Table *> &tables() const { return tables_; }
-  const std::vector<Field>   &query_fields() const { return query_fields_; }
-  FilterStmt                 *filter_stmt() const { return filter_stmt_; }
-  bool                       &is_agg() { return is_agg_; }
+  const std::vector<Table *>                     &tables() const { return tables_; }
+  const std::unordered_map<Table *, ConditionSqlNode> &joined_tables() const { return joined_tables_; }
+  const std::vector<Field>                       &query_fields() const { return query_fields_; }
+  FilterStmt                                     *filter_stmt() const { return filter_stmt_; }
+  bool                                           &is_agg() { return is_agg_; }
 
 private:
-  std::vector<Field>   query_fields_;
-  std::vector<Table *> tables_;
-  FilterStmt          *filter_stmt_ = nullptr;
-  bool                 is_agg_      = false;
+  std::vector<Field>                       query_fields_;
+  std::vector<Table *>                     tables_;
+  std::unordered_map<Table *, ConditionSqlNode> joined_tables_;
+  FilterStmt                              *filter_stmt_ = nullptr;
+
+  bool                                     is_agg_      = false;
 };

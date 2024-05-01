@@ -113,7 +113,7 @@ RC PhysicalPlanGenerator::create_plan(
   }
 
   AggregationPhysicalOperator *aggregation_operator = new AggregationPhysicalOperator;
-  const vector<Field>     &aggregation_fields   = aggregation_oper.fields();
+  const vector<Field>         &aggregation_fields   = aggregation_oper.fields();
   aggregation_operator->set_aggregation(aggregation_fields);
 
   if (child_phy_oper) {
@@ -350,7 +350,9 @@ RC PhysicalPlanGenerator::create_plan(
     return RC::INTERNAL;
   }
 
-  unique_ptr<PhysicalOperator> join_physical_oper(new NestedLoopJoinPhysicalOperator);
+  unique_ptr<PhysicalOperator> join_physical_oper(
+      new NestedLoopJoinPhysicalOperator(join_oper.comp_expr()));
+
   for (auto &child_oper : child_opers) {
     unique_ptr<PhysicalOperator> child_physical_oper;
     rc = create(*child_oper, child_physical_oper);

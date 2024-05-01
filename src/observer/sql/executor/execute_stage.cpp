@@ -71,6 +71,7 @@ RC ExecuteStage::handle_request_with_physical_operator(SQLStageEvent *sql_event)
       SelectStmt *select_stmt     = static_cast<SelectStmt *>(stmt);
       bool        with_table_name = select_stmt->tables().size() > 1;
 
+      // 好丑陋的写法。
       for (const Field &field : select_stmt->query_fields()) {
         string field_name = field.field_name();
         if (field.agg_type() != AggregationType::INVALID_TYPE) {

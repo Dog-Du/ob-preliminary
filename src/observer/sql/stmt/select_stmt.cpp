@@ -21,6 +21,8 @@ See the Mulan PSL v2 for more details. */
 #include "storage/db/db.h"
 #include "storage/field/field_meta.h"
 #include "storage/table/table.h"
+#include <cstddef>
+#include <unordered_set>
 
 SelectStmt::~SelectStmt()
 {
@@ -66,13 +68,36 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
     table_map.insert(std::pair<std::string, Table *>(table_name, table));
   }
 
+  std::unordered_map<Table *, ConditionSqlNode> joined_tables;
+  /// TODO:
+  /// joined_tables应不应该加入到tables里？不加入的话可能filter出问题，加入的话可能join出问题。
+  for (auto &it : select_sql.joins) {
+    const char *table_name = it.joined_rel.relation_name.c_str();
+
+    if (nullptr == table_name) {
+      LOG_WARN("invalid argument. relation name is null. index=%d", -1);
+      return RC::INVALID_ARGUMENT;
+    }
+
+    Table *table = db->find_table(table_name);
+
+    if (nullptr == table) {
+      LOG_WARN("no such table. db=%s, table_name=%s", db->name(), table_name);
+      return RC::SCHEMA_TABLE_NOT_EXIST;
+    }
+
+    tables.push_back(table);
+    joined_tables.emplace(table, it.condition);
+    table_map.insert(std::pair<std::string, Table *>(table_name, table));
+  }
+
   // collect query fields in `select` statement
   std::vector<Field> query_fields;
 
   // 倒序遍历，应该是为了和输入的顺序一致，至于为什么不一致我也不知道。
   for (int i = static_cast<int>(select_sql.attributes.size()) - 1; i >= 0; i--) {
     const RelAttrSqlNode &relation_attr = select_sql.attributes[i];
-    
+
     if (common::is_blank(relation_attr.relation_name.c_str()) &&
         0 == strcmp(relation_attr.attribute_name.c_str(), "*")) {
       // 这个if考虑了，from中table需要join的情况，所以需要遍历，同时，特判了属性为 *
@@ -175,6 +200,8 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
   select_stmt->tables_.swap(tables);
   select_stmt->query_fields_.swap(query_fields);
   select_stmt->filter_stmt_ = filter_stmt;
-  stmt                      = select_stmt;
+  select_stmt->joined_tables_.swap(joined_tables);
+  stmt = select_stmt;
+
   return RC::SUCCESS;
 }

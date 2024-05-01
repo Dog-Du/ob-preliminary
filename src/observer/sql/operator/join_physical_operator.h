@@ -14,8 +14,12 @@ See the Mulan PSL v2 for more details. */
 
 #pragma once
 
+#include "sql/expr/expression.h"
+#include "sql/expr/tuple_cell.h"
 #include "sql/operator/physical_operator.h"
 #include "sql/parser/parse.h"
+#include "sql/parser/parse_defs.h"
+#include <memory>
 
 /**
  * @brief 最简单的两表（称为左表、右表）join算子
@@ -25,7 +29,11 @@ See the Mulan PSL v2 for more details. */
 class NestedLoopJoinPhysicalOperator : public PhysicalOperator
 {
 public:
-  NestedLoopJoinPhysicalOperator();
+  NestedLoopJoinPhysicalOperator() = default;
+  NestedLoopJoinPhysicalOperator(ComparisonExpr &comp_expr)
+      : comp_expr_(comp_expr.comp(), std::move(comp_expr.left()), std::move(comp_expr.right()))
+  {}
+
   virtual ~NestedLoopJoinPhysicalOperator() = default;
 
   PhysicalOperatorType type() const override { return PhysicalOperatorType::NESTED_LOOP_JOIN; }
@@ -36,18 +44,22 @@ public:
   Tuple *current_tuple() override;
 
 private:
-  RC left_next();   //! 左表遍历下一条数据
+  RC left_next();  //! 左表遍历下一条数据
   RC right_next();  //! 右表遍历下一条数据，如果上一轮结束了就重新开始新的一轮
+
+  bool filter();
 
 private:
   Trx *trx_ = nullptr;
 
   //! 左表右表的真实对象是在PhysicalOperator::children_中，这里是为了写的时候更简单
-  PhysicalOperator *left_        = nullptr;
-  PhysicalOperator *right_       = nullptr;
-  Tuple            *left_tuple_  = nullptr;
-  Tuple            *right_tuple_ = nullptr;
-  JoinedTuple       joined_tuple_;         //! 当前关联的左右两个tuple
-  bool              round_done_   = true;  //! 右表遍历的一轮是否结束
-  bool              right_closed_ = true;  //! 右表算子是否已经关闭
+  PhysicalOperator  *left_        = nullptr;
+  PhysicalOperator  *right_       = nullptr;
+  Tuple             *left_tuple_  = nullptr;
+  Tuple             *right_tuple_ = nullptr;
+  JoinedTuple        joined_tuple_;         //! 当前关联的左右两个tuple
+  bool               round_done_   = true;  //! 右表遍历的一轮是否结束
+  bool               right_closed_ = true;  //! 右表算子是否已经关闭
+  std::vector<Tuple> right_tuples_;
+  ComparisonExpr     comp_expr_;
 };

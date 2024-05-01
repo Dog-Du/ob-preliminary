@@ -1,0 +1,22 @@
+join :
+  parse：
+  1.先支持inner join on关键字
+  2.分割，分成 from a inner join b on condition
+  3.在第一个inner join前面直接使用自带的join，因为没有条件限制，所以全部输出
+  4.在之后的inner join，分成，左边的部分和当前的table，以condition连接。
+  5.参考attr_list可写join_list
+  6.写一个JoinSqlNode，放table_name和condition
+  7.SelectSqlNode里放个vector<JoinSqlNode>记录所有的东西
+
+  resolve:
+  1.把joined_table都放进tables，但是多开一个unordered_set<Table *, ConditionSqlNode>
+  2.在SelectStmt放进一个unordered_set，作为信息传递
+
+  optimize:
+  1.在JoinLogicalNode中，添加表达式表示是否是带条件的连接
+  2.然后在生成的时候，对于inner join前面的，不进行修改，就是无条件连接
+  3.在inner join后面的，进行修改，添加expression，表示有条件连接，并把连接的条件放进JoinLogicalNode中
+  4.在JoinPhysicalNode中进行修改，也加一个expression
+
+  execute:
+  1.修改next部分代码，在连接之前判断是否能连接。

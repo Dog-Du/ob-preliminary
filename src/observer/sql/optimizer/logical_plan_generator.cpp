@@ -17,6 +17,7 @@ See the Mulan PSL v2 for more details. */
 #include <common/log/log.h>
 #include <memory>
 
+#include "sql/expr/expression.h"
 #include "sql/operator/calc_logical_operator.h"
 #include "sql/operator/delete_logical_operator.h"
 #include "sql/operator/explain_logical_operator.h"
@@ -102,28 +103,32 @@ RC LogicalPlanGenerator::create_plan(
 
   const std::vector<Table *> &tables     = select_stmt->tables();
   const std::vector<Field>   &all_fields = select_stmt->query_fields();
+  // 丑陋的答辩
+
+  for (const Field &field : all_fields) {
+    if (field.agg_type() != AggregationType::INVALID_TYPE) {
+      switch (field.agg_type()) {
+        case AggregationType::AVG_TYPE:
+        case AggregationType::SUM_TYPE: {
+          switch (field.attr_type()) {
+            case AttrType::BOOLEANS:
+            case AttrType::CHARS:
+            case AttrType::DATES:
+            case AttrType::NULLS:
+            case AttrType::UNDEFINED: {
+              return RC::VARIABLE_NOT_VALID;
+            } break;
+            default: break;
+          }
+        }
+        default: break;
+      }
+    }
+  }
+  
   for (Table *table : tables) {
     std::vector<Field> fields;
     for (const Field &field : all_fields) {
-      if (field.agg_type() != AggregationType::INVALID_TYPE) {
-        switch (field.agg_type()) {
-          case AggregationType::AVG_TYPE:
-          case AggregationType::SUM_TYPE: {
-            switch (field.attr_type()) {
-              case AttrType::BOOLEANS:
-              case AttrType::CHARS:
-              case AttrType::DATES:
-              case AttrType::NULLS:
-              case AttrType::UNDEFINED: {
-                return RC::VARIABLE_NOT_VALID;
-              } break;
-              default: break;
-            }
-          }
-          default: break;
-        }
-      }
-
       if (0 == strcmp(field.table_name(), table->name())) {
         fields.push_back(field);
       }
@@ -134,7 +139,27 @@ RC LogicalPlanGenerator::create_plan(
     if (table_oper == nullptr) {
       table_oper = std::move(table_get_oper);
     } else {
-      JoinLogicalOperator *join_oper = new JoinLogicalOperator;
+      auto                 iter      = select_stmt->joined_tables().find(table);
+      JoinLogicalOperator *join_oper = nullptr;
+
+      if (iter == select_stmt->joined_tables().end()) {
+        join_oper = new JoinLogicalOperator;
+      } else {
+        auto left_iter = std::find_if(select_stmt->tables().begin(),
+            select_stmt->tables().end(),
+            [&iter](Table *t) { return t->name() == iter->second.left_attr.relation_name; });
+
+        FieldExpr *left_expr = new FieldExpr(*left_iter,
+            (*left_iter)->table_meta().field(iter->second.left_attr.attribute_name.c_str()));
+
+        FieldExpr *right_expr = new FieldExpr(
+            table, table->table_meta().field(iter->second.right_attr.attribute_name.c_str()));
+
+        join_oper = new JoinLogicalOperator(iter->second.comp,
+            std::unique_ptr<Expression>(left_expr),
+            std::unique_ptr<Expression>(right_expr));
+      }
+
       join_oper->add_child(std::move(table_oper));
       join_oper->add_child(std::move(table_get_oper));
       table_oper = unique_ptr<LogicalOperator>(join_oper);
