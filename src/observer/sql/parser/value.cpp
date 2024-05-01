@@ -389,6 +389,10 @@ CompareResult Value::compare(const Value &other) const
   } else if (this->attr_type_ == FLOATS && other.attr_type_ == INTS) {
     float other_data = other.num_value_.int_value_;
     return common::compare_float((void *)&this->num_value_.float_value_, (void *)&other_data);
+  } else if (this->attr_type_ != NULLS && other.attr_type_ != NULLS) {
+    std::string l = this->to_string();
+    std::string r = other.to_string();
+    return common::compare_string((void *)l.c_str(), l.size(), (void *)r.c_str(), r.size());
   }
 
   LOG_WARN("not supported");
