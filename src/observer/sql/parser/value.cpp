@@ -383,16 +383,28 @@ CompareResult Value::compare(const Value &other) const
         LOG_WARN("unsupported type: %d", this->attr_type_);
       }
     }
-  } else if (this->attr_type_ == INTS && other.attr_type_ == FLOATS) {
-    float this_data = this->num_value_.int_value_;
+  } else if ((this->attr_type_ == INTS || this->attr_type_ == DATES) &&
+             other.attr_type_ == FLOATS) {
+    float this_data = this->get_int();
     return common::compare_float((void *)&this_data, (void *)&other.num_value_.float_value_);
-  } else if (this->attr_type_ == FLOATS && other.attr_type_ == INTS) {
-    float other_data = other.num_value_.int_value_;
+  } else if (this->attr_type_ == FLOATS &&
+             (other.attr_type_ == INTS || other.attr_type_ == DATES)) {
+    float other_data = other.get_int();
     return common::compare_float((void *)&this->num_value_.float_value_, (void *)&other_data);
-  } else if (this->attr_type_ != NULLS && other.attr_type_ != NULLS) {
-    std::string l = this->to_string();
-    std::string r = other.to_string();
-    return common::compare_string((void *)l.c_str(), l.size(), (void *)r.c_str(), r.size());
+  } else if (this->attr_type_ == FLOATS && other.attr_type_ == CHARS) {
+    float rf = other.get_float();
+    return common::compare_float((void *)&this->num_value_.float_value_, (void *)&rf);
+  } else if (this->attr_type_ == CHARS && other.attr_type_ == FLOATS) {
+    float lf = this->get_float();
+    return common::compare_float((void *)&lf, (void *)&other.num_value_.float_value_);
+  } else if ((this->attr_type_ == INTS || this->attr_type_ == DATES) && other.attr_type_ == CHARS) {
+    int ri = other.get_int();
+    int li = this->get_int();
+    return common::compare_int((void *)&li, (void *)&ri);
+  } else if (this->attr_type_ == CHARS && (other.attr_type_ == INTS || other.attr_type_ == DATES)) {
+    int li = this->get_int();
+    int ri = other.get_int();
+    return common::compare_int((void *)&li, (void *)&ri);
   }
 
   LOG_WARN("not supported");
