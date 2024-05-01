@@ -68,7 +68,7 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
     table_map.insert(std::pair<std::string, Table *>(table_name, table));
   }
 
-  std::unordered_map<Table *, ConditionSqlNode> joined_tables;
+  std::unordered_map<Table *, std::vector<ConditionSqlNode>> joined_tables;
   /// TODO:
   /// joined_tables应不应该加入到tables里？不加入的话可能filter出问题，加入的话可能join出问题。
   for (auto &it : select_sql.joins) {
@@ -87,7 +87,7 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
     }
 
     tables.push_back(table);
-    joined_tables.emplace(table, it.condition);
+    joined_tables.emplace(table, it.conditions);
     table_map.insert(std::pair<std::string, Table *>(table_name, table));
   }
 

@@ -633,13 +633,13 @@ join_list:
   ;
 
 join :
-  INNER_T JOIN_T rel_attr ON condition
+  INNER_T JOIN_T rel_attr ON condition_list
   {
     $$ = new JoinSqlNode;
     $$->joined_rel = *$3;
     /* 这里rel_attr会把表名识别成属性名，交换一下 */
     $$->joined_rel.relation_name.swap($$->joined_rel.attribute_name);
-    $$->condition = *$5;
+    $$->conditions.swap(*$5);
     delete $3;
     delete $5;
   }

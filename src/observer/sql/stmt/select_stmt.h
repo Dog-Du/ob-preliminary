@@ -46,17 +46,20 @@ public:
   static RC create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt);
 
 public:
-  const std::vector<Table *>                     &tables() const { return tables_; }
-  const std::unordered_map<Table *, ConditionSqlNode> &joined_tables() const { return joined_tables_; }
-  const std::vector<Field>                       &query_fields() const { return query_fields_; }
-  FilterStmt                                     *filter_stmt() const { return filter_stmt_; }
-  bool                                           &is_agg() { return is_agg_; }
+  const std::vector<Table *> &tables() const { return tables_; }
+  const std::unordered_map<Table *, std::vector<ConditionSqlNode>> &joined_tables() const
+  {
+    return joined_tables_;
+  }
+  const std::vector<Field> &query_fields() const { return query_fields_; }
+  FilterStmt               *filter_stmt() const { return filter_stmt_; }
+  bool                     &is_agg() { return is_agg_; }
 
 private:
-  std::vector<Field>                       query_fields_;
-  std::vector<Table *>                     tables_;
-  std::unordered_map<Table *, ConditionSqlNode> joined_tables_;
-  FilterStmt                              *filter_stmt_ = nullptr;
+  std::vector<Field>                                         query_fields_;
+  std::vector<Table *>                                       tables_;
+  std::unordered_map<Table *, std::vector<ConditionSqlNode>> joined_tables_;
+  FilterStmt                                                *filter_stmt_ = nullptr;
 
-  bool                                     is_agg_      = false;
+  bool is_agg_ = false;
 };

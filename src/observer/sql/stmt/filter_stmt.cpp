@@ -30,8 +30,9 @@ FilterStmt::~FilterStmt()
   filter_units_.clear();
 }
 
-RC FilterStmt::create(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
-    const ConditionSqlNode *conditions, int condition_num, FilterStmt *&stmt)
+RC FilterStmt::create(Db *db, Table *default_table,
+    std::unordered_map<std::string, Table *> *tables, const ConditionSqlNode *conditions,
+    int condition_num, FilterStmt *&stmt)
 {
   RC rc = RC::SUCCESS;
   stmt  = nullptr;
@@ -42,11 +43,13 @@ RC FilterStmt::create(Db *db, Table *default_table, std::unordered_map<std::stri
   for (int i = 0; i < condition_num; i++) {
     // 在这里得知表和值的类型，可以进行转化，
     // select、delete都需要在这里进行筛选，所以在这里进行修改可以一劳两逸。
-    ///TODO: update暂时不知道需要怎么做。
+    /// TODO: update暂时不知道需要怎么做。
     // update 已经完成
-    if (conditions[i].left_is_attr == 0 && conditions[i].right_is_attr == 1 &&
-        conditions[i].left_value.attr_type() == CHARS &&
-        default_table->table_meta().field(conditions[i].right_attr.attribute_name.c_str())->type() == DATES) {
+    if (default_table != nullptr && conditions[i].left_is_attr == 0 &&
+        conditions[i].right_is_attr == 1 && conditions[i].left_value.attr_type() == CHARS &&
+        default_table->table_meta()
+                .field(conditions[i].right_attr.attribute_name.c_str())
+                ->type() == DATES) {
       date_t v = str_to_date(conditions[i].left_value.data());
 
       if (check_date(v)) {
@@ -59,9 +62,10 @@ RC FilterStmt::create(Db *db, Table *default_table, std::unordered_map<std::stri
       }
     }
 
-    if (conditions[i].right_is_attr == 0 && conditions[i].left_is_attr == 1 &&
-        conditions[i].right_value.attr_type() == CHARS &&
-        default_table->table_meta().field(conditions[i].left_attr.attribute_name.c_str())->type() == DATES) {
+    if (default_table != nullptr && conditions[i].right_is_attr == 0 &&
+        conditions[i].left_is_attr == 1 && conditions[i].right_value.attr_type() == CHARS &&
+        default_table->table_meta().field(conditions[i].left_attr.attribute_name.c_str())->type() ==
+            DATES) {
       date_t v = str_to_date(conditions[i].right_value.data());
 
       if (check_date(v)) {
@@ -90,8 +94,9 @@ RC FilterStmt::create(Db *db, Table *default_table, std::unordered_map<std::stri
   return rc;
 }
 
-RC get_table_and_field(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
-    const RelAttrSqlNode &attr, Table *&table, const FieldMeta *&field)
+RC get_table_and_field(Db *db, Table *default_table,
+    std::unordered_map<std::string, Table *> *tables, const RelAttrSqlNode &attr, Table *&table,
+    const FieldMeta *&field)
 {
   // 空白
   if (common::is_blank(attr.relation_name.c_str())) {
@@ -120,8 +125,9 @@ RC get_table_and_field(Db *db, Table *default_table, std::unordered_map<std::str
   return RC::SUCCESS;
 }
 
-RC FilterStmt::create_filter_unit(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
-    const ConditionSqlNode &condition, FilterUnit *&filter_unit)
+RC FilterStmt::create_filter_unit(Db *db, Table *default_table,
+    std::unordered_map<std::string, Table *> *tables, const ConditionSqlNode &condition,
+    FilterUnit *&filter_unit)
 {
   RC rc = RC::SUCCESS;
 
@@ -139,7 +145,7 @@ RC FilterStmt::create_filter_unit(Db *db, Table *default_table, std::unordered_m
   if (condition.left_is_attr) {
     Table           *table = nullptr;
     const FieldMeta *field = nullptr;
-    rc                     = get_table_and_field(db, default_table, tables, condition.left_attr, table, field);
+    rc = get_table_and_field(db, default_table, tables, condition.left_attr, table, field);
     if (rc != RC::SUCCESS) {
       LOG_WARN("cannot find attr");
       return rc;
@@ -156,7 +162,7 @@ RC FilterStmt::create_filter_unit(Db *db, Table *default_table, std::unordered_m
   if (condition.right_is_attr) {
     Table           *table = nullptr;
     const FieldMeta *field = nullptr;
-    rc                     = get_table_and_field(db, default_table, tables, condition.right_attr, table, field);
+    rc = get_table_and_field(db, default_table, tables, condition.right_attr, table, field);
     if (rc != RC::SUCCESS) {
       LOG_WARN("cannot find attr");
       return rc;

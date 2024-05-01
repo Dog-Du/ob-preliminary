@@ -125,7 +125,7 @@ RC LogicalPlanGenerator::create_plan(
       }
     }
   }
-  
+
   for (Table *table : tables) {
     std::vector<Field> fields;
     for (const Field &field : all_fields) {
@@ -145,19 +145,50 @@ RC LogicalPlanGenerator::create_plan(
       if (iter == select_stmt->joined_tables().end()) {
         join_oper = new JoinLogicalOperator;
       } else {
-        auto left_iter = std::find_if(select_stmt->tables().begin(),
-            select_stmt->tables().end(),
-            [&iter](Table *t) { return t->name() == iter->second.left_attr.relation_name; });
+        std::vector<std::unique_ptr<ComparisonExpr>> comp_exprs;
+        for (auto &it : iter->second) {
+          Expression *left_expr  = nullptr;
+          Expression *right_expr = nullptr;
 
-        FieldExpr *left_expr = new FieldExpr(*left_iter,
-            (*left_iter)->table_meta().field(iter->second.left_attr.attribute_name.c_str()));
+          if (it.left_is_attr == 0) {
+            left_expr = new ValueExpr(it.left_value);
+          } else {
+            auto left_iter = find_if(tables.begin(), tables.end(), [tables, &it](Table *t) {
+              return t->name() == it.left_attr.relation_name;
+            });
 
-        FieldExpr *right_expr = new FieldExpr(
-            table, table->table_meta().field(iter->second.right_attr.attribute_name.c_str()));
+            if (left_iter == tables.end()) {
+              return RC::NOTFOUND;
+            }
 
-        join_oper = new JoinLogicalOperator(iter->second.comp,
-            std::unique_ptr<Expression>(left_expr),
-            std::unique_ptr<Expression>(right_expr));
+            Table *left_table = *left_iter;
+            left_expr         = new FieldExpr(
+                left_table, left_table->table_meta().field(it.left_attr.attribute_name.c_str()));
+          }
+
+          if (it.right_is_attr == 0) {
+            right_expr = new ValueExpr(it.right_value);
+          } else {
+            auto right_iter = find_if(tables.begin(), tables.end(), [tables, &it](Table *t) {
+              return t->name() == it.right_attr.relation_name;
+            });
+
+            if (right_iter == tables.end()) {
+              return RC::NOTFOUND;
+            }
+
+            Table *right_table = *right_iter;
+            right_expr         = new FieldExpr(
+                right_table, right_table->table_meta().field(it.right_attr.attribute_name.c_str()));
+          }
+
+          comp_exprs.emplace_back(std::unique_ptr<ComparisonExpr>(new ComparisonExpr(it.comp,
+              std::unique_ptr<Expression>(left_expr),
+              std::unique_ptr<Expression>(right_expr))));
+        }
+
+        join_oper = new JoinLogicalOperator;
+        join_oper->comp_expr().swap(comp_exprs);
       }
 
       join_oper->add_child(std::move(table_oper));

@@ -106,8 +106,8 @@ struct ConditionSqlNode
 
 struct JoinSqlNode
 {
-  RelAttrSqlNode   joined_rel;
-  ConditionSqlNode condition;
+  RelAttrSqlNode                joined_rel;
+  std::vector<ConditionSqlNode> conditions;
 };
 
 struct SelectSqlNode

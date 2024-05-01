@@ -27,15 +27,12 @@ class JoinLogicalOperator : public LogicalOperator
 {
 public:
   JoinLogicalOperator() = default;
-  JoinLogicalOperator(
-      CompOp comp, std::unique_ptr<Expression> left, std::unique_ptr<Expression> right)
-      : join_expr_(comp, std::move(left), std::move(right))
-  {}
+
   virtual ~JoinLogicalOperator() = default;
 
   LogicalOperatorType type() const override { return LogicalOperatorType::JOIN; }
-  ComparisonExpr     &comp_expr() { return join_expr_; }
+  std::vector<std::unique_ptr<ComparisonExpr>> &comp_expr() { return comp_exprs_; }
 
 private:
-  ComparisonExpr join_expr_;
+  std::vector<std::unique_ptr<ComparisonExpr>> comp_exprs_;
 };

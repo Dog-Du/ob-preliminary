@@ -28,17 +28,10 @@ RC NestedLoopJoinPhysicalOperator::open(Trx *trx)
   left_  = children_[0].get();
   right_ = children_[1].get();
 
-  right_closed_ = false;
-  round_done_   = false;
+  right_closed_ = true;
+  round_done_   = true;
 
   rc = left_->open(trx);
-  left_next();
-  right_->open(trx);
-
-  while (right_->next() == RC::SUCCESS) {
-    Tuple *tuple = right_->current_tuple();
-    right_tuples_.push_back(*tuple);
-  }
 
   trx_ = trx;
   return rc;
@@ -46,35 +39,47 @@ RC NestedLoopJoinPhysicalOperator::open(Trx *trx)
 
 bool NestedLoopJoinPhysicalOperator::filter()
 {
-  if (comp_expr_.comp() == INVALID_COMP) {
+  if (comp_exprs_.empty()) {
     return true;
   }
 
-  FieldExpr *left_expr  = static_cast<FieldExpr *>(comp_expr_.left().get());
-  FieldExpr *right_expr = static_cast<FieldExpr *>(comp_expr_.right().get());
+  for (auto &comp_expr : comp_exprs_) {
+    Value left_value;
+    Value right_value;
 
-  TupleCellSpec left_spec(left_expr->table_name(), left_expr->field_name());
-  TupleCellSpec right_spec(right_expr->table_name(), right_expr->field_name());
+    if (comp_expr->left()->type() == ExprType::VALUE) {
+      static_cast<ValueExpr *>(comp_expr->left().get())->get_value(left_value);
+    } else {
+      FieldExpr    *left_expr = static_cast<FieldExpr *>(comp_expr->left().get());
+      TupleCellSpec left_spec(left_expr->table_name(), left_expr->field_name());
+      joined_tuple_.find_cell(left_spec, left_value);
+    }
 
-  Value left_value;
-  Value right_value;
+    if (comp_expr->right()->type() == ExprType::VALUE) {
+      static_cast<ValueExpr *>(comp_expr->right().get())->get_value(right_value);
+    } else {
+      FieldExpr    *right_expr = static_cast<FieldExpr *>(comp_expr->right().get());
+      TupleCellSpec right_spec(right_expr->table_name(), right_expr->field_name());
+      joined_tuple_.find_cell(right_spec, right_value);
+    }
 
-  joined_tuple_.find_cell(left_spec, left_value);
-  joined_tuple_.find_cell(right_spec, right_value);
+    bool ret = false;
 
-  bool ret = false;
+    if (comp_expr->compare_value(left_value, right_value, ret) != RC::SUCCESS || !ret) {
+      return false;
+    }
+  }
 
-  comp_expr_.compare_value(left_value, right_value, ret);
-  return ret;
+  return true;
 }
 
 RC NestedLoopJoinPhysicalOperator::next()
 {
   RC rc = RC::SUCCESS;
-
   do {
     bool left_need_step = (left_tuple_ == nullptr);
     bool flag           = true;
+
     if (round_done_) {
       left_need_step = true;
     } else {
@@ -92,6 +97,13 @@ RC NestedLoopJoinPhysicalOperator::next()
 
     if (left_need_step && flag) {
       rc = left_next();
+      if (rc != RC::SUCCESS) {
+        return rc;
+      }
+    }
+
+    if (flag) {
+      rc = right_next();
       if (rc != RC::SUCCESS) {
         return rc;
       }

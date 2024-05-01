@@ -30,8 +30,8 @@ class NestedLoopJoinPhysicalOperator : public PhysicalOperator
 {
 public:
   NestedLoopJoinPhysicalOperator() = default;
-  NestedLoopJoinPhysicalOperator(ComparisonExpr &comp_expr)
-      : comp_expr_(comp_expr.comp(), std::move(comp_expr.left()), std::move(comp_expr.right()))
+  NestedLoopJoinPhysicalOperator(std::vector<std::unique_ptr<ComparisonExpr>> &comp_exprs)
+      : comp_exprs_(std::move(comp_exprs))
   {}
 
   virtual ~NestedLoopJoinPhysicalOperator() = default;
@@ -42,6 +42,10 @@ public:
   RC     next() override;
   RC     close() override;
   Tuple *current_tuple() override;
+  void   set_exprs(std::vector<std::unique_ptr<ComparisonExpr>> &comp_exprs)
+  {
+    comp_exprs_.swap(comp_exprs);
+  }
 
 private:
   RC left_next();  //! 左表遍历下一条数据
@@ -53,13 +57,12 @@ private:
   Trx *trx_ = nullptr;
 
   //! 左表右表的真实对象是在PhysicalOperator::children_中，这里是为了写的时候更简单
-  PhysicalOperator  *left_        = nullptr;
-  PhysicalOperator  *right_       = nullptr;
-  Tuple             *left_tuple_  = nullptr;
-  Tuple             *right_tuple_ = nullptr;
-  JoinedTuple        joined_tuple_;         //! 当前关联的左右两个tuple
-  bool               round_done_   = true;  //! 右表遍历的一轮是否结束
-  bool               right_closed_ = true;  //! 右表算子是否已经关闭
-  std::vector<Tuple> right_tuples_;
-  ComparisonExpr     comp_expr_;
+  PhysicalOperator *left_        = nullptr;
+  PhysicalOperator *right_       = nullptr;
+  Tuple            *left_tuple_  = nullptr;
+  Tuple            *right_tuple_ = nullptr;
+  JoinedTuple       joined_tuple_;         //! 当前关联的左右两个tuple
+  bool              round_done_   = true;  //! 右表遍历的一轮是否结束
+  bool              right_closed_ = true;  //! 右表算子是否已经关闭
+  std::vector<std::unique_ptr<ComparisonExpr>> comp_exprs_;
 };
