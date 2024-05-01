@@ -123,6 +123,8 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
   JoinSqlNode *                     join;
   std::vector<JoinSqlNode> *        join_list;
 
+  std::vector<update_value> *       update_list;
+
   Value *                           value;
   enum CompOp                       comp;
   RelAttrSqlNode *                  rel_attr;
@@ -172,6 +174,8 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
 
 %type <join>                join
 %type <join_list>           join_list
+
+%type <update_list>         update_list
 
 %type <sql_node>            calc_stmt
 %type <sql_node>            select_stmt
@@ -570,21 +574,47 @@ delete_stmt:    /*  delete 语句的语法解析树*/
       free($3);
     }
     ;
+
 update_stmt:      /*  update 语句的语法解析树*/
-    UPDATE ID SET ID EQ value where
+    UPDATE ID SET update_list where
     {
       $$ = new ParsedSqlNode(SCF_UPDATE);
       $$->update.relation_name = $2;
-      $$->update.attribute_name = $4;
-      $$->update.value = *$6;
-      if ($7 != nullptr) {
-        $$->update.conditions.swap(*$7);
-        delete $7;
+      $$->update.update_values.swap(*$4);
+      std::reverse($$->update.update_values.begin(), $$->update.update_values.end());
+
+      if ($5 != nullptr) {
+        $$->update.conditions.swap(*$5);
+        delete $5;
       }
       free($2);
-      free($4);
+      delete $4;
     }
     ;
+
+update_list:
+  ID EQ value COMMA update_list
+  {
+    $$ = $5;
+    update_value tmp;
+    tmp.attribute_name = $1;
+    tmp.value = *$3;
+    $$->emplace_back(tmp);
+    free($1);
+    delete $3;
+  }
+  | ID EQ value
+  {
+    $$ = new std::vector<update_value>;
+    update_value tmp;
+    tmp.attribute_name = $1;
+    tmp.value = *$3;
+    $$->emplace_back(tmp);
+    free($1);
+    delete $3;
+  }
+  ;
+
 select_stmt:        /*  select 语句的语法解析树*/
     SELECT select_attr FROM ID rel_list join_list where
     {

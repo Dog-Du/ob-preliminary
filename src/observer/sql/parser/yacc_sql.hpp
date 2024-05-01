@@ -131,6 +131,8 @@ union YYSTYPE
   JoinSqlNode *                     join;
   std::vector<JoinSqlNode> *        join_list;
 
+  std::vector<update_value> *       update_list;
+
   Value *                           value;
   enum CompOp                       comp;
   RelAttrSqlNode *                  rel_attr;
@@ -146,7 +148,7 @@ union YYSTYPE
   int                               number;
   float                             floats;
 
-#line 150 "yacc_sql.hpp"
+#line 152 "yacc_sql.hpp"
 
 };
 typedef union YYSTYPE YYSTYPE;

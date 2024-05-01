@@ -65,8 +65,9 @@ RC UpdatePhysicalOperator::next()
       row_tuple->cell_at(i, new_tuple[i]);
     }
 
-    new_tuple[attr_index_].set_data(value_->data(), value_->length());
-
+    for (int i = 0, n = indexs_.size(); i < n; ++i) {
+      new_tuple[i].set_data(values_[i].data(), values_[i].length());
+    }
     Record &record = row_tuple->record();
     delete_records.emplace_back(record);
   }

@@ -24,10 +24,6 @@ See the Mulan PSL v2 for more details. */
 #include <string>
 #include <unordered_map>
 
-UpdateStmt::UpdateStmt(Table *table, const Value &value, FilterStmt *filter_stmt, int index_attr)
-    : attr_index_(index_attr), table_(table), value_(new Value(value)), filter_stmt_(filter_stmt)
-{}
-
 UpdateStmt::~UpdateStmt()
 {
   if (filter_stmt_ != nullptr) {
@@ -60,44 +56,56 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update, Stmt *&stmt)
     return rc;
   }
 
-  {
-    const FieldMeta *field_meta = table->table_meta().field(update.attribute_name.c_str());
+  std::vector<int>   indexs;
+  std::vector<Value> values;
+  {  // 进行输入的检查、类型的检查与转化。
+    int sys_num   = table->table_meta().sys_field_num();
+    int field_num = table->table_meta().field_num();
 
-    if (field_meta == nullptr) {
-      LOG_WARN("invalid value. rc=%d:%s", rc, strrc(rc));
-      return RC::VARIABLE_NOT_VALID;
-    }
+    for (auto &it : update.update_values) {
+      const FieldMeta *field_meta = nullptr;
+      int index = 0;
 
-    if (update.value.attr_type() == CHARS &&
-        (field_meta = table->table_meta().field(update.attribute_name.c_str())) != nullptr &&
-        field_meta->type() == DATES) {
-      date_t v = str_to_date(update.value.data());
-      if (check_date(v)) {
-        Value *value = const_cast<Value *>(&update.value);
-        value->set_date(v);
-      } else {
-        LOG_WARN("can't convert to date in update.");
+      for (int i = sys_num; i < field_num; ++i, ++index) {
+        auto table_field = table->table_meta().field(i);
+        if (table_field->name() == it.attribute_name) {
+          field_meta = table_field;
+          break;
+        }
+      }
+
+      if (field_meta == nullptr) {
+        LOG_WARN("invalid value. rc=%d:%s", rc, strrc(rc));
         return RC::VARIABLE_NOT_VALID;
       }
-    }
 
-    // 排除一种情况，可为null，且为null
-    if (!(field_meta->nullable() && update.value.attr_type() == NULLS) &&
-        field_meta->type() != update.value.attr_type()) {
-      LOG_WARN("invalid value. rc=%d:%s", rc, strrc(rc));
-      return RC::VARIABLE_NOT_VALID;
+      if (it.value.attr_type() == CHARS &&
+          (field_meta = table->table_meta().field(it.attribute_name.c_str())) != nullptr &&
+          field_meta->type() == DATES) {
+        date_t v = str_to_date(it.value.data());
+        if (check_date(v)) {
+          Value *value = const_cast<Value *>(&it.value);
+          value->set_date(v);
+        } else {
+          LOG_WARN("can't convert to date in update.");
+          return RC::VARIABLE_NOT_VALID;
+        }
+      }
+
+      // 排除一种情况，可为null，且为null
+      if (!(field_meta->nullable() && it.value.attr_type() == NULLS) &&
+          field_meta->type() != it.value.attr_type()) {
+        LOG_WARN("invalid value. rc=%d:%s", rc, strrc(rc));
+        return RC::VARIABLE_NOT_VALID;
+      }
+
+      indexs.emplace_back(index);
+      values.emplace_back(it.value);
     }
   }
-  const TableMeta table_meta  = table->table_meta();
-  int             field_num   = table_meta.field_num();
-  auto           &field_metas = *table_meta.field_metas();
 
-  for (int i = 0; i < field_num; ++i) {
-    if (field_metas[i].name() == update.attribute_name) {
-      stmt = new UpdateStmt(table, update.value, filter_stmt, i);
-      return rc;
-    }
-  }
+  UpdateStmt *update_stmt = new UpdateStmt(table, values, indexs, filter_stmt);
+  stmt                    = update_stmt;
 
-  return RC::VARIABLE_NOT_VALID;
+  return RC::SUCCESS;
 }

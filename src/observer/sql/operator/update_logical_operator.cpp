@@ -16,6 +16,10 @@ See the Mulan PSL v2 for more details. */
 #include "sql/parser/value.h"
 #include <memory>
 
-UpdateLogicalOperator::UpdateLogicalOperator(Table *table, std::shared_ptr<Value> &ptr, int index_attr_)
-    : table_(table), value_(ptr), attr_index_(index_attr_)
-{}
+UpdateLogicalOperator::UpdateLogicalOperator(
+    Table *table, std::vector<Value> &values, std::vector<int> &indexs)
+    : table_(table)
+{
+  values_.swap(values);
+  indexs_.swap(indexs);
+}

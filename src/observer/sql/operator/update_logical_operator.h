@@ -16,6 +16,7 @@ See the Mulan PSL v2 for more details. */
 
 #include "sql/operator/logical_operator.h"
 #include "sql/parser/value.h"
+#include "storage/field/field_meta.h"
 #include <memory>
 
 /**
@@ -25,16 +26,16 @@ See the Mulan PSL v2 for more details. */
 class UpdateLogicalOperator : public LogicalOperator
 {
 public:
-  UpdateLogicalOperator(Table *table, std::shared_ptr<Value> &ptr, int attr_index);
+  UpdateLogicalOperator(Table *table, std::vector<Value> &values, std::vector<int> &indexs);
   virtual ~UpdateLogicalOperator() = default;
 
-  LogicalOperatorType     type() const override { return LogicalOperatorType::UPDATE; }
-  Table                  *table() const { return table_; }
-  std::shared_ptr<Value> &value_ptr() { return value_; }
-  int                     attr_index() const { return attr_index_; }
+  LogicalOperatorType type() const override { return LogicalOperatorType::UPDATE; }
+  Table              *table() const { return table_; }
+  std::vector<Value> &values() { return values_; }
+  std::vector<int>   &indexs() { return indexs_; }
 
 private:
-  Table                 *table_ = nullptr;
-  std::shared_ptr<Value> value_;
-  int                    attr_index_;
+  Table             *table_ = nullptr;
+  std::vector<Value> values_;
+  std::vector<int>   indexs_;
 };

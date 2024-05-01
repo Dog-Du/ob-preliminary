@@ -19,6 +19,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/stmt/filter_stmt.h"
 #include "sql/stmt/stmt.h"
 #include "storage/db/db.h"
+#include "storage/field/field_meta.h"
 #include <memory>
 
 class Table;
@@ -31,7 +32,13 @@ class UpdateStmt : public Stmt
 {
 public:
   UpdateStmt() = default;
-  UpdateStmt(Table *table, const Value &value, FilterStmt *filter_stmt, int index_attr);
+  UpdateStmt(
+      Table *table, std::vector<Value> &values, std::vector<int> &indexs, FilterStmt *filter_stmt)
+      : table_(table), filter_stmt_(filter_stmt)
+  {
+    values_.swap(values);
+    indexs_.swap(indexs);
+  }
 
   ~UpdateStmt();
 
@@ -39,16 +46,15 @@ public:
   static RC create(Db *db, const UpdateSqlNode &update_sql, Stmt *&stmt);
 
 public:
-  Table                  *table() const { return table_; }
-  const Value            &value() const { return *value_; }
-  StmtType                type() const { return StmtType::UPDATE; }
-  FilterStmt             *filter_stmt() const { return filter_stmt_; }
-  int                     attr_index() const { return attr_index_; }
-  std::shared_ptr<Value> &value_ptr() { return value_; }
+  Table              *table() const { return table_; }
+  StmtType            type() const { return StmtType::UPDATE; }
+  FilterStmt         *filter_stmt() const { return filter_stmt_; }
+  std::vector<Value> &values() { return values_; }
+  std::vector<int>   &indexs() { return indexs_; }
 
 private:
-  int                    attr_index_ = 0;
-  Table                 *table_      = nullptr;
-  std::shared_ptr<Value> value_;
-  FilterStmt            *filter_stmt_;
+  Table             *table_ = nullptr;
+  FilterStmt        *filter_stmt_;
+  std::vector<Value> values_;
+  std::vector<int>   indexs_;
 };

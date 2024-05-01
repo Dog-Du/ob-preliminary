@@ -17,6 +17,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/physical_operator.h"
 #include "sql/parser/value.h"
 #include "sql/stmt/update_stmt.h"
+#include "storage/field/field_meta.h"
 #include <memory>
 
 class Trx;
@@ -29,9 +30,12 @@ class UpdateStmt;
 class UpdatePhysicalOperator : public PhysicalOperator
 {
 public:
-  UpdatePhysicalOperator(Table *table, std::shared_ptr<Value> &ptr, int attr_index)
-      : table_(table), value_(ptr), attr_index_(attr_index)
-  {}
+  UpdatePhysicalOperator(Table *table, std::vector<Value> &values, std::vector<int> &indexs)
+      : table_(table)
+  {
+    values_.swap(values);
+    indexs_.swap(indexs);
+  }
 
   virtual ~UpdatePhysicalOperator() = default;
 
@@ -44,8 +48,8 @@ public:
   Tuple *current_tuple() override { return nullptr; }
 
 private:
-  Table                 *table_ = nullptr;
-  Trx                   *trx_   = nullptr;
-  std::shared_ptr<Value> value_;
-  int                    attr_index_ = 0;
+  Table             *table_ = nullptr;
+  Trx               *trx_   = nullptr;
+  std::vector<Value> values_;
+  std::vector<int>   indexs_;
 };
