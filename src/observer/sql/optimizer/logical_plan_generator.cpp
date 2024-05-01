@@ -158,12 +158,17 @@ RC LogicalPlanGenerator::create_plan(
             });
 
             if (left_iter == tables.end()) {
-              return RC::NOTFOUND;
+              return RC::VARIABLE_NOT_EXISTS;
             }
 
             Table *left_table = *left_iter;
-            left_expr         = new FieldExpr(
-                left_table, left_table->table_meta().field(it.left_attr.attribute_name.c_str()));
+            auto   left_field = left_table->table_meta().field(it.left_attr.attribute_name.c_str());
+
+            if (left_field == nullptr) {
+              return RC::VARIABLE_NOT_EXISTS;
+            }
+
+            left_expr = new FieldExpr(left_table, left_field);
           }
 
           if (it.right_is_attr == 0) {
@@ -174,12 +179,18 @@ RC LogicalPlanGenerator::create_plan(
             });
 
             if (right_iter == tables.end()) {
-              return RC::NOTFOUND;
+              return RC::VARIABLE_NOT_EXISTS;
             }
 
             Table *right_table = *right_iter;
-            right_expr         = new FieldExpr(
-                right_table, right_table->table_meta().field(it.right_attr.attribute_name.c_str()));
+            auto   right_field =
+                right_table->table_meta().field(it.right_attr.attribute_name.c_str());
+
+            if (right_field == nullptr) {
+              return RC::VARIABLE_NOT_EXISTS;
+            }
+
+            right_expr = new FieldExpr(right_table, right_field);
           }
 
           comp_exprs.emplace_back(std::unique_ptr<ComparisonExpr>(new ComparisonExpr(it.comp,
