@@ -115,9 +115,10 @@ private:
     float  float_value_;
     bool   bool_value_;
     date_t date_value_;
+    char   is_null_[4];
     // char is_null_[8];  // 之所以是 8 个，是因为，char is_null_[5] 会被编译器对齐为 8 个字节。
   } num_value_;
-  char is_null_{'n'};
+  char is_null_{'n'};  // 放在后端。
   // bool is_null_{false};  // 一定一定把is_null放在紧挨着null_value_的地方。
   // 对于字符串的话，在value中没办法提前知道表中规定的长度，所以bool值不能放在尾端，只能放在首端。
 

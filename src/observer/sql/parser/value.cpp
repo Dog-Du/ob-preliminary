@@ -139,24 +139,17 @@ Value::Value(date_t val) { set_date(val); }
 
 Value::Value(const char *s, int len /*= 0*/) { set_string(s, len); }
 
-// void Value::be_null()
-// {
-//   num_value_.is_null_[4] = num_value_.is_null_[5] = num_value_.is_null_[6] =
-//       num_value_.is_null_[7]                      = 'y';
-// }
+void Value::be_not_null()
+{
+  num_value_.is_null_[0] = num_value_.is_null_[1] = num_value_.is_null_[2] =
+      num_value_.is_null_[3]                      = 'n';
+}
 
-// void Value::be_not_null()
-// {
-//   num_value_.is_null_[4] = num_value_.is_null_[5] = num_value_.is_null_[6] =
-//       num_value_.is_null_[7]                      = 'n';
-// }
-
-// void Value::be_all_null()
-// {
-//   be_null();
-//   num_value_.is_null_[0] = num_value_.is_null_[1] = num_value_.is_null_[2] =
-//       num_value_.is_null_[3]                      = 'y';
-// }
+void Value::be_all_null()
+{
+  num_value_.is_null_[0] = num_value_.is_null_[1] = num_value_.is_null_[2] =
+      num_value_.is_null_[3]                      = 'y';
+}
 
 void Value::set_data(char *data, int length)
 {
@@ -168,7 +161,7 @@ void Value::set_data(char *data, int length)
       if (str_value_.front() == 'y') {
         attr_type_ = NULLS;
         str_value_ = "y";
-        // be_all_null();
+        be_all_null();
       }
       return;
     } break;
@@ -206,6 +199,7 @@ void Value::set_data(char *data, int length)
     is_null_ = data[4];
     if (is_null_ == 'y') {
       attr_type_ = NULLS;
+      be_all_null();
     }
   }
 }
@@ -214,22 +208,14 @@ void Value::set_null()
 {
   attr_type_ = NULLS;
   is_null_   = 'y';
-
-  // 如果字段中为chars，而放在存储时，会变成null存储，也就是后面四个为y而前面四个为0
-  // 这就导致出错，所以应该在把前4为也变成y。
-  // be_all_null();
-  // num_value_.is_null_[7] = 'y';
+  be_all_null();
 }
 
 void Value::set_int(int val)
 {
-
   attr_type_            = INTS;
   num_value_.int_value_ = val;
   is_null_              = 'n';
-
-  // std::cout << val << std::endl;
-  // be_not_null();
 }
 
 void Value::set_float(float val)
@@ -264,6 +250,7 @@ void Value::set_string(const char *s, int len /*= 0*/)
   }
   str_value_.insert(str_value_.begin(), 'n');
   is_null_ = 'n';
+  be_not_null();
 }
 
 void Value::set_value(const Value &value)
