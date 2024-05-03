@@ -455,7 +455,7 @@ attr_def:
       $$ = new AttrInfoSqlNode;
       $$->type = (AttrType)$2;
       $$->name = $1;
-      $$->length = 8;
+      $$->length = VALUE_SIZE_NOT_CHARS;
       $$->nullable = false;
       free($1);
     }
@@ -482,7 +482,7 @@ attr_def:
       $$ = new AttrInfoSqlNode;
       $$->type = (AttrType)$2;
       $$->name = $1;
-      $$->length = 8;
+      $$->length = VALUE_SIZE_NOT_CHARS;
       $$->nullable = true;
       free($1);
     }
@@ -491,7 +491,7 @@ attr_def:
       $$ = new AttrInfoSqlNode;
       $$->type = (AttrType)$2;
       $$->name = $1;
-      $$->length = 8;
+      $$->length = VALUE_SIZE_NOT_CHARS;
       $$->nullable = false;
       free($1);
     }

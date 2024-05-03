@@ -1,5 +1,5 @@
 join :
-  parse：
+  parse:
   1.先支持inner join on关键字
   2.分割，分成 from a inner join b on condition
   3.在第一个inner join前面直接使用自带的join，因为没有条件限制，所以全部输出
@@ -20,3 +20,128 @@ join :
 
   execute:
   1.修改next部分代码，在连接之前判断是否能连接。
+
+date :
+  1.添加date关键字，有的做法是在下面过滤date类型，我原本也是这么做的，可以通过测试，
+    但是会出现问题，因为date是chars的子集，所以会出现在chars字段中插入date时失败，因此完全放弃在词法分析阶段过滤date
+  2.转化策略为“如果chars需要转化为date，则尝试进行转化，如果转化失败则报错”
+  3.寻找需要转化的地方：
+      有: filter_stmt,update_stmt
+  4.不知道为什么这么做之后basic过不了了，我就没继续管
+  5.需要写str_to_date的函数和date_to_str的函数，尤其是str_to_date的函数要小心写。
+  6.date的保存我选择了unsigned int,也就是uint32_t，这是为了区别于int的同时保存4字节的大小。
+  7.date的比较可以直接使用int的比较，检查date是否合理要仔细。
+
+drop table:
+  官方文档有讲解，一步一步照着来就写完了。
+  我也忘了怎么写的了。
+
+update :
+  parse:
+    update关键字已经有了，不需要在parse做过多的事情
+  resolve:
+    增加update_stmt，参考delete和insert的写法完成，因为要指示修改字段的位置
+    我选择了非常丑陋的方式: 把修改字段的位置在这个阶段全部找到，然后进行保存.
+    为什么保存字段的位置？因为update_operator在整棵树的最上端，而且并且整个树上不存在改变tuple中的schema的操作
+      所以可放心这么做
+  optimize:
+    增加update_operator
+    需要生成逻辑树和物理树，逻辑树也是把修改字段的位置和修改的value保存下来
+    最后把这两个信息传递给物理算子这个时候算是完成了信息传递阶段
+  execute:
+    不需要做什么
+  write:
+    这个时候需要写算子，有了修改的值和修改的位置。我选择先删除原来的，然后在插入。
+    插入tuple的方式可以看insert算子，删除可以看delete算子。
+    但是出现了问题:
+      如果delete的字段在where出现并且有index，那么会出错，原因在于在扫描b_plus_tree的时候上了读锁，再上写锁会abort
+      我想了几个解决方法:
+        1.不上读锁，但是需要更改大量代码，而且可能会在后面出问题，放弃
+        2.先保存所有需要删除的字段，然后先全部扫描并保存record，扫描结束后，关闭b_plus_scanner，然后先删除再插入
+        3.锁升级解决问题
+        4.读论文
+
+        所以我选择了2. ，其实2. 是多线程不安全的，以2PL的角度去看，这可能导致不可重复读。
+
+    别人的方法似乎是在表中新增方法，update_record，但是这同样是没有考虑更新的字段有index并且where中出现的，
+    而且所有的测试样例都没有涉及这一点，所以我觉得可能是个bug。
+
+  多字段update:
+    parse:
+      需要新增update_list指示都更新了哪些字段，都更新成了哪些值。
+      std::vector<std::string> std::vector<Value>
+      需要注意的是: 这里需要参考rel_list那样，这是一个递归的，需要进行reverse。
+      但是与rel_list不同的是，要考虑update不可为空。
+    resolve,optimize,execute,write:
+      其实和上面的一样，就是把多字段修改需要保存多个修改位置的下标而已。
+
+
+aggregation-function:
+  主要思路是：不把聚合函数当做函数，而是当做一种特殊的属性（比如：MIN(a)就是属性a上的某种特殊值），
+      因为测试样例均为简单聚合，所以可以通过。
+  parse:
+    新增MAX,SUM,AVG,MIN,COUNT关键字，然后分别写这几个需要怎么做，然后放入rel_attr中。
+    在RelAttrSqlNode新增AggregationType表示是否是agg，或者agg是什么类型。
+    在parse_stage中对agg进行处理，判断是否全是agg或者全是rel_attr，不然则报错。
+    需要注意点的一点是：虽然miniOB没有涉及，但是在空表中count(*)应该输出0，而count(a)应该无输出。
+    换句话说count(*)会把null也 +1
+  resolve:
+    我在Field类中也新增了AggType，有一说一，这一点也不优雅，如果现在让我写，我肯定不会这么写，虽然不会优雅多少。
+    然后在 SelectStmt::create 中的遍历，进行修改，把aggtype的信息塞进去，尤其是count(*)不像*，会把属性值变成一列，
+    所以需要特殊处理。
+    最后把select_stmt中fields填好，把agg的信息放进去。
+  optimize:
+    生成逻辑树阶段：
+      先检查聚合是否合理，比如：在chars上SUM就显然不合理。
+      然后新增一个aggregation_operator,把它放在project和filter中间(如果是聚合的话)
+
+    生成物理树阶段：
+      这个时候有了各个字段统计的聚合类型，因为agg需要完全读取数据之后才能得知结果。
+      因为aggregation是pipeline breaker，同时Aggregation和null与group by密切相关
+      因此建议在这个地方提前考虑这两者的处理方法。
+      选择tuple：
+        Aggregation的tuple需要两个特点：
+          1.能够保存实际值（保存value）
+          2.拥有关于字段的信息
+        观察之后，发现rowtuple不行，因为Aggregation的tuple没有实际存在磁盘中，只会在内存中存在，没法存value。
+        projetuple不行，因为projecttuple只是个壳子，没有实际存东西。
+        ValueListTuple不行，因为没有存信息（不过可以配合std::vector<Field>）使用就好
+        因此我自己写了一个AggregationTuple，长度和table中的一样，只是在各个字段增加了聚合类型。
+  write:
+    需要写算子，考虑到之后应该要写group by，所以建议写在next而不是open，即使它是pipeline breaker。
+    第一次初始化发生在获得schema，这个时候对count_stat 和 count类型进行初始化。
+    拿到第一个tuple后进行第二次初始化，如果是一个空表，即一个tuple也没有，则直接返回
+    如果不是空表则第二次初始化，初始化内容为 : 把MIN，MAX，SUM，AVG赋值成第一个tuple对应的值，COUNT + 1 (如果不为null)
+    然后每获得一个tuple就进行一次修改
+    在最后，对AVG进行操作，除以个数（如果个数为0，则变成null）。
+    如果在这里考虑NULL的话：应该在各个字段增加一个count，表示非null的个数，最后再根据个数来判断最终类型，比如AVG，SUM，MIN在count=0的时候变成null
+
+    关于group by的想法（还没写）；首先可以在RC中新增一个返回值，表示分组，如果在Aggregation中新增一个bool值表示一段的结束。
+    这样应该可以处理group by。
+
+like：
+  like很简单，可能唯一难得地方就在于模式串的匹配那个部分。
+  思路：
+    新增关键字like，把like当做一个comp_op比较运算符，放在comp_op部分。
+    在ComparionExpression的枚举部分新增like枚举，然后新增匹配函数，如果匹配成功则返回true即可。
+  关于模式串的匹配：
+    本来以为是双指针就行，然后后来被一个样例打败： pipineapple 和 %e 因为双指针实际上是一个贪心，在pipine哪里看到e之后会直接匹配，导致后面没有匹配上。
+    所以正确答案是dp，这不在过多赘述。只不过dp效率远低于双指针，双指针是 O(n + m)，dp是 O(n * m) 有一说一，差的有点远。
+
+join-tables:
+  join-tables刚看到的时候我是一头雾水，不知道怎么实现，但是慢慢思考之后才有了思路。
+  把join-tables分成两部分看， select * from a inner join b on ********;
+  把第一个inner join前面的当做一部分，把第一个inner join后面的当做一部分。
+  第一个inner join前面的部分，相当于无条件join，第一个inner join后面相当于有条件join。
+  where 部分是会下推的谓词，不会设计join的条件，换句话说，where在语法树上是在join下面的。
+
+  parse:
+    新增join_list，可为空。也是一个小递归。
+    
+
+
+
+
+
+
+

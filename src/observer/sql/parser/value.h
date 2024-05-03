@@ -42,12 +42,15 @@ date_t      str_to_date(const char *ch);
  * @brief 属性的值
  *
  */
+
+const int VALUE_SIZE_NOT_CHARS = 5;
+
 class Value
 {
 public:
   Value() = default;
 
-  Value(AttrType attr_type, char *data, int length = 4) : attr_type_(attr_type)
+  Value(AttrType attr_type, char *data, int length = VALUE_SIZE_NOT_CHARS) : attr_type_(attr_type)
   {
     this->set_data(data, length);
   }
@@ -80,7 +83,7 @@ public:
   CompareResult compare(const Value &other) const;
 
   const char *data() const;
-  int length() const { return (attr_type_ == CHARS ? str_value_.size() : sizeof(num_value_)); }
+  int length() const { return (attr_type_ == CHARS ? str_value_.size() : VALUE_SIZE_NOT_CHARS); }
 
   AttrType attr_type() const { return attr_type_; }
   // const char *is_null_ptr() const { return &is_null_; }
@@ -98,7 +101,6 @@ public:
 
 private:
   AttrType attr_type_ = UNDEFINED;
-  int      length_    = 0;
 
   void be_null();
   void be_not_null();
@@ -106,14 +108,18 @@ private:
   // char is_null_{'n'};  //
   // 唔，或许我应该更改一下方式，不在纠结怎么一次存储了，直接分两次存储得了。
   // 结果到头来还是需要考虑怎么一次存储。 'n'表示否，'y'表示是。
-  union
+  struct ValueStruct
   {
-    int    int_value_;
-    float  float_value_;
-    bool   bool_value_;
-    date_t date_value_;
-    char is_null_[8];  // 之所以是 8 个，是因为，char is_null_[5] 会被编译器对齐为 8 个字节。
-  } num_value_;
+    char is_null_{'n'};
+    union
+    {
+      int    int_value_{0};
+      float  float_value_;
+      bool   bool_value_;
+      date_t date_value_;
+      // char is_null_[8];  // 之所以是 8 个，是因为，char is_null_[5] 会被编译器对齐为 8 个字节。
+    } num_value_;
+  } value_;
   // bool is_null_{false};  // 一定一定把is_null放在紧挨着null_value_的地方。
   // 对于字符串的话，在value中没办法提前知道表中规定的长度，所以bool值不能放在尾端，只能放在首端。
 
