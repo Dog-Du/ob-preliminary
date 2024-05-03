@@ -120,10 +120,10 @@ void Value::add(const Value &val)
 {
   switch (attr_type_) {
     case AttrType::INTS: {
-      value_.num_value_.int_value_ += val.value_.num_value_.int_value_;
+      num_value_.int_value_ += val.num_value_.int_value_;
     } break;
     case AttrType::FLOATS: {
-      value_.num_value_.float_value_ += val.value_.num_value_.float_value_;
+      num_value_.float_value_ += val.num_value_.float_value_;
     } break;
     default: break;
   }
@@ -141,31 +141,25 @@ Value::Value(const char *s, int len /*= 0*/) { set_string(s, len); }
 
 // void Value::be_null()
 // {
-//   value_.num_value_.is_null_[4] = value_.num_value_.is_null_[5] = value_.num_value_.is_null_[6] =
-//       value_.num_value_.is_null_[7]                      = 'y';
+//   num_value_.is_null_[4] = num_value_.is_null_[5] = num_value_.is_null_[6] =
+//       num_value_.is_null_[7]                      = 'y';
 // }
 
 // void Value::be_not_null()
 // {
-//   value_.num_value_.is_null_[4] = value_.num_value_.is_null_[5] = value_.num_value_.is_null_[6] =
-//       value_.num_value_.is_null_[7]                      = 'n';
+//   num_value_.is_null_[4] = num_value_.is_null_[5] = num_value_.is_null_[6] =
+//       num_value_.is_null_[7]                      = 'n';
 // }
 
 // void Value::be_all_null()
 // {
 //   be_null();
-//   value_.num_value_.is_null_[0] = value_.num_value_.is_null_[1] = value_.num_value_.is_null_[2] =
-//       value_.num_value_.is_null_[3]                      = 'y';
+//   num_value_.is_null_[0] = num_value_.is_null_[1] = num_value_.is_null_[2] =
+//       num_value_.is_null_[3]                      = 'y';
 // }
 
 void Value::set_data(char *data, int length)
 {
-  memset(&value_.num_value_, 0, sizeof(value_.num_value_));
-  for (int i = 0; i < length; ++i) {
-    std::cout << (int)*(data + i) << ' ';
-  }
-  std::cout << (long long)data << std::endl;
-
   switch (attr_type_) {
     case CHARS: {
       set_string(data + 1, length - 1);
@@ -179,10 +173,10 @@ void Value::set_data(char *data, int length)
       return;
     } break;
     case INTS: {
-      value_ = *(ValueStruct *)data;
-      // value_.num_value_.int_value_ = *((int *)(data + 4));
+      num_value_.int_value_ = *(int *)data;
+      // num_value_.int_value_ = *((int *)(data + 4));
       // set_int(*((int *)(data + 4)));
-      // memcpy(&value_.num_value_, data + 1, 4);
+      // memcpy(&num_value_, data + 1, 4);
       // std::cout << *(int *)(data + 1) << std::endl;
       // std::cout << *(int *)(data + 2) << std::endl;
       // std::cout << *(int *)(data + 3) << std::endl;
@@ -190,16 +184,16 @@ void Value::set_data(char *data, int length)
       // std::cout << *(int *)(data + 5) << std::endl;
     } break;
     case FLOATS: {
-      value_ = *(ValueStruct *)data;
+      num_value_.float_value_ = *(float *)data;
     } break;
     case BOOLEANS: {
-      value_ = *(ValueStruct *)data;
+      num_value_.bool_value_ = *(int *)data != 0;
     } break;
     case DATES: {
-      value_ = *(ValueStruct *)data;
+      num_value_.date_value_ = *(date_t *)data;
     } break;
     case NULLS: {
-      value_ = *(ValueStruct *)data;
+      is_null_ = 'y';
       return;
       ;  // do nothing.
     } break;
@@ -208,15 +202,9 @@ void Value::set_data(char *data, int length)
     } break;
   }
 
-  // memcpy(&is_null_, data, VALUE_SIZE_NOT_CHARS);
-
-  for (int i = 0; i < length; ++i) {
-    std::cout << (int)*((char *)&value_ + i) << ' ';
-  }
-  std::cout << value_.num_value_.int_value_ << std::endl;
-
   if (attr_type_ >= INTS && attr_type_ <= BOOLEANS) {
-    if (value_.is_null_ == 'y') {
+    is_null_ = data[4];
+    if (is_null_ == 'y') {
       attr_type_ = NULLS;
     }
   }
@@ -225,52 +213,48 @@ void Value::set_data(char *data, int length)
 void Value::set_null()
 {
   attr_type_ = NULLS;
+  is_null_   = 'y';
 
-  value_.is_null_ = 'y';
   // 如果字段中为chars，而放在存储时，会变成null存储，也就是后面四个为y而前面四个为0
   // 这就导致出错，所以应该在把前4为也变成y。
   // be_all_null();
-  // value_.num_value_.is_null_[7] = 'y';
+  // num_value_.is_null_[7] = 'y';
 }
 
 void Value::set_int(int val)
 {
-  memset(&value_, 0, VALUE_SIZE_NOT_CHARS);
-  attr_type_                          = INTS;
-  value_.num_value_.int_value_ = val;
-  value_.is_null_                     = 'n';
+
+  attr_type_            = INTS;
+  num_value_.int_value_ = val;
+  is_null_              = 'n';
+
   // std::cout << val << std::endl;
   // be_not_null();
 }
 
 void Value::set_float(float val)
 {
-  memset(&value_, 0, VALUE_SIZE_NOT_CHARS);
-  attr_type_                            = FLOATS;
-  value_.num_value_.float_value_ = val;
-  value_.is_null_                       = 'n';
+  attr_type_              = FLOATS;
+  num_value_.float_value_ = val;
+  is_null_                = 'n';
 }
 
 void Value::set_boolean(bool val)
 {
-  memset(&value_, 0, VALUE_SIZE_NOT_CHARS);
-  attr_type_                           = BOOLEANS;
-  value_.num_value_.bool_value_ = val;
-  value_.is_null_                      = 'n';
+  attr_type_             = BOOLEANS;
+  num_value_.bool_value_ = val;
+  is_null_               = 'n';
 }
 
 void Value::set_date(date_t val)
 {
-  memset(&value_, 0, VALUE_SIZE_NOT_CHARS);
-  attr_type_                           = DATES;
-  value_.num_value_.date_value_ = val;
-  value_.is_null_                      = 'n';
+  attr_type_             = DATES;
+  num_value_.date_value_ = val;
+  is_null_               = 'n';
 }
 
 void Value::set_string(const char *s, int len /*= 0*/)
 {
-  memset(&value_, 0, VALUE_SIZE_NOT_CHARS);
-
   attr_type_ = CHARS;
   if (len > 0) {
     len = strnlen(s, len);
@@ -279,7 +263,7 @@ void Value::set_string(const char *s, int len /*= 0*/)
     str_value_.assign(s);
   }
   str_value_.insert(str_value_.begin(), 'n');
-  value_.is_null_ = 'n';
+  is_null_ = 'n';
 }
 
 void Value::set_value(const Value &value)
@@ -321,10 +305,10 @@ const char *Value::data() const
       //   std::cout << (int)*((char *)&is_null_ + i) << ' ';
       // }
       // std::cout << std::endl;
-      // int x = value_.num_value_.int_value_;
-      // memcpy((void *)&value_.num_value_, &x, 4);
+      // int x = num_value_.int_value_;
+      // memcpy((void *)&num_value_, &x, 4);
       // std::cout << *(int *)((char *)&is_null_ + 4) << std::endl;
-      return (const char *)&value_;
+      return (const char *)&num_value_;
     } break;
   }
 }
@@ -334,19 +318,19 @@ std::string Value::to_string() const
   std::stringstream os;
   switch (attr_type_) {
     case INTS: {
-      os << value_.num_value_.int_value_;
+      os << num_value_.int_value_;
     } break;
     case FLOATS: {
-      os << common::double_to_str(value_.num_value_.float_value_);
+      os << common::double_to_str(num_value_.float_value_);
     } break;
     case BOOLEANS: {
-      os << value_.num_value_.bool_value_;
+      os << num_value_.bool_value_;
     } break;
     case CHARS: {
       os << (str_value_.data() + 1);
     } break;
     case DATES: {
-      os << common::date_to_str(value_.num_value_.date_value_);  // 在这里写一个函数。
+      os << common::date_to_str(num_value_.date_value_);  // 在这里写一个函数。
     } break;
     case NULLS: {
       os << "NULL";
@@ -363,12 +347,12 @@ CompareResult Value::compare(const Value &other) const
   if (this->attr_type_ == other.attr_type_) {
     switch (this->attr_type_) {
       case INTS: {
-        return common::compare_int((void *)&this->value_.num_value_.int_value_,
-            (void *)&other.value_.num_value_.int_value_);
+        return common::compare_int(
+            (void *)&this->num_value_.int_value_, (void *)&other.num_value_.int_value_);
       } break;
       case FLOATS: {
-        return common::compare_float((void *)&this->value_.num_value_.float_value_,
-            (void *)&other.value_.num_value_.float_value_);
+        return common::compare_float(
+            (void *)&this->num_value_.float_value_, (void *)&other.num_value_.float_value_);
       } break;
       case CHARS: {
         return common::compare_string((void *)(this->str_value_.c_str() + 1),
@@ -377,12 +361,12 @@ CompareResult Value::compare(const Value &other) const
             other.str_value_.length() - 1);
       } break;
       case BOOLEANS: {
-        return common::compare_int((void *)&this->value_.num_value_.bool_value_,
-            (void *)&other.value_.num_value_.bool_value_);
+        return common::compare_int(
+            (void *)&this->num_value_.bool_value_, (void *)&other.num_value_.bool_value_);
       }
       case DATES: {
-        return common::compare_int((void *)&this->value_.num_value_.date_value_,
-            (void *)&other.value_.num_value_.date_value_);
+        return common::compare_int(
+            (void *)&this->num_value_.date_value_, (void *)&other.num_value_.date_value_);
       }
       default: {
         LOG_WARN("unsupported type: %d", this->attr_type_);
@@ -391,18 +375,17 @@ CompareResult Value::compare(const Value &other) const
   } else if ((this->attr_type_ == INTS || this->attr_type_ == DATES) &&
              other.attr_type_ == FLOATS) {
     float this_data = this->get_int();
-    return common::compare_float((void *)&this_data, (void *)&other.value_.num_value_.float_value_);
+    return common::compare_float((void *)&this_data, (void *)&other.num_value_.float_value_);
   } else if (this->attr_type_ == FLOATS &&
              (other.attr_type_ == INTS || other.attr_type_ == DATES)) {
     float other_data = other.get_int();
-    return common::compare_float(
-        (void *)&this->value_.num_value_.float_value_, (void *)&other_data);
+    return common::compare_float((void *)&this->num_value_.float_value_, (void *)&other_data);
   } else if (this->attr_type_ == FLOATS && other.attr_type_ == CHARS) {
     float rf = other.get_float();
-    return common::compare_float((void *)&this->value_.num_value_.float_value_, (void *)&rf);
+    return common::compare_float((void *)&this->num_value_.float_value_, (void *)&rf);
   } else if (this->attr_type_ == CHARS && other.attr_type_ == FLOATS) {
     float lf = this->get_float();
-    return common::compare_float((void *)&lf, (void *)&other.value_.num_value_.float_value_);
+    return common::compare_float((void *)&lf, (void *)&other.num_value_.float_value_);
   } else if ((this->attr_type_ == INTS || this->attr_type_ == DATES) && other.attr_type_ == CHARS) {
     int ri = other.get_int();
     int li = this->get_int();
@@ -429,16 +412,16 @@ int Value::get_int() const
       }
     }
     case INTS: {
-      return value_.num_value_.int_value_;
+      return num_value_.int_value_;
     }
     case FLOATS: {
-      return (int)(value_.num_value_.float_value_);
+      return (int)(num_value_.float_value_);
     }
     case BOOLEANS: {
-      return (int)(value_.num_value_.bool_value_);
+      return (int)(num_value_.bool_value_);
     }
     case DATES: {
-      return (int)value_.num_value_.date_value_;
+      return (int)num_value_.date_value_;
     }
     case NULLS: {
       return 0;
@@ -463,16 +446,16 @@ float Value::get_float() const
       }
     } break;
     case INTS: {
-      return float(value_.num_value_.int_value_);
+      return float(num_value_.int_value_);
     } break;
     case FLOATS: {
-      return value_.num_value_.float_value_;
+      return num_value_.float_value_;
     } break;
     case BOOLEANS: {
-      return float(value_.num_value_.bool_value_);
+      return float(num_value_.bool_value_);
     } break;
     case DATES: {
-      return float(value_.num_value_.date_value_);
+      return float(num_value_.date_value_);
     } break;
     case NULLS: {
       return 0;
@@ -509,17 +492,17 @@ bool Value::get_boolean() const
       }
     } break;
     case INTS: {
-      return value_.num_value_.int_value_ != 0;
+      return num_value_.int_value_ != 0;
     } break;
     case FLOATS: {
-      float val = value_.num_value_.float_value_;
+      float val = num_value_.float_value_;
       return val >= EPSILON || val <= -EPSILON;
     } break;
     case BOOLEANS: {
-      return value_.num_value_.bool_value_;
+      return num_value_.bool_value_;
     } break;
     case DATES: {
-      return value_.num_value_.date_value_ != 0;
+      return num_value_.date_value_ != 0;
     } break;
     case NULLS: {
       return 0;
@@ -544,16 +527,16 @@ date_t Value::get_date() const
       }
     }
     case INTS: {
-      return date_t(value_.num_value_.int_value_);
+      return date_t(num_value_.int_value_);
     }
     case FLOATS: {
-      return date_t(value_.num_value_.float_value_);
+      return date_t(num_value_.float_value_);
     }
     case BOOLEANS: {
-      return date_t(value_.num_value_.bool_value_);
+      return date_t(num_value_.bool_value_);
     }
     case DATES: {
-      return value_.num_value_.date_value_;
+      return num_value_.date_value_;
     }
     case NULLS: {
       return 0;

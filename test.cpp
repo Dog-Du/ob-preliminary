@@ -14,26 +14,28 @@
 #include <vector>
 
 using namespace std;
+#define ll long long
 
-struct A {
-  bool a;
-  union {
-    int b;
+struct A
+{
+  // bool a;
+  union
+  {
+    int   b;
     float c;
+    char  d[4];
   } value;
 };
 
-int main() {
+int main()
+{
   A a;
-  a.a = true;
+  // a.a       = true;
   a.value.b = 10;
+  cout << sizeof(a) << endl;
+  cout << (ll)&a.value   << ' ' << (ll)a.value.d << ' ' << (ll)&a.value.b << ' '
+       << (ll)&a.value.d[1] << ' ' << *(int *)(&a.value) <<endl;
 
-  char *c = (char *)&a.a;
-
-  for (int i = 0; i < 5; ++i) {
-    cout << (int)(*c) << ' ';
-    ++c;
-  }
   system("pause");
   return 0;
 }
