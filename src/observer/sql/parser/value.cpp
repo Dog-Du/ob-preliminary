@@ -142,13 +142,13 @@ Value::Value(const char *s, int len /*= 0*/) { set_string(s, len); }
 void Value::be_not_null()
 {
   num_value_.is_null_[0] = num_value_.is_null_[1] = num_value_.is_null_[2] =
-      num_value_.is_null_[3]                      = 'n';
+      num_value_.is_null_[3] = num_value_.is_null_[4] = 'n';
 }
 
 void Value::be_all_null()
 {
   num_value_.is_null_[0] = num_value_.is_null_[1] = num_value_.is_null_[2] =
-      num_value_.is_null_[3]                      = 'y';
+      num_value_.is_null_[3] = num_value_.is_null_[4] = 'y';
 }
 
 void Value::set_data(char *data, int length)
@@ -196,7 +196,8 @@ void Value::set_data(char *data, int length)
   }
 
   if (attr_type_ >= INTS && attr_type_ <= BOOLEANS) {
-    is_null_ = data[4];
+    num_value_.is_null_[4] = data[4];
+    is_null_               = data[4];
     if (is_null_ == 'y') {
       attr_type_ = NULLS;
       be_all_null();
@@ -213,9 +214,10 @@ void Value::set_null()
 
 void Value::set_int(int val)
 {
-  attr_type_            = INTS;
-  num_value_.int_value_ = val;
-  is_null_              = 'n';
+  attr_type_             = INTS;
+  num_value_.int_value_  = val;
+  is_null_               = 'n';
+  num_value_.is_null_[4] = 'n';
 }
 
 void Value::set_float(float val)
@@ -223,6 +225,7 @@ void Value::set_float(float val)
   attr_type_              = FLOATS;
   num_value_.float_value_ = val;
   is_null_                = 'n';
+  num_value_.is_null_[4]  = 'n';
 }
 
 void Value::set_boolean(bool val)
@@ -230,6 +233,7 @@ void Value::set_boolean(bool val)
   attr_type_             = BOOLEANS;
   num_value_.bool_value_ = val;
   is_null_               = 'n';
+  num_value_.is_null_[4] = 'n';
 }
 
 void Value::set_date(date_t val)
@@ -237,6 +241,7 @@ void Value::set_date(date_t val)
   attr_type_             = DATES;
   num_value_.date_value_ = val;
   is_null_               = 'n';
+  num_value_.is_null_[4] = 'n';
 }
 
 void Value::set_string(const char *s, int len /*= 0*/)
