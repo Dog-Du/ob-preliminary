@@ -87,7 +87,7 @@ public:
 
   void clear()
   {
-    forward(size());
+    data_size_ = 0;
     write_pos_ = 0;
   }
 
