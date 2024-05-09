@@ -15,7 +15,12 @@ See the Mulan PSL v2 for more details. */
 #include "sql/expr/expression.h"
 #include "common/lang/comparator.h"
 #include "sql/expr/tuple.h"
+#include "sql/operator/pipeline_break_physical_operator.h"
+#include "sql/parser/parse_defs.h"
 #include "sql/parser/value.h"
+#include "sql/operator/logical_operator.h"
+#include "sql/operator/physical_operator.h"
+#include "storage/trx/trx.h"
 
 using namespace std;
 
@@ -161,6 +166,12 @@ RC ComparisonExpr::compare_value(const Value &left, const Value &right, bool &re
     case LIKE_NOT: {
       result = is_valid && !match_str(right.get_string(), left.get_string());
     } break;
+    case IN:
+    case IN_NOT:
+    case EXIST_NOT:
+    case EXIST: {
+
+    } break;
     default: {
       LOG_WARN("unsupported comparison. %d", comp_);
       rc = RC::INTERNAL;
@@ -195,13 +206,21 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value) const
 {
   Value left_value;
   Value right_value;
+  RC    rc = RC::SUCCESS;
 
-  RC rc = left_->get_value(tuple, left_value);
+  if (left_->type() != ExprType::SUB_QUERY) {
+    rc = left_->get_value(tuple, left_value);
+  }
+
   if (rc != RC::SUCCESS) {
     LOG_WARN("failed to get value of left expression. rc=%s", strrc(rc));
     return rc;
   }
-  rc = right_->get_value(tuple, right_value);
+
+  if (right_->type() != ExprType::SUB_QUERY) {
+    rc = right_->get_value(tuple, right_value);
+  }
+
   if (rc != RC::SUCCESS) {
     LOG_WARN("failed to get value of right expression. rc=%s", strrc(rc));
     return rc;
@@ -209,13 +228,138 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value) const
 
   bool bool_value = false;
 
-  rc = compare_value(left_value, right_value, bool_value);
+  if (left_->type() == ExprType::SUB_QUERY) {
+    rc = check_sub(right_value,
+        static_cast<SubPhysicalExpression *>(left_.get())->sub_sql_,
+        bool_value,
+        trx_,
+        false);
+  } else if (right_->type() == ExprType::SUB_QUERY) {
+    rc = check_sub(left_value,
+        static_cast<SubPhysicalExpression *>(right_.get())->sub_sql_,
+        bool_value,
+        trx_,
+        true);
+  } else {
+    rc = compare_value(left_value, right_value, bool_value);
+  }
+
   if (rc == RC::SUCCESS) {
     value.set_boolean(bool_value);
   }
   return rc;
 }
 
+RC ComparisonExpr::check_sub(const Value &value, std::unique_ptr<PhysicalOperator> &oper,
+    bool &result, Trx *trx /* = nullptr */, bool is_left) const
+{
+  oper->open(trx);
+
+  switch (comp_) {
+    case EXIST: {
+      if (oper->next() != RC::RECORD_EOF) {
+        result = true;
+      } else {
+        result = false;
+      }
+    } break;
+    case EXIST_NOT: {
+      if (oper->next() != RC::RECORD_EOF) {
+        result = false;
+      } else {
+        result = true;
+      }
+    } break;
+    case IN: {
+      Tuple *tuple;
+      Value  v;
+
+      result = false;
+      while (oper->next() == RC::SUCCESS) {
+        tuple = oper->current_tuple();
+
+        if (tuple->cell_num() != 1) {
+          return RC::SQL_SYNTAX;
+        }
+
+        tuple->cell_at(0, v);
+
+        if (v.compare(value) == CompareResult::EQUAL) {
+          result = true;
+          break;
+        }
+      }
+    } break;
+    case IN_NOT: {
+      Tuple *tuple;
+      Value  v;
+
+      result = true;
+      while (oper->next() == RC::SUCCESS) {
+        tuple = oper->current_tuple();
+
+        if (tuple->cell_num() != 1) {
+          return RC::SQL_SYNTAX;
+        }
+
+        tuple->cell_at(0, v);
+
+        if (v.compare(value) == CompareResult::EQUAL) {
+          result = false;
+          break;
+        }
+      }
+    } break;
+    default: {
+      if (comp_ >= EQUAL_TO && comp_ <= IS_NOT) {
+        Tuple *tuple;
+        Value  v;
+
+        if (oper->next() != RC::SUCCESS) {
+          return RC::VARIABLE_NOT_VALID;
+        }
+
+        tuple = oper->current_tuple();
+        if (tuple->cell_at(0, v) != RC::SUCCESS) {
+          return RC::VARIABLE_NOT_VALID;
+        }
+
+        if (oper->next() == RC::SUCCESS) {
+          return RC::VARIABLE_NOT_VALID;
+        }
+
+        return is_left ? compare_value(value, v, result) : compare_value(v, value, result);
+      }
+
+      return RC::SQL_SYNTAX;
+    } break;
+  }
+  return RC::SUCCESS;
+}
+
+RC ComparisonExpr::open(Trx *trx)
+{
+  trx_  = trx;
+  RC rc = RC::SUCCESS;
+
+  if (left_->type() == ExprType::SUB_QUERY) {
+    rc = static_cast<SubPhysicalExpression *>(left_.get())->sub_sql_->open(trx);
+  }
+
+  if (rc != RC::SUCCESS) {
+    return RC::VARIABLE_NOT_VALID;
+  }
+
+  if (right_->type() == ExprType::SUB_QUERY) {
+    rc = static_cast<SubPhysicalExpression *>(right_.get())->sub_sql_->open(trx);
+  }
+
+  if (rc != RC::SUCCESS) {
+    return RC::VARIABLE_NOT_VALID;
+  }
+
+  return rc;
+}
 ////////////////////////////////////////////////////////////////////////////////
 ConjunctionExpr::ConjunctionExpr(Type type, vector<unique_ptr<Expression>> &children)
     : conjunction_type_(type), children_(std::move(children))
@@ -383,3 +527,17 @@ RC ArithmeticExpr::try_get_value(Value &value) const
 
   return calc_value(left_value, right_value, value);
 }
+
+SubLogicalExpression::SubLogicalExpression() : sub_sql_(nullptr) {}
+SubLogicalExpression::SubLogicalExpression(std::vector<Value> &value_list)
+    : is_sub_(false), value_list_(std::move(value_list)), sub_sql_(nullptr)
+{}
+SubLogicalExpression::SubLogicalExpression(std::unique_ptr<LogicalOperator> &sub_sql)
+    : is_sub_(true), sub_sql_(std::move(sub_sql))
+{}
+
+SubPhysicalExpression::SubPhysicalExpression() : sub_sql_(nullptr) {}
+SubPhysicalExpression::SubPhysicalExpression(std::vector<Value> &value_list)
+    : value_list_(std::move(value_list))
+{}
+SubPhysicalExpression::~SubPhysicalExpression() { sub_sql_->close(); }

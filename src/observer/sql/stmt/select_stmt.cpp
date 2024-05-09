@@ -22,6 +22,7 @@ See the Mulan PSL v2 for more details. */
 #include "storage/field/field_meta.h"
 #include "storage/table/table.h"
 #include <cstddef>
+#include <memory>
 #include <unordered_set>
 
 SelectStmt::~SelectStmt()
@@ -43,6 +44,25 @@ static void wildcard_fields(Table *table, std::vector<Field> &field_metas)
 
 RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
 {
+  {  // 检查聚合。
+    bool agg    = false;
+    bool common = false;
+
+    for (auto &it : select_sql.attributes) {
+      if (it.agg_type == AggregationType::INVALID_TYPE) {
+        common = true;
+      } else if (it.agg_type == AggregationType::ERROR_TYPE) {
+        return RC::SQL_SYNTAX;
+      } else {
+        agg = true;
+      }
+    }
+
+    if (agg && common) {
+      return RC::SQL_SYNTAX;
+    }
+  }
+
   if (nullptr == db) {
     LOG_WARN("invalid argument. db is null");
     return RC::INVALID_ARGUMENT;
@@ -192,7 +212,6 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
     LOG_WARN("cannot construct filter stmt");
     return rc;
   }
-
   // everything alright
   SelectStmt *select_stmt = new SelectStmt(
       !query_fields.empty() && query_fields.front().agg_type() != AggregationType::INVALID_TYPE);

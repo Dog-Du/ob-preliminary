@@ -14,16 +14,27 @@ See the Mulan PSL v2 for more details. */
 
 #include "sql/operator/table_scan_physical_operator.h"
 #include "event/sql_debug.h"
+#include "sql/expr/expression.h"
 #include "storage/table/table.h"
 
 using namespace std;
 
 RC TableScanPhysicalOperator::open(Trx *trx)
 {
-  RC rc = table_->get_record_scanner(record_scanner_, trx, readonly_);
+  RC rc = RC::SUCCESS;
+  for (auto &expr : predicates_) {
+    if (expr->type() == ExprType::COMPARISON) {
+
+      if ((rc = static_cast<ComparisonExpr *>(expr.get())->open(trx)) != RC::SUCCESS) {
+        return rc;
+      }
+    }
+  }
+  rc = table_->get_record_scanner(record_scanner_, trx, readonly_);
   if (rc == RC::SUCCESS) {
     tuple_.set_schema(table_, table_->table_meta().field_metas());
   }
+
   trx_ = trx;
   return rc;
 }

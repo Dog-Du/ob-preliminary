@@ -136,6 +136,7 @@ RC LogicalPlanGenerator::create_plan(
 
     unique_ptr<LogicalOperator> table_get_oper(
         new TableGetLogicalOperator(table, fields, true /*readonly*/));
+
     if (table_oper == nullptr) {
       table_oper = std::move(table_get_oper);
     } else {
@@ -210,6 +211,7 @@ RC LogicalPlanGenerator::create_plan(
 
   unique_ptr<LogicalOperator> predicate_oper;
 
+  // 创建filter
   RC rc = create_plan(select_stmt->filter_stmt(), predicate_oper);
   if (rc != RC::SUCCESS) {
     LOG_WARN("failed to create predicate logical plan. rc=%s", strrc(rc));
@@ -257,14 +259,65 @@ RC LogicalPlanGenerator::create_plan(
     const FilterObj &filter_obj_left  = filter_unit->left();
     const FilterObj &filter_obj_right = filter_unit->right();
 
-    unique_ptr<Expression> left(
-        filter_obj_left.is_attr ? static_cast<Expression *>(new FieldExpr(filter_obj_left.field))
-                                : static_cast<Expression *>(new ValueExpr(filter_obj_left.value)));
+    // 用一个滤嘴算子，把value_list和sub-query统一处理。
 
-    unique_ptr<Expression> right(
-        filter_obj_right.is_attr
-            ? static_cast<Expression *>(new FieldExpr(filter_obj_right.field))
-            : static_cast<Expression *>(new ValueExpr(filter_obj_right.value)));
+    unique_ptr<Expression> left(nullptr);
+
+    switch (filter_obj_left.is_attr) {
+      case 0: {
+        left.reset(static_cast<Expression *>(new ValueExpr(filter_obj_left.value)));
+        break;
+      }
+      case 1: {
+        left.reset(static_cast<Expression *>(new FieldExpr(filter_obj_left.field)));
+        break;
+      }
+      case 2: {
+        std::unique_ptr<LogicalOperator> sel_operator;
+        if (RC::SUCCESS != create_plan(filter_obj_left.select_stmt.get(), sel_operator)) {
+          return RC::SQL_SYNTAX;
+        }
+
+        left.reset(static_cast<Expression *>(new SubLogicalExpression(sel_operator)));
+
+      } break;
+      case 3: {
+        left.reset(static_cast<Expression *>(new SubLogicalExpression(
+            const_cast<std::vector<Value> &>(filter_obj_left.value_list))));
+
+      } break;
+      default: {
+        return RC::SQL_SYNTAX;
+      }
+    }
+
+    unique_ptr<Expression> right(nullptr);
+
+    switch (filter_obj_right.is_attr) {
+      case 0: {
+        right.reset(static_cast<Expression *>(new ValueExpr(filter_obj_right.value)));
+        break;
+      }
+      case 1: {
+        right.reset(static_cast<Expression *>(new FieldExpr(filter_obj_right.field)));
+        break;
+      }
+      case 2: {
+        std::unique_ptr<LogicalOperator> sel_operator;
+        if (RC::SUCCESS != create_plan(filter_obj_right.select_stmt.get(), sel_operator)) {
+          return RC::SQL_SYNTAX;
+        }
+
+        right.reset(static_cast<Expression *>(new SubLogicalExpression(sel_operator)));
+      } break;
+      case 3: {
+        right.reset(static_cast<Expression *>(new SubLogicalExpression(
+            const_cast<std::vector<Value> &>(filter_obj_right.value_list))));
+      } break;
+      default: {
+        return RC::SQL_SYNTAX;
+      }
+    }
 
     ComparisonExpr *cmp_expr =
         new ComparisonExpr(filter_unit->comp(), std::move(left), std::move(right));

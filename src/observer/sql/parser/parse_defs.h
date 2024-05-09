@@ -20,8 +20,6 @@ See the Mulan PSL v2 for more details. */
 
 #include "sql/parser/value.h"
 
-
-
 class Expression;
 
 enum AggregationType
@@ -68,7 +66,14 @@ enum CompOp
   GREAT_THAN,   ///< ">"
   LIKE,
   LIKE_NOT,
+
   NO_OP,
+
+  IN,
+  IN_NOT,
+  EXIST,
+  EXIST_NOT,
+
   IS,
   IS_NOT,
   INVALID_COMP,
@@ -82,8 +87,12 @@ enum CompOp
  * 左边和右边理论上都可以是任意的数据，比如是字段（属性，列），也可以是数值常量。
  * 这个结构中记录的仅仅支持字段和值。
  */
+struct SelectSqlNode;
+
 struct ConditionSqlNode
 {
+  /* 设置2为sub查询 */
+  /* 设置3表示value_list集合 */
   int left_is_attr;              ///< TRUE if left-hand side is an attribute
                                  ///< 1时，操作符左边是属性名，0时，是属性值
   Value          left_value;     ///< left-hand side value if left_is_attr = FALSE
@@ -93,6 +102,27 @@ struct ConditionSqlNode
                                  ///< 1时，操作符右边是属性名，0时，是属性值
   RelAttrSqlNode right_attr;  ///< right-hand side attribute if right_is_attr = TRUE 右边的属性
   Value          right_value;  ///< right-hand side value if right_is_attr = FALSE
+
+  std::vector<Value> left_value_list;
+  std::vector<Value> right_value_list;
+
+  std::shared_ptr<SelectSqlNode> left_sql;
+  std::shared_ptr<SelectSqlNode> right_sql;
+
+  ConditionSqlNode() : left_sql(nullptr), right_sql(nullptr) {}
+  ConditionSqlNode(const ConditionSqlNode &other)
+      : left_is_attr(other.left_is_attr),
+        left_value(other.left_value),
+        left_attr(std::move(other.left_attr)),
+        comp(other.comp),
+        right_is_attr(other.right_is_attr),
+        right_attr(std::move(other.right_attr)),
+        right_value(std::move(other.right_value)),
+        left_value_list(std::move(other.left_value_list)),
+        right_value_list(std::move(other.right_value_list)),
+        left_sql(std::move(other.left_sql)),
+        right_sql(std::move(other.right_sql))
+  {}
 };
 
 /**
@@ -114,10 +144,24 @@ struct JoinSqlNode
 
 struct SelectSqlNode
 {
+  SelectSqlNode() : sub_sql(nullptr) {}
+
   std::vector<RelAttrSqlNode>   attributes;  ///< attributes in select clause
   std::vector<std::string>      relations;   ///< 查询的表
   std::vector<ConditionSqlNode> conditions;  ///< 查询条件，使用AND串联起来多个条件
   std::vector<JoinSqlNode>      joins;
+
+  std::shared_ptr<SelectSqlNode> sub_sql;
+  bool                           is_sub{false};
+
+  SelectSqlNode(const SelectSqlNode &other)
+      : attributes(std::move(other.attributes)),
+        relations(std::move(other.relations)),
+        conditions(std::move(other.conditions)),
+        joins(std::move(other.joins)),
+        sub_sql(std::move(other.sub_sql)),
+        is_sub(other.is_sub)
+  {}
 };
 
 /**

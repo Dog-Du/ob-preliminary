@@ -19,8 +19,10 @@ See the Mulan PSL v2 for more details. */
 #include "sql/parser/parse_defs.h"
 #include "sql/parser/value.h"
 #include "sql/stmt/delete_stmt.h"
+#include "sql/stmt/select_stmt.h"
 #include "storage/db/db.h"
 #include "storage/table/table.h"
+#include <memory>
 
 FilterStmt::~FilterStmt()
 {
@@ -142,7 +144,7 @@ RC FilterStmt::create_filter_unit(Db *db, Table *default_table,
   // 在inner join里面下面两个if应该都会进入if。
 
   // 是属性名称
-  if (condition.left_is_attr) {
+  if (condition.left_is_attr == 1) {
     Table           *table = nullptr;
     const FieldMeta *field = nullptr;
     rc = get_table_and_field(db, default_table, tables, condition.left_attr, table, field);
@@ -153,13 +155,27 @@ RC FilterStmt::create_filter_unit(Db *db, Table *default_table,
     FilterObj filter_obj;
     filter_obj.init_attr(Field(table, field));
     filter_unit->set_left(filter_obj);
+  } else if (condition.left_is_attr == 2) {
+    FilterObj filter_obj;
+    filter_obj.init_value_list(condition.left_value_list);
+    filter_unit->set_left(filter_obj);
+
+  } else if (condition.left_is_attr == 3) {
+    Stmt *tmp = nullptr;
+    if (SelectStmt::create(db, *condition.left_sql.get(), tmp) != RC::SUCCESS) {
+      return RC::SQL_SYNTAX;
+    }
+    FilterObj filter_obj;
+
+    filter_obj.init_select_stmt(std::shared_ptr<SelectStmt>(reinterpret_cast<SelectStmt *>(tmp)));
+    filter_unit->set_left(filter_obj);
   } else {
     FilterObj filter_obj;
     filter_obj.init_value(condition.left_value);
     filter_unit->set_left(filter_obj);
   }
 
-  if (condition.right_is_attr) {
+  if (condition.right_is_attr == 1) {
     Table           *table = nullptr;
     const FieldMeta *field = nullptr;
     rc = get_table_and_field(db, default_table, tables, condition.right_attr, table, field);
@@ -169,6 +185,20 @@ RC FilterStmt::create_filter_unit(Db *db, Table *default_table,
     }
     FilterObj filter_obj;
     filter_obj.init_attr(Field(table, field));
+    filter_unit->set_right(filter_obj);
+  } else if (condition.right_is_attr == 2) {
+    FilterObj filter_obj;
+    filter_obj.init_value_list(condition.right_value_list);
+    filter_unit->set_right(filter_obj);
+  } else if (condition.right_is_attr == 3) {
+
+    Stmt *tmp = nullptr;
+    if (SelectStmt::create(db, *condition.right_sql.get(), tmp) != RC::SUCCESS) {
+      return RC::SQL_SYNTAX;
+    }
+    FilterObj filter_obj;
+
+    filter_obj.init_select_stmt(std::shared_ptr<SelectStmt>(reinterpret_cast<SelectStmt *>(tmp)));
     filter_unit->set_right(filter_obj);
   } else {
     FilterObj filter_obj;

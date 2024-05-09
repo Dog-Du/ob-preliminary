@@ -84,6 +84,11 @@ public:
    */
   int32_t size() const { return data_size_; }
 
+  void clear()
+  {
+    write_pos_ = capacity() -1 ;
+  }
+
 private:
   int32_t read_pos() const { return (write_pos_ - this->size() + capacity()) % capacity(); }
 

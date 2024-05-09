@@ -22,6 +22,8 @@ See the Mulan PSL v2 for more details. */
 #include "storage/field/field.h"
 
 class Tuple;
+class LogicalOperator;
+class PhysicalOperator;
 
 /**
  * @defgroup Expression
@@ -39,6 +41,7 @@ enum class ExprType
   FIELD,        ///< 字段。在实际执行时，根据行数据内容提取对应字段的值
   VALUE,        ///< 常量值
   CAST,         ///< 需要做类型转换的表达式
+  SUB_QUERY,    ///<
   COMPARISON,   ///< 需要做比较的表达式
   CONJUNCTION,  ///< 多个表达式使用同一种关系(AND或OR)来联结
   ARITHMETIC,   ///< 算术运算
@@ -183,6 +186,7 @@ private:
  * @brief 比较表达式
  * @ingroup Expression
  */
+
 class ComparisonExpr : public Expression
 {
 public:
@@ -210,10 +214,16 @@ public:
    */
   RC compare_value(const Value &left, const Value &right, bool &value) const;
 
+  RC open(Trx *trx);
+
 private:
+  RC check_sub(const Value &value, std::unique_ptr<PhysicalOperator> &oper, bool &result,
+      Trx *trx , bool is_left) const;
+
   CompOp                      comp_{INVALID_COMP};
   std::unique_ptr<Expression> left_;
   std::unique_ptr<Expression> right_;
+  Trx                        *trx_{nullptr};
 };
 
 /**
@@ -288,4 +298,38 @@ private:
   Type                        arithmetic_type_;
   std::unique_ptr<Expression> left_;
   std::unique_ptr<Expression> right_;
+};
+
+// 在这里声明，然后在.cpp中进行实现，可以避免语法上的错误。
+
+// Logical阶段
+class SubLogicalExpression : public Expression
+{
+public:
+  SubLogicalExpression();
+  SubLogicalExpression(std::vector<Value> &value_list);
+  SubLogicalExpression(std::unique_ptr<LogicalOperator> &sub_sql);
+
+  RC       get_value(const Tuple &tuple, Value &value) const override { return RC::SUCCESS; }
+  ExprType type() const override { return ExprType::SUB_QUERY; }
+  AttrType value_type() const override { return AttrType::UNDEFINED; }
+
+  bool                             is_sub_;
+  std::vector<Value>               value_list_;
+  std::unique_ptr<LogicalOperator> sub_sql_;
+};
+
+class SubPhysicalExpression : public Expression
+{
+public:
+  SubPhysicalExpression();
+  SubPhysicalExpression(std::vector<Value> &value_list);
+  ~SubPhysicalExpression();
+
+  RC       get_value(const Tuple &tuple, Value &value) const override { return RC::SUCCESS; }
+  ExprType type() const override { return ExprType::SUB_QUERY; };
+  AttrType value_type() const override { return AttrType::UNDEFINED; }
+
+  std::vector<Value>                value_list_;
+  std::unique_ptr<PhysicalOperator> sub_sql_;
 };

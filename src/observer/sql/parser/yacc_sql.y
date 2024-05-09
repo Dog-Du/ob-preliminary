@@ -78,6 +78,9 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
         INNER_T
         JOIN_T
 
+        IN_T
+        EXIST_T
+
         DESC
         SHOW
         SYNC
@@ -643,8 +646,6 @@ select_stmt:        /*  select 语句的语法解析树*/
     }
     ;
 
-
-
 join_list:
   /* empty */
   {
@@ -884,6 +885,129 @@ condition:
       delete $1;
       delete $3;
     }
+    | rel_attr comp_op LBRACE select_stmt RBRACE /* 把sub-query通过一个滤嘴和常量集合统一处理 */
+    {
+      $$ = new ConditionSqlNode;
+      $$->left_is_attr = 1;
+      $$->right_is_attr = 3; /* 设置2为sub查询 */
+      $$->left_attr = *$1;
+
+      delete $1;
+
+      SelectSqlNode *tmp = new SelectSqlNode($4->selection);
+      tmp->is_sub = true;
+      delete $4;
+
+      $$->right_sql.reset(tmp);
+
+      $$->comp = $2;
+    }
+    | LBRACE select_stmt RBRACE comp_op rel_attr
+    {
+      $$ = new ConditionSqlNode;
+      $$->right_is_attr = 1;
+      $$->left_is_attr = 3;
+      $$->right_attr = *$5;
+
+      delete $5;
+
+      SelectSqlNode *tmp = new SelectSqlNode($2->selection);
+      tmp->is_sub = true;
+      delete $2;
+
+      $$->left_sql.reset(tmp);
+      $$->comp = $4;
+    }
+    | rel_attr comp_op LBRACE value value_list RBRACE /* 常量集合 */
+    {
+      $5->emplace_back(*$4);
+      delete $4;
+
+      $$ = new ConditionSqlNode;
+      $$->left_is_attr = 1;
+      $$->right_is_attr = 2; /* 设置3表示value_list集合 */
+      $$->left_attr = *$1;
+
+      delete $1;
+
+      $$->comp = $2;
+
+      $$->right_value_list.swap(*$5);
+
+      delete $5;
+    }
+    | LBRACE value value_list RBRACE comp_op rel_attr /* 常量集合 */
+    {
+      $$ = new ConditionSqlNode;
+      $$->left_is_attr = 2;
+      $$->right_is_attr = 1;
+      $$->right_attr = *$6;
+
+      delete $6;
+
+      $$->comp = $5;
+
+      $3->emplace_back(*$2);
+      delete $2;
+
+      $$->left_value_list.swap(*$3);
+
+      delete $3;
+    }
+    | EXIST_T LBRACE value value_list RBRACE
+    {
+      $$ = new ConditionSqlNode;
+      $$->left_is_attr = -1; /* 无效位 */
+      $$->right_is_attr = 2;
+
+      $$->right_value_list.swap(*$4);
+      delete $4;
+
+      $$->right_value_list.emplace_back(*$3);
+      delete $3;
+
+      $$->comp = EXIST;
+    }
+    | NOT EXIST_T LBRACE value value_list RBRACE
+    {
+      $$ = new ConditionSqlNode;
+      $$->left_is_attr = -1;
+      $$->right_is_attr = 2;
+
+      $$->right_value_list.swap(*$5);
+      delete $5;
+
+      $$->right_value_list.emplace_back(*$4);
+      delete $4;
+
+      $$->comp = EXIST_NOT;
+    }
+    | EXIST_T LBRACE select_stmt RBRACE
+    {
+      $$ = new ConditionSqlNode;
+      $$->right_is_attr = 3;
+      $$->left_is_attr = -1;
+
+      SelectSqlNode *tmp = new SelectSqlNode($3->selection);
+      tmp->is_sub = true;
+      delete $3;
+
+      $$->right_sql.reset(tmp);
+      $$->comp = EXIST;
+    }
+    | NOT EXIST_T LBRACE select_stmt RBRACE
+    {
+      $$ = new ConditionSqlNode;
+      $$->right_is_attr = 3;
+      $$->left_is_attr = -1;
+
+      SelectSqlNode *tmp = new SelectSqlNode($4->selection);
+      tmp->is_sub = true;
+      delete $4;
+
+      $$->right_sql.reset(tmp);
+      $$->comp = EXIST_NOT;
+    }
     ;
 
 comp_op:
@@ -897,6 +1021,8 @@ comp_op:
     | IS_T NOT { $$ = IS_NOT; }
     | LIKE_T { $$ = LIKE; }
     | NOT LIKE_T { $$ = LIKE_NOT; }
+    | IN_T { $$ = IN; }
+    | NOT IN_T { $$ = IN_NOT; }
     ;
 
 load_data_stmt:

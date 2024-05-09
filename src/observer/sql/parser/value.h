@@ -43,7 +43,8 @@ date_t      str_to_date(const char *ch);
  *
  */
 
-const int VALUE_SIZE_NOT_CHARS = 5;
+constexpr int VALUE_SIZE_NOT_CHARS =
+    1 + std::max(sizeof(int), std::max(sizeof(float), std::max(sizeof(bool), sizeof(date_t))));
 
 class Value
 {
@@ -115,13 +116,13 @@ private:
     float  float_value_;
     bool   bool_value_;
     date_t date_value_;
-    char   is_null_[5];
+    char   is_null_[VALUE_SIZE_NOT_CHARS];
     // char is_null_[8];  // 之所以是 8 个，是因为，char is_null_[5] 会被编译器对齐为 8 个字节。
   } num_value_;
 
   // 又想复杂了，虽然有字节对齐，但是我们只在磁盘里面存5byte就行了。
 
- // char is_null_{'n'};  // 放在后端。
+  // char is_null_{'n'};  // 放在后端。
   // 只能放在后端的原因：字节对齐。
   // 因为字节对齐的原因，导致虽然is_null_看起来只有1byte，但是却占了4byte内存空间，剩下3byte用来字节对齐。
   // 所以如果放在前端，就会导致虽然看似只需要5byte，但实际上还是需要8byte。因此放在后端合理

@@ -14,11 +14,13 @@ See the Mulan PSL v2 for more details. */
 
 #include "sql/operator/predicate_physical_operator.h"
 #include "common/log/log.h"
+#include "sql/expr/expression.h"
 #include "sql/stmt/filter_stmt.h"
 #include "storage/field/field.h"
 #include "storage/record/record.h"
 
-PredicatePhysicalOperator::PredicatePhysicalOperator(std::unique_ptr<Expression> expr) : expression_(std::move(expr))
+PredicatePhysicalOperator::PredicatePhysicalOperator(std::unique_ptr<Expression> expr)
+    : expression_(std::move(expr))
 {
   ASSERT(expression_->value_type() == BOOLEANS, "predicate's expression should be BOOLEAN type");
 }
@@ -30,6 +32,10 @@ RC PredicatePhysicalOperator::open(Trx *trx)
     return RC::INTERNAL;
   }
 
+  if (expression_->type() == ExprType::COMPARISON) {
+    static_cast<ComparisonExpr *>(expression_.get())->open(trx);
+  }
+  
   return children_[0]->open(trx);
 }
 

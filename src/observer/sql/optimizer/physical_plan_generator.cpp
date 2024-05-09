@@ -41,6 +41,8 @@ See the Mulan PSL v2 for more details. */
 #include "sql/optimizer/physical_plan_generator.h"
 #include "sql/operator/update_physical_operator.h"
 #include "sql/operator/aggregation_physical_operator.h"
+#include "sql/operator/pipeline_break_physical_operator.h"
+#include "sql/parser/value.h"
 
 using namespace std;
 
@@ -161,6 +163,7 @@ RC PhysicalPlanGenerator::create_plan(
 
   Index     *index      = nullptr;
   ValueExpr *value_expr = nullptr;
+
   for (auto &expr : predicates) {
     if (expr->type() == ExprType::COMPARISON) {
       auto comparison_expr = static_cast<ComparisonExpr *>(expr.get());
@@ -172,19 +175,114 @@ RC PhysicalPlanGenerator::create_plan(
       unique_ptr<Expression> &left_expr  = comparison_expr->left();
       unique_ptr<Expression> &right_expr = comparison_expr->right();
       // 左右比较的一边最少是一个值
-      if (left_expr->type() != ExprType::VALUE && right_expr->type() != ExprType::VALUE) {
+      if ((left_expr->type() == ExprType::VALUE || left_expr->type() == ExprType::SUB_QUERY) &&
+          (right_expr->type() == ExprType::VALUE || right_expr->type() == ExprType::SUB_QUERY)) {
         continue;
       }
 
-      FieldExpr *field_expr = nullptr;
+      FieldExpr            *field_expr = nullptr;
+      SubLogicalExpression *sub_expr   = nullptr;
+
       if (left_expr->type() == ExprType::FIELD) {
-        ASSERT(right_expr->type() == ExprType::VALUE, "right expr should be a value expr while left is field expr");
+        ASSERT(right_expr->type() == ExprType::VALUE || right_expr->type() == ExprType::SUB_QUERY, "right expr should be a value expr while left is field expr");
         field_expr = static_cast<FieldExpr *>(left_expr.get());
-        value_expr = static_cast<ValueExpr *>(right_expr.get());
+
+        if (right_expr->type() == ExprType::VALUE) {
+          value_expr = static_cast<ValueExpr *>(right_expr.get());
+        } else {
+          sub_expr                   = static_cast<SubLogicalExpression *>(right_expr.get());
+          SubPhysicalExpression *tmp = new SubPhysicalExpression;
+
+          if (sub_expr->is_sub_) {
+            create(*sub_expr->sub_sql_, tmp->sub_sql_);
+            std::unique_ptr<PhysicalOperator> pipe_break(
+                new PipeLineBreakPhysicalOperator(std::move(tmp->sub_sql_)));
+
+            tmp->sub_sql_ = std::move(pipe_break);
+            right_expr.reset(tmp);
+          } else {
+            std::unique_ptr<PhysicalOperator> pipe_break(
+                new PipeLineBreakPhysicalOperator(sub_expr->value_list_));
+
+            tmp->sub_sql_ = std::move(pipe_break);
+            right_expr.reset(tmp);
+          }
+        }
       } else if (right_expr->type() == ExprType::FIELD) {
-        ASSERT(left_expr->type() == ExprType::VALUE, "left expr should be a value expr while right is a field expr");
+        ASSERT(left_expr->type() == ExprType::VALUE || left_expr->type() == ExprType::SUB_QUERY, "left expr should be a value expr while right is a field expr");
+
         field_expr = static_cast<FieldExpr *>(right_expr.get());
+
+        if (left_expr->type() == ExprType::VALUE) {
+          value_expr = static_cast<ValueExpr *>(left_expr.get());
+        } else {
+          sub_expr                   = static_cast<SubLogicalExpression *>(left_expr.get());
+          SubPhysicalExpression *tmp = new SubPhysicalExpression;
+
+          if (sub_expr->is_sub_) {
+            create(*sub_expr->sub_sql_, tmp->sub_sql_);
+            std::unique_ptr<PhysicalOperator> pipe_break(
+                new PipeLineBreakPhysicalOperator(std::move(tmp->sub_sql_)));
+
+            tmp->sub_sql_ = std::move(pipe_break);
+            left_expr.reset(tmp);
+          } else {
+            std::unique_ptr<PhysicalOperator> pipe_break(
+                new PipeLineBreakPhysicalOperator(sub_expr->value_list_));
+
+            tmp->sub_sql_ = std::move(pipe_break);
+            left_expr.reset(tmp);
+          }
+        }
+      } else if (left_expr->type() == ExprType::SUB_QUERY) {
+        ASSERT(right_expr->type() == ExprType::VALUE, "error ");
+
+        value_expr = static_cast<ValueExpr *>(right_expr.get());
+
+        sub_expr                   = static_cast<SubLogicalExpression *>(left_expr.get());
+        SubPhysicalExpression *tmp = new SubPhysicalExpression;
+
+        if (sub_expr->is_sub_) {
+          create(*sub_expr->sub_sql_, tmp->sub_sql_);
+          std::unique_ptr<PhysicalOperator> pipe_break(
+              new PipeLineBreakPhysicalOperator(std::move(tmp->sub_sql_)));
+
+          tmp->sub_sql_ = std::move(pipe_break);
+          left_expr.reset(tmp);
+        } else {
+          std::unique_ptr<PhysicalOperator> pipe_break(
+              new PipeLineBreakPhysicalOperator(sub_expr->value_list_));
+
+          tmp->sub_sql_ = std::move(pipe_break);
+          left_expr.reset(tmp);
+        }
+      } else if (right_expr->type() == ExprType::SUB_QUERY) {
+        ASSERT(left_expr->type() == ExprType::VALUE, "error ");
+
         value_expr = static_cast<ValueExpr *>(left_expr.get());
+
+        sub_expr                   = static_cast<SubLogicalExpression *>(right_expr.get());
+        SubPhysicalExpression *tmp = new SubPhysicalExpression;
+
+        if (sub_expr->is_sub_) {
+          create(*sub_expr->sub_sql_, tmp->sub_sql_);
+          std::unique_ptr<PhysicalOperator> pipe_break(
+              new PipeLineBreakPhysicalOperator(std::move(tmp->sub_sql_)));
+
+          tmp->sub_sql_ = std::move(pipe_break);
+          right_expr.reset(tmp);
+        } else {
+          std::unique_ptr<PhysicalOperator> pipe_break(
+              new PipeLineBreakPhysicalOperator(sub_expr->value_list_));
+
+          tmp->sub_sql_ = std::move(pipe_break);
+          right_expr.reset(tmp);
+        }
+      }
+
+      // 这几个比较符直接跳过。
+      if (comparison_expr->comp() >= CompOp::IN && comparison_expr->comp() <= CompOp::LIKE_NOT) {
+        continue;
       }
 
       if (field_expr == nullptr) {
@@ -192,7 +290,8 @@ RC PhysicalPlanGenerator::create_plan(
       }
 
       const Field &field = field_expr->field();
-      index              = table->find_index_by_field(field.field_name());
+
+      index = table->find_index_by_field(field.field_name());
       if (nullptr != index) {
         break;
       }
@@ -241,6 +340,107 @@ RC PhysicalPlanGenerator::create_plan(
 
   vector<unique_ptr<Expression>> &expressions = pred_oper.expressions();
   ASSERT(expressions.size() == 1, "predicate logical operator's children should be 1");
+
+  for (auto &expr : expressions) {
+    if (expr->type() == ExprType::COMPARISON) {
+      auto comparison_expr = static_cast<ComparisonExpr *>(expr.get());
+
+      unique_ptr<Expression> &left_expr  = comparison_expr->left();
+      unique_ptr<Expression> &right_expr = comparison_expr->right();
+
+      SubLogicalExpression *sub_expr = nullptr;
+
+      if (left_expr->type() == ExprType::FIELD) {
+        ASSERT(right_expr->type() == ExprType::VALUE || right_expr->type() == ExprType::SUB_QUERY, "right expr should be a value expr while left is field expr");
+
+        if (right_expr->type() == ExprType::VALUE) {
+          continue;
+        } else {
+          sub_expr                   = static_cast<SubLogicalExpression *>(right_expr.get());
+          SubPhysicalExpression *tmp = new SubPhysicalExpression;
+
+          if (sub_expr->is_sub_) {
+            create(*sub_expr->sub_sql_, tmp->sub_sql_);
+            std::unique_ptr<PhysicalOperator> pipe_break(
+                new PipeLineBreakPhysicalOperator(std::move(tmp->sub_sql_)));
+
+            tmp->sub_sql_ = std::move(pipe_break);
+            right_expr.reset(tmp);
+          } else {
+            std::unique_ptr<PhysicalOperator> pipe_break(
+                new PipeLineBreakPhysicalOperator(sub_expr->value_list_));
+
+            tmp->sub_sql_ = std::move(pipe_break);
+            right_expr.reset(tmp);
+          }
+        }
+      } else if (right_expr->type() == ExprType::FIELD) {
+        ASSERT(left_expr->type() == ExprType::VALUE || left_expr->type() == ExprType::SUB_QUERY, "left expr should be a value expr while right is a field expr");
+
+        if (left_expr->type() == ExprType::VALUE) {
+          continue;
+        } else {
+          sub_expr                   = static_cast<SubLogicalExpression *>(left_expr.get());
+          SubPhysicalExpression *tmp = new SubPhysicalExpression;
+
+          if (sub_expr->is_sub_) {
+            create(*sub_expr->sub_sql_, tmp->sub_sql_);
+            std::unique_ptr<PhysicalOperator> pipe_break(
+                new PipeLineBreakPhysicalOperator(std::move(tmp->sub_sql_)));
+
+            tmp->sub_sql_ = std::move(pipe_break);
+            left_expr.reset(tmp);
+          } else {
+            std::unique_ptr<PhysicalOperator> pipe_break(
+                new PipeLineBreakPhysicalOperator(sub_expr->value_list_));
+
+            tmp->sub_sql_ = std::move(pipe_break);
+            left_expr.reset(tmp);
+          }
+        }
+      } else if (left_expr->type() == ExprType::SUB_QUERY) {
+        ASSERT(right_expr->type() == ExprType::VALUE, "error ");
+
+        sub_expr                   = static_cast<SubLogicalExpression *>(left_expr.get());
+        SubPhysicalExpression *tmp = new SubPhysicalExpression;
+
+        if (sub_expr->is_sub_) {
+          create(*sub_expr->sub_sql_, tmp->sub_sql_);
+          std::unique_ptr<PhysicalOperator> pipe_break(
+              new PipeLineBreakPhysicalOperator(std::move(tmp->sub_sql_)));
+
+          tmp->sub_sql_ = std::move(pipe_break);
+          left_expr.reset(tmp);
+        } else {
+          std::unique_ptr<PhysicalOperator> pipe_break(
+              new PipeLineBreakPhysicalOperator(sub_expr->value_list_));
+
+          tmp->sub_sql_ = std::move(pipe_break);
+          left_expr.reset(tmp);
+        }
+      } else if (right_expr->type() == ExprType::SUB_QUERY) {
+        ASSERT(left_expr->type() == ExprType::VALUE, "error ");
+
+        sub_expr                   = static_cast<SubLogicalExpression *>(right_expr.get());
+        SubPhysicalExpression *tmp = new SubPhysicalExpression;
+
+        if (sub_expr->is_sub_) {
+          create(*sub_expr->sub_sql_, tmp->sub_sql_);
+          std::unique_ptr<PhysicalOperator> pipe_break(
+              new PipeLineBreakPhysicalOperator(std::move(tmp->sub_sql_)));
+
+          tmp->sub_sql_ = std::move(pipe_break);
+          right_expr.reset(tmp);
+        } else {
+          std::unique_ptr<PhysicalOperator> pipe_break(
+              new PipeLineBreakPhysicalOperator(sub_expr->value_list_));
+
+          tmp->sub_sql_ = std::move(pipe_break);
+          right_expr.reset(tmp);
+        }
+      }
+    }
+  }
 
   unique_ptr<Expression> expression = std::move(expressions.front());
   oper = unique_ptr<PhysicalOperator>(new PredicatePhysicalOperator(std::move(expression)));

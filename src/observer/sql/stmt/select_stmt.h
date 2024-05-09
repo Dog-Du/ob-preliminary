@@ -38,6 +38,7 @@ class SelectStmt : public Stmt
 public:
   SelectStmt() = default;
   SelectStmt(bool is_agg) : is_agg_(is_agg) {}
+
   ~SelectStmt() override;
 
   StmtType type() const override { return StmtType::SELECT; }
@@ -59,7 +60,6 @@ private:
   std::vector<Field>                                         query_fields_;
   std::vector<Table *>                                       tables_;
   std::unordered_map<Table *, std::vector<ConditionSqlNode>> joined_tables_;
-  FilterStmt                                                *filter_stmt_ = nullptr;
-
-  bool is_agg_ = false;
+  FilterStmt                                                *filter_stmt_{nullptr};
+  bool                                                       is_agg_{false};
 };

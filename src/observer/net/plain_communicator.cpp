@@ -15,6 +15,7 @@ See the Mulan PSL v2 for more details. */
 #include "net/plain_communicator.h"
 #include "common/io/io.h"
 #include "common/log/log.h"
+#include "common/rc.h"
 #include "event/session_event.h"
 #include "net/buffered_writer.h"
 #include "session/session.h"
@@ -162,6 +163,7 @@ RC PlainCommunicator::write_debug(SessionEvent *request, bool &need_disconnect)
 RC PlainCommunicator::write_result(SessionEvent *event, bool &need_disconnect)
 {
   RC rc = write_result_internal(event, need_disconnect);
+
   if (!need_disconnect) {
     RC rc1 = write_debug(event, need_disconnect);
     if (OB_FAIL(rc1)) {
@@ -286,6 +288,14 @@ RC PlainCommunicator::write_result_internal(SessionEvent *event, bool &need_disc
 
   if (rc == RC::RECORD_EOF) {
     rc = RC::SUCCESS;
+  }
+
+  if (rc != RC::SUCCESS) {
+    sql_result->close();
+    sql_result->set_return_code(rc);
+    need_disconnect = false;
+    writer_->clear();
+    return write_state(event, need_disconnect);
   }
 
   if (cell_num == 0) {
