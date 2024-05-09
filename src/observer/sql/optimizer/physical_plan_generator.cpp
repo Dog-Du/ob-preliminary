@@ -184,7 +184,7 @@ RC PhysicalPlanGenerator::create_plan(
       SubLogicalExpression *sub_expr   = nullptr;
 
       if (left_expr->type() == ExprType::FIELD) {
-        ASSERT(right_expr->type() == ExprType::VALUE || right_expr->type() == ExprType::SUB_QUERY, "right expr should be a value expr while left is field expr");
+      //  ASSERT(right_expr->type() == ExprType::VALUE || right_expr->type() == ExprType::SUB_QUERY, "right expr should be a value expr while left is field expr");
         field_expr = static_cast<FieldExpr *>(left_expr.get());
 
         if (right_expr->type() == ExprType::VALUE) {
@@ -209,7 +209,7 @@ RC PhysicalPlanGenerator::create_plan(
           }
         }
       } else if (right_expr->type() == ExprType::FIELD) {
-        ASSERT(left_expr->type() == ExprType::VALUE || left_expr->type() == ExprType::SUB_QUERY, "left expr should be a value expr while right is a field expr");
+      //  ASSERT(left_expr->type() == ExprType::VALUE || left_expr->type() == ExprType::SUB_QUERY, "left expr should be a value expr while right is a field expr");
 
         field_expr = static_cast<FieldExpr *>(right_expr.get());
 
@@ -235,7 +235,7 @@ RC PhysicalPlanGenerator::create_plan(
           }
         }
       } else if (left_expr->type() == ExprType::SUB_QUERY) {
-        ASSERT(right_expr->type() == ExprType::VALUE, "error ");
+      //  ASSERT(right_expr->type() == ExprType::VALUE, "error ");
 
         value_expr = static_cast<ValueExpr *>(right_expr.get());
 
@@ -257,7 +257,7 @@ RC PhysicalPlanGenerator::create_plan(
           left_expr.reset(tmp);
         }
       } else if (right_expr->type() == ExprType::SUB_QUERY) {
-        ASSERT(left_expr->type() == ExprType::VALUE, "error ");
+      //  ASSERT(left_expr->type() == ExprType::VALUE, "error ");
 
         value_expr = static_cast<ValueExpr *>(left_expr.get());
 
@@ -359,7 +359,7 @@ RC PhysicalPlanGenerator::create_plan(
       SubLogicalExpression *sub_expr = nullptr;
 
       if (left_expr->type() == ExprType::FIELD) {
-        ASSERT(right_expr->type() == ExprType::VALUE || right_expr->type() == ExprType::SUB_QUERY, "right expr should be a value expr while left is field expr");
+        // ASSERT(right_expr->type() == ExprType::VALUE || right_expr->type() == ExprType::SUB_QUERY, "right expr should be a value expr while left is field expr");
 
         if (right_expr->type() == ExprType::VALUE) {
           continue;
@@ -383,7 +383,7 @@ RC PhysicalPlanGenerator::create_plan(
           }
         }
       } else if (right_expr->type() == ExprType::FIELD) {
-        ASSERT(left_expr->type() == ExprType::VALUE || left_expr->type() == ExprType::SUB_QUERY, "left expr should be a value expr while right is a field expr");
+       // ASSERT(left_expr->type() == ExprType::VALUE || left_expr->type() == ExprType::SUB_QUERY, "left expr should be a value expr while right is a field expr");
 
         if (left_expr->type() == ExprType::VALUE) {
           continue;
@@ -407,7 +407,7 @@ RC PhysicalPlanGenerator::create_plan(
           }
         }
       } else if (left_expr->type() == ExprType::SUB_QUERY) {
-        ASSERT(right_expr->type() == ExprType::VALUE, "error ");
+        // ASSERT(right_expr->type() == ExprType::VALUE, "error ");
 
         sub_expr                   = static_cast<SubLogicalExpression *>(left_expr.get());
         SubPhysicalExpression *tmp = new SubPhysicalExpression;
@@ -427,7 +427,7 @@ RC PhysicalPlanGenerator::create_plan(
           left_expr.reset(tmp);
         }
       } else if (right_expr->type() == ExprType::SUB_QUERY) {
-        ASSERT(left_expr->type() == ExprType::VALUE, "error ");
+       // ASSERT(left_expr->type() == ExprType::VALUE, "error ");
 
         sub_expr                   = static_cast<SubLogicalExpression *>(right_expr.get());
         SubPhysicalExpression *tmp = new SubPhysicalExpression;

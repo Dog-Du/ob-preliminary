@@ -31,11 +31,19 @@ RC PredicatePhysicalOperator::open(Trx *trx)
     LOG_WARN("predicate operator must has one child");
     return RC::INTERNAL;
   }
-
+  
   if (expression_->type() == ExprType::COMPARISON) {
     static_cast<ComparisonExpr *>(expression_.get())->open(trx);
+  } else {
+    auto &expr = static_cast<ConjunctionExpr *>(expression_.get())->children();
+
+    for (auto &it : expr) {
+      if (it->type() == ExprType::COMPARISON) {
+        static_cast<ComparisonExpr *>(it.get())->open(trx);
+      }
+    }
   }
-  
+
   return children_[0]->open(trx);
 }
 
