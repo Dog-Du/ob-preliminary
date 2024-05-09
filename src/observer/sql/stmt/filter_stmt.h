@@ -48,13 +48,13 @@ struct FilterObj
 
   void init_select_stmt(const std::shared_ptr<SelectStmt> &sel_stmt)
   {
-    is_attr           = 2;
+    is_attr           = 3;
     this->select_stmt = sel_stmt;
   }
 
   void init_value_list(const std::vector<Value> &rhs)
   {
-    is_attr    = 3;
+    is_attr    = 2;
     value_list = rhs;
   }
 };

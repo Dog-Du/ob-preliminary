@@ -56,7 +56,7 @@ RC PipeLineBreakPhysicalOperator::open(Trx *trx)
 
 RC PipeLineBreakPhysicalOperator::next()
 {
-  return (++i_ >= tuples_.size()) ? RC::RECORD_EOF : RC::SUCCESS;
+  return (++i_ >= static_cast<int>(tuples_.size())) ? RC::RECORD_EOF : RC::SUCCESS;
 }
 
 RC PipeLineBreakPhysicalOperator::close() { return RC::SUCCESS; }

@@ -341,7 +341,15 @@ RC PhysicalPlanGenerator::create_plan(
   vector<unique_ptr<Expression>> &expressions = pred_oper.expressions();
   ASSERT(expressions.size() == 1, "predicate logical operator's children should be 1");
 
-  for (auto &expr : expressions) {
+  vector<unique_ptr<Expression>> *exprs = nullptr;
+
+  if (expressions.front()->type() == ExprType::COMPARISON) {
+    exprs = &expressions;
+  } else {
+    exprs = &static_cast<ConjunctionExpr *>(expressions.front().get())->children();
+  }
+
+  for (auto &expr : *exprs) {
     if (expr->type() == ExprType::COMPARISON) {
       auto comparison_expr = static_cast<ComparisonExpr *>(expr.get());
 

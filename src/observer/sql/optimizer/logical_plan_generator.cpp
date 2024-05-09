@@ -272,7 +272,7 @@ RC LogicalPlanGenerator::create_plan(
         left.reset(static_cast<Expression *>(new FieldExpr(filter_obj_left.field)));
         break;
       }
-      case 2: {
+      case 3: {
         std::unique_ptr<LogicalOperator> sel_operator;
         if (RC::SUCCESS != create_plan(filter_obj_left.select_stmt.get(), sel_operator)) {
           return RC::SQL_SYNTAX;
@@ -281,7 +281,7 @@ RC LogicalPlanGenerator::create_plan(
         left.reset(static_cast<Expression *>(new SubLogicalExpression(sel_operator)));
 
       } break;
-      case 3: {
+      case 2: {
         left.reset(static_cast<Expression *>(new SubLogicalExpression(
             const_cast<std::vector<Value> &>(filter_obj_left.value_list))));
 
@@ -302,7 +302,7 @@ RC LogicalPlanGenerator::create_plan(
         right.reset(static_cast<Expression *>(new FieldExpr(filter_obj_right.field)));
         break;
       }
-      case 2: {
+      case 3: {
         std::unique_ptr<LogicalOperator> sel_operator;
         if (RC::SUCCESS != create_plan(filter_obj_right.select_stmt.get(), sel_operator)) {
           return RC::SQL_SYNTAX;
@@ -310,7 +310,7 @@ RC LogicalPlanGenerator::create_plan(
 
         right.reset(static_cast<Expression *>(new SubLogicalExpression(sel_operator)));
       } break;
-      case 3: {
+      case 2: {
         right.reset(static_cast<Expression *>(new SubLogicalExpression(
             const_cast<std::vector<Value> &>(filter_obj_right.value_list))));
       } break;
