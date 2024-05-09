@@ -57,7 +57,7 @@ public:
    */
   RC flush();
 
-  void clear() { buffer_.clear(); }
+  RC forward_write(int32_t size) { return buffer_.forward_write(size); }
 
 private:
   /**

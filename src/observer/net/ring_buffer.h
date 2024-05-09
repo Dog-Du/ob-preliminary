@@ -62,6 +62,8 @@ public:
    */
   RC forward(int32_t size);
 
+  RC forward_write(int32_t size);
+
   /**
    * @brief 将数据写入缓存
    * @param buf 待写入的数据
@@ -85,11 +87,7 @@ public:
    */
   int32_t size() const { return data_size_; }
 
-  void clear()
-  {
-    data_size_ = 0;
-    write_pos_ = 0;
-  }
+
 
 private:
   int32_t read_pos() const { return (write_pos_ - this->size() + capacity()) % capacity(); }

@@ -206,14 +206,17 @@ RC PlainCommunicator::write_result_internal(SessionEvent *event, bool &need_disc
   const TupleSchema &schema   = sql_result->tuple_schema();
   const int          cell_num = schema.cell_num();
 
+  size_t flush_size = 0;
+
   for (int i = 0; i < cell_num; i++) {
     const TupleCellSpec &spec  = schema.cell_at(i);
     const char          *alias = spec.alias();
     if (nullptr != alias || alias[0] != 0) {
       if (0 != i) {
         const char *delim = " | ";
-
-        rc = writer_->writen(delim, strlen(delim));
+        int         len   = strlen(delim);
+        rc                = writer_->writen(delim, len);
+        flush_size += len;
         if (OB_FAIL(rc)) {
           LOG_WARN("failed to send data to client. err=%s", strerror(errno));
           return rc;
@@ -221,7 +224,7 @@ RC PlainCommunicator::write_result_internal(SessionEvent *event, bool &need_disc
       }
 
       int len = strlen(alias);
-
+      flush_size += len;
       rc = writer_->writen(alias, len);
       if (OB_FAIL(rc)) {
         LOG_WARN("failed to send data to client. err=%s", strerror(errno));
@@ -233,7 +236,7 @@ RC PlainCommunicator::write_result_internal(SessionEvent *event, bool &need_disc
 
   if (cell_num > 0) {
     char newline = '\n';
-
+    flush_size += 1;
     rc = writer_->writen(&newline, 1);
     if (OB_FAIL(rc)) {
       LOG_WARN("failed to send data to client. err=%s", strerror(errno));
@@ -252,8 +255,9 @@ RC PlainCommunicator::write_result_internal(SessionEvent *event, bool &need_disc
     for (int i = 0; i < cell_num; i++) {
       if (i != 0) {
         const char *delim = " | ";
-
-        rc = writer_->writen(delim, strlen(delim));
+        int         len   = strlen(delim);
+        rc                = writer_->writen(delim, len);
+        flush_size += len;
         if (OB_FAIL(rc)) {
           LOG_WARN("failed to send data to client. err=%s", strerror(errno));
           sql_result->close();
@@ -270,6 +274,7 @@ RC PlainCommunicator::write_result_internal(SessionEvent *event, bool &need_disc
 
       string cell_str = value.to_string();
 
+      flush_size += cell_str.size();
       rc = writer_->writen(cell_str.data(), cell_str.size());
       if (OB_FAIL(rc)) {
         LOG_WARN("failed to send data to client. err=%s", strerror(errno));
@@ -279,6 +284,8 @@ RC PlainCommunicator::write_result_internal(SessionEvent *event, bool &need_disc
     }
 
     char newline = '\n';
+
+    flush_size += 1;
 
     rc = writer_->writen(&newline, 1);
     if (OB_FAIL(rc)) {
@@ -290,6 +297,13 @@ RC PlainCommunicator::write_result_internal(SessionEvent *event, bool &need_disc
 
   if (rc == RC::RECORD_EOF) {
     rc = RC::SUCCESS;
+  }
+
+  if (rc != RC::SUCCESS) {
+    sql_result->set_return_code(rc);
+    sql_result->close();
+    writer_->forward_write(flush_size);
+    return write_state(event, need_disconnect);
   }
 
   if (cell_num == 0) {
