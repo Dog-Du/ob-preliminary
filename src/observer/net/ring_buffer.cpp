@@ -96,6 +96,7 @@ RC RingBuffer::forward_write(int32_t size)
     return RC::INVALID_ARGUMENT;
   }
   write_pos_ -= size;
+  data_size_ -= size;
   return RC::SUCCESS;
 }
 
