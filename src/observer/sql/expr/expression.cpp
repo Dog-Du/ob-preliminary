@@ -316,7 +316,8 @@ RC ComparisonExpr::check_sub(const Value &value, std::unique_ptr<PhysicalOperato
         Value  v;
 
         if (oper->next() != RC::SUCCESS) {
-          return RC::VARIABLE_NOT_VALID;
+          result = false;
+          return RC::SUCCESS;
         }
 
         tuple = oper->current_tuple();
