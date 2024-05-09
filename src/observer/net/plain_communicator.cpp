@@ -178,6 +178,7 @@ RC PlainCommunicator::write_result(SessionEvent *event, bool &need_disconnect)
       return rc;
     }
   }
+
   writer_->flush();  // TODO handle error
   return rc;
 }

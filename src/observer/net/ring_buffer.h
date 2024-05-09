@@ -14,6 +14,7 @@ See the Mulan PSL v2 for more details. */
 
 #pragma once
 
+#include <cstdint>
 #include <vector>
 
 #include "common/rc.h"
@@ -86,7 +87,8 @@ public:
 
   void clear()
   {
-    write_pos_ = capacity() -1 ;
+    forward(size());
+    write_pos_ = 0;
   }
 
 private:
