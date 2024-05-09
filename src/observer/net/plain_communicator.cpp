@@ -20,6 +20,7 @@ See the Mulan PSL v2 for more details. */
 #include "net/buffered_writer.h"
 #include "session/session.h"
 #include "sql/expr/tuple.h"
+#include <cstddef>
 
 using namespace std;
 
@@ -196,37 +197,7 @@ RC PlainCommunicator::write_result_internal(SessionEvent *event, bool &need_disc
   }
 
   rc = sql_result->open();
-  std::vector<ValueListTuple> results;
-
-  {
-    ValueListTuple t;
-    Tuple         *tuple;
-
-    while ((rc = sql_result->next_tuple(tuple)) == RC::SUCCESS) {
-      int                cell_num = tuple->cell_num();
-      std::vector<Value> values;
-      values.reserve(cell_num);
-      Value v;
-      for (int i = 0; i < cell_num; ++i) {
-        tuple->cell_at(i, v);
-      }
-
-      t.set_cells(values);
-      results.push_back(t);
-    }
-
-    if (rc == RC::RECORD_EOF) {
-      rc = RC::SUCCESS;
-    }
-  }
-
   if (OB_FAIL(rc)) {
-    sql_result->close();
-    sql_result->set_return_code(rc);
-    return write_state(event, need_disconnect);
-  }
-
-  if (OB_FAIL(sql_result->close())) {
     sql_result->close();
     sql_result->set_return_code(rc);
     return write_state(event, need_disconnect);
@@ -274,8 +245,7 @@ RC PlainCommunicator::write_result_internal(SessionEvent *event, bool &need_disc
   rc = RC::SUCCESS;
 
   Tuple *tuple = nullptr;
-  for (auto &it : results) {
-    tuple = &it;
+  while (RC::SUCCESS == (rc = sql_result->next_tuple(tuple))) {
     assert(tuple != nullptr);
 
     int cell_num = tuple->cell_num();
@@ -316,6 +286,10 @@ RC PlainCommunicator::write_result_internal(SessionEvent *event, bool &need_disc
       sql_result->close();
       return rc;
     }
+  }
+
+  if (rc == RC::RECORD_EOF) {
+    rc = RC::SUCCESS;
   }
 
   if (cell_num == 0) {
