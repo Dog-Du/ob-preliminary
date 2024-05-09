@@ -299,13 +299,6 @@ RC PlainCommunicator::write_result_internal(SessionEvent *event, bool &need_disc
     rc = RC::SUCCESS;
   }
 
-  if (rc != RC::SUCCESS) {
-    sql_result->set_return_code(rc);
-    sql_result->close();
-    writer_->forward_write(flush_size);
-    return write_state(event, need_disconnect);
-  }
-
   if (cell_num == 0) {
     // 除了select之外，其它的消息通常不会通过operator来返回结果，表头和行数据都是空的
     // 这里针对这种情况做特殊处理，当表头和行数据都是空的时候，就返回处理的结果
@@ -318,6 +311,13 @@ RC PlainCommunicator::write_result_internal(SessionEvent *event, bool &need_disc
     return write_state(event, need_disconnect);
   } else {
     need_disconnect = false;
+  }
+
+  if (rc != RC::SUCCESS) {
+    sql_result->set_return_code(rc);
+    sql_result->close();
+    writer_->forward_write(flush_size);
+    return write_state(event, need_disconnect);
   }
 
   RC rc_close = sql_result->close();
