@@ -384,6 +384,25 @@ desc_table_stmt:
     ;
 
 create_index_stmt:    /*create index 语句的语法解析树*/
+    CREATE INDEX ID ON ID LBRACE ID rel_list RBRACE
+    {
+      $$ = new ParsedSqlNode(SCF_CREATE_INDEX);
+      CreateIndexSqlNode &create_index = $$->create_index;
+      create_index.index_name = $3;
+      create_index.relation_name = $5;
+
+      $8->emplace_back(std::string($7));
+      free($7);
+
+      create_index.attrs.swap(*$8);
+      free($3);
+      free($5);
+      delete $8;
+    }
+
+
+/*********************************************************
+    |
     CREATE INDEX ID ON ID LBRACE ID RBRACE
     {
       $$ = new ParsedSqlNode(SCF_CREATE_INDEX);
@@ -395,6 +414,7 @@ create_index_stmt:    /*create index 语句的语法解析树*/
       free($5);
       free($7);
     }
+***************************************************************/
     ;
 
 drop_index_stmt:      /*drop index 语句的语法解析树*/
@@ -808,6 +828,7 @@ rel_list:
       free($2);
     }
     ;
+
 where:
     /* empty */
     {

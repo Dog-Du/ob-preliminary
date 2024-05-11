@@ -17,6 +17,8 @@ See the Mulan PSL v2 for more details. */
 #include "common/log/log.h"
 #include "storage/db/db.h"
 #include "storage/table/table.h"
+#include <unordered_map>
+#include <unordered_set>
 
 using namespace std;
 using namespace common;
@@ -27,9 +29,9 @@ RC CreateIndexStmt::create(Db *db, const CreateIndexSqlNode &create_index, Stmt 
 
   const char *table_name = create_index.relation_name.c_str();
   if (is_blank(table_name) || is_blank(create_index.index_name.c_str()) ||
-      is_blank(create_index.attribute_name.c_str())) {
+      create_index.attrs.empty() || is_blank(create_index.attrs.front().c_str())) {
     LOG_WARN("invalid argument. db=%p, table_name=%p, index name=%s, attribute name=%s",
-        db, table_name, create_index.index_name.c_str(), create_index.attribute_name.c_str());
+        db, table_name, create_index.index_name.c_str(), (create_index.attrs.empty() ? "nothing" : create_index.attrs.front().c_str()));
     return RC::INVALID_ARGUMENT;
   }
 
@@ -40,11 +42,21 @@ RC CreateIndexStmt::create(Db *db, const CreateIndexSqlNode &create_index, Stmt 
     return RC::SCHEMA_TABLE_NOT_EXIST;
   }
 
-  const FieldMeta *field_meta = table->table_meta().field(create_index.attribute_name.c_str());
-  if (nullptr == field_meta) {
-    LOG_WARN("no such field in table. db=%s, table=%s, field name=%s", 
-             db->name(), table_name, create_index.attribute_name.c_str());
-    return RC::SCHEMA_FIELD_NOT_EXIST;
+  // 如果索引字段有重复，返回错误
+  // 如果索引字段有不合法，返回错误。
+  // 尝试MySQL后发现，一个字段上可以建立多个索引，这下方便了。
+  {
+    std::unordered_set<std::string> se(create_index.attrs.begin(), create_index.attrs.end());
+
+    if (se.size() < create_index.attrs.size()) {
+      return RC::VARIABLE_NOT_VALID;
+    }
+
+    for (auto &it : create_index.attrs) {
+      if (table->table_meta().field(it.c_str()) == nullptr) {
+        return RC::SCHEMA_FIELD_NOT_EXIST;
+      }
+    }
   }
 
   Index *index = table->find_index(create_index.index_name.c_str());
@@ -53,6 +65,18 @@ RC CreateIndexStmt::create(Db *db, const CreateIndexSqlNode &create_index, Stmt 
     return RC::SCHEMA_INDEX_NAME_REPEAT;
   }
 
-  stmt = new CreateIndexStmt(table, field_meta, create_index.index_name);
+  if (create_index.attrs.size() == 1) {
+    const FieldMeta *field_meta = table->table_meta().field(create_index.attrs.front().c_str());
+    if (nullptr == field_meta) {
+      LOG_WARN("no such field in table. db=%s, table=%s, field name=%s",
+             db->name(), table_name, create_index.attrs.front().c_str());
+      return RC::SCHEMA_FIELD_NOT_EXIST;
+    }
+
+    stmt = new CreateIndexStmt(table, field_meta, create_index.index_name);
+  }
+
+  // 什么也没有。
+  stmt = new CreateIndexStmt(nullptr, nullptr, "");
   return RC::SUCCESS;
 }
