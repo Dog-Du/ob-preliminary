@@ -1,4 +1,10 @@
 join :
+  join-tables刚看到的时候我是一头雾水，不知道怎么实现，但是慢慢思考之后才有了思路。
+  把join-tables分成两部分看， select * from a inner join b on ********;
+  把第一个inner join前面的当做一部分，把第一个inner join后面的当做一部分。
+  第一个inner join前面的部分，相当于无条件join，第一个inner join后面相当于有条件join。
+  where 部分是会下推的谓词，不会设计join的条件，换句话说，where在语法树上是在join下面的。
+
   parse:
   1.先支持inner join on关键字
   2.分割，分成 from a inner join b on condition
@@ -31,6 +37,8 @@ date :
   5.需要写str_to_date的函数和date_to_str的函数，尤其是str_to_date的函数要小心写。
   6.date的保存我选择了unsigned int,也就是uint32_t，这是为了区别于int的同时保存4字节的大小。
   7.date的比较可以直接使用int的比较，检查date是否合理要仔细。
+  8.需要考虑之后的处理，比如在 in 中： select * from t where a in ('2024-5-10', 0),
+    我的处理是，在value部分处理，如果需要进行比较，那么尝试类型转化，转化失败则匹配失败
 
 drop table:
   官方文档有讲解，一步一步照着来就写完了。
@@ -125,19 +133,69 @@ like：
     新增关键字like，把like当做一个comp_op比较运算符，放在comp_op部分。
     在ComparionExpression的枚举部分新增like枚举，然后新增匹配函数，如果匹配成功则返回true即可。
   关于模式串的匹配：
-    本来以为是双指针就行，然后后来被一个样例打败： pipineapple 和 %e 因为双指针实际上是一个贪心，在pipine哪里看到e之后会直接匹配，导致后面没有匹配上。
-    所以正确答案是dp，这不在过多赘述。只不过dp效率远低于双指针，双指针是 O(n + m)，dp是 O(n * m) 有一说一，差的有点远。
+    本来以为是双指针就行，然后后来被一个样例打败： pipineapple 和 %e 因为双指针实际上是一个贪心，
+      在pipine哪里看到e之后会直接匹配，导致后面没有匹配上,换句话说，这个匹配应该是比较宽松的匹配。
+    所以正确答案是dp.只不过dp效率远低于双指针，双指针是 O(n + m)，dp是 O(n * m) 有一说一，差的有点远。
 
-join-tables:
-  join-tables刚看到的时候我是一头雾水，不知道怎么实现，但是慢慢思考之后才有了思路。
-  把join-tables分成两部分看， select * from a inner join b on ********;
-  把第一个inner join前面的当做一部分，把第一个inner join后面的当做一部分。
-  第一个inner join前面的部分，相当于无条件join，第一个inner join后面相当于有条件join。
-  where 部分是会下推的谓词，不会设计join的条件，换句话说，where在语法树上是在join下面的。
 
-  parse:
-    新增join_list，可为空。也是一个小递归。
-    
+simple-sub-query:
+  要支持 in和exists ，只会出现在where中。既继续支持子查询又需要支持常量集合(形如：(2,3,4,"abc"))
+  思路：
+    因为只会在where子句中出现，所以把子查询当做条件处理，把in和exists当做比较运算符。
+    怎么统一处理子查询和常量集合？ 我的方法是用一个 PipeLineBreaker 算子作为过渡。
+    这个算子的作用是：在open阶段获得所有需要的tuple，在next中依次遍历。因为这个算子的行为是非常明确的，
+        因此也方便在expression中用于比较
+
+    然后问题是怎么把select子句塞进filter中？我的方法是把physical算子塞进expression中，
+    之后再open阶段依次调用expression中的open。
+    这个时候会有一个这样的问题：考虑这样的select， select * from t where a=(select max(a) from t)
+    问题在于一个select中出现了两次表 t， 考虑到select是一个只读操作，这样应该是可以允许的，我在mysql进行尝试，
+    确实可以运行，然后考虑之后有一个题目是update-select，update是写操作，select是读操作
+    于是： update t set a=(select max(a) from t) where 1=1 这样应该是不允许的，实际上mysql也确实不允许
+    这个时候需要注意的就是open时候的顺序，保证expression是第一个被open的。
+
+  parse：
+    先支持exists和in关键字，然后在condition中添加select_stmt和value_list两种，一个代表子查询，一个代表常量集合。
+    因为exists其实相当于一个单目运算符，但为了方便处理，可以考虑仍然使用comprisionexpr，只是left或者right有一个不填罢了。
+    只需要用compop进行区别即可，同时需要注意 常量集合和子查询 虽然都是返回的tuple的集合，但是应该进行区分。
+
+  resolve：
+    很自然的，既然把子查询放在expression中，那么应该去修改filter_stmt而select_stmt不需要修改。
+    在filter_unit中增加一个select_stmt和value_list即可，用于之后生成算子。
+  optimize：
+    可以自己写个expression表示sub查询，因为expression在存储的时候有std::vector<std::unique_ptr<Expression>>，
+    所以只要新expression继承expression就可以放心的使用。在生成物理执行计划的时候别忘了用pipelinebreaker就行。
+  execute：
+    没有需要修改的地方
+  算子部分：
+    需要写一个算子，它在树上的位置位于子查询和主查询之间充当过渡。同时修改所有需要filter的算子，在open期间，先open表达式。
+    主要就是 table_get_physical_operator 和 predicate_physical_operator。
+    然后就可以快乐运行了。
+
+  有三个注意点：
+    1.如果在运行算子期间需要返回failure怎么办？
+      我的方法有两个：
+        1) 先运行后打印，原本的输出部分是边next边向缓冲池写入，可以修改为先用一个vector存储所有结果tuple，
+            期间出现问题直接failure即可，最后没问题了再一起写入。
+        2) 修改缓冲池，如果出现问题，把之前写入的部分在形式上删去。
+
+        就思路来说 2) 更清晰，但是就实现的难度来说其实 1) 更简单因为实现2)是需要去读缓冲池部分的代码的(虽然不长就是了)，
+          效率方面的话，感觉是 1) 会差一些。
+        我选择了2)，先统计写入了多少，然后在失败的时候进行回溯即可。
+        需要注意的是环形缓冲池类似一个循环队列，write_data就是back，data_size就是front，这样就很好用这部分的代码了。
+
+    2.头文件包含导致类之间相互依赖怎么办？
+      其实只要在.h文件先声明类，然后在.cpp文件中直接包含头文件使用就好了。
+      头文件相互依赖管我实现代码什么事(bushi -> 其实是编译的问题，头文件不能出现相互依赖，但是.cpp可以随便添加.h文件。
+        这又暴露出我对编译阶段到底做了什么还是有些不甚了解。
+    3.这么做的几个缺点：
+      首先是，生成逻辑树之后，因为子查询位于expression中，所以在optimize中的rewrite和optimize不会涉及查询，
+        也就是子查询不会参与优化阶段。
+      齐次是，这么做在多线程下可能会出问题（2PL角度），隔离等级应该会降到不可重复读
+        （即，select * from t where a in (select * from t) 中两次查询表t的结果可能不同）
+        但是以MVCC角度来看似乎又没有问题。哎，我的理论太差了，这一两月应该要找一些理论方面的知识学习一下。
+      最后是，空间上的问题，因为PipeLineBreaker是字面意义上的火山模型破坏者，对于内存不太优化，当然这样可以避免反复读磁盘。
+
 
 
 

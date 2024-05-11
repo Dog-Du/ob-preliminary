@@ -527,14 +527,11 @@ insert_stmt:        /*insert   语句的语法解析树*/
 value_list:
     /* empty */
     {
-      $$ = nullptr;
+      $$ = new std::vector<Value>;
     }
     | COMMA value value_list  {
-      if ($3 != nullptr) {
-        $$ = $3;
-      } else {
-        $$ = new std::vector<Value>;
-      }
+      $$ = $3;
+
       $$->emplace_back(*$2);
       delete $2;
     }
