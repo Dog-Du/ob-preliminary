@@ -815,14 +815,10 @@ attr_list:
 rel_list:
     /* empty */
     {
-      $$ = nullptr;
+      $$ = new std::vector<std::string>;
     }
     | COMMA ID rel_list {
-      if ($3 != nullptr) {
-        $$ = $3;
-      } else {
-        $$ = new std::vector<std::string>;
-      }
+      $$ = $3;
 
       $$->push_back($2);
       free($2);
