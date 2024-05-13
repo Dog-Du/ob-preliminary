@@ -28,7 +28,7 @@ RC UpdatePhysicalOperator::open(Trx *trx)
   RC rc = RC::SUCCESS;
   {
     for (auto &it : update_nodes_) {
-      if (it.child != nullptr) {
+      if (it.child != nullptr) {  // 如果是sub-query
         if ((rc = it.child->open(trx)) != RC::SUCCESS) {
           return rc;
         }
@@ -44,7 +44,7 @@ RC UpdatePhysicalOperator::open(Trx *trx)
 
           if (!it.nullable) {  // 不可为空，返回错误
             it.child->close();
-            return RC::SQL_SYNTAX;
+            return RC::SUCCESS;
           }
 
           // 可以为空，继续。
@@ -109,17 +109,7 @@ RC UpdatePhysicalOperator::open(Trx *trx)
 
   trx_ = trx;
 
-  return RC::SUCCESS;
-}
-
-RC UpdatePhysicalOperator::next()
-{
-  RC rc = RC::SUCCESS;
-  if (children_.empty()) {
-    return RC::RECORD_EOF;
-  }
-
-  PhysicalOperator               *child = children_[0].get();
+  // 直接删除试试。
   std::vector<Record>             delete_records;
   std::vector<std::vector<Value>> values;
 
@@ -171,8 +161,10 @@ RC UpdatePhysicalOperator::next()
     }
   }
 
-  return RC::RECORD_EOF;
+  return RC::SUCCESS;
 }
+
+RC UpdatePhysicalOperator::next() { return RC::RECORD_EOF; }
 
 RC UpdatePhysicalOperator::close()
 {
