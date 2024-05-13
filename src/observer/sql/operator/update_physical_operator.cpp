@@ -61,11 +61,13 @@ RC UpdatePhysicalOperator::open(Trx *trx)
         Tuple *tuple;
         tuple = it.child->current_tuple();
 
+        // tuple空，说明出了某种错误。
         if (tuple == nullptr) {
           it.child->close();
           return RC::SQL_SYNTAX;
         }
 
+        // 不是1，错
         if (tuple->cell_num() != 1) {
           it.child->close();
           return RC::SQL_SYNTAX;
@@ -75,19 +77,20 @@ RC UpdatePhysicalOperator::open(Trx *trx)
 
         rc = it.child->next();
 
+        // 还有tuple，错
         if (rc == RC::SUCCESS) {
           it.child->close();
           return RC::SQL_SYNTAX;
         }
 
-        if (rc == RC::RECORD_EOF) {
-          rc = RC::SUCCESS;
-        }
+        // if (rc == RC::RECORD_EOF) {
+        //   rc = RC::SUCCESS;
+        // }
 
-        if (rc != RC::SUCCESS) {
-          it.child->close();
-          return RC::SQL_SYNTAX;
-        }
+        // if (rc != RC::SUCCESS) {
+        //   it.child->close();
+        //   return RC::SQL_SYNTAX;
+        // }
 
         values_.emplace_back(v);
         it.child->close();
