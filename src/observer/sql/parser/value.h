@@ -87,6 +87,7 @@ public:
   int length() const { return (attr_type_ == CHARS ? str_value_.size() : VALUE_SIZE_NOT_CHARS); }
 
   AttrType attr_type() const { return attr_type_; }
+  void convert_to_type(AttrType type);
   // const char *is_null_ptr() const { return &is_null_; }
 
 public:

@@ -206,6 +206,19 @@ void Value::set_data(char *data, int length)
   }
 }
 
+void Value::convert_to_type(AttrType type)
+{
+  switch (type) {
+    case AttrType::BOOLEANS: set_boolean(get_boolean()); break;
+    case AttrType::CHARS: set_string(get_string().c_str()); break;
+    case AttrType::DATES: set_date(get_date()); break;
+    case AttrType::FLOATS: set_float(get_float()); break;
+    case AttrType::INTS: set_int(get_int()); break;
+    case AttrType::NULLS: set_null(); break;
+    default: break;
+  }
+};
+
 void Value::set_null()
 {
   attr_type_ = NULLS;

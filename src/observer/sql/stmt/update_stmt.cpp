@@ -97,6 +97,10 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update, Stmt *&stmt)
           }
         }
 
+        if (it.value.attr_type() != field_meta->type()) {
+          const_cast<Value &>(it.value).convert_to_type(field_meta->type());
+        }
+
         // 排除一种情况，可为null，且为null
         if (!(field_meta->nullable() && it.value.attr_type() == NULLS) &&
             field_meta->type() != it.value.attr_type()) {
