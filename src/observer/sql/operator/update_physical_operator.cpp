@@ -109,55 +109,57 @@ RC UpdatePhysicalOperator::open(Trx *trx)
 
   trx_ = trx;
 
-  // 直接删除试试。
-  std::vector<Record>             delete_records;
-  std::vector<std::vector<Value>> values;
+  {
+    // 直接删除试试。
+    std::vector<Record>             delete_records;
+    std::vector<std::vector<Value>> values;
 
-  while (RC::SUCCESS == (rc = child->next())) {
-    Tuple *tuple = child->current_tuple();
-    if (nullptr == tuple) {
-      LOG_WARN("failed to get current record: %s", strrc(rc));
-      return rc;
+    while (RC::SUCCESS == (rc = child->next())) {
+      Tuple *tuple = child->current_tuple();
+      if (nullptr == tuple) {
+        LOG_WARN("failed to get current record: %s", strrc(rc));
+        return rc;
+      }
+
+      RowTuple *row_tuple = static_cast<RowTuple *>(tuple);
+
+      int cell_num = row_tuple->cell_num();
+      values.emplace_back(std::vector<Value>(cell_num));
+      Value *new_tuple = values.back().data();
+
+      for (int i = 0; i < cell_num; ++i) {
+        row_tuple->cell_at(i, new_tuple[i]);
+      }
+
+      for (int i = 0, n = indexs_.size(); i < n; ++i) {
+        new_tuple[indexs_[i]].set_data(values_[i].data(), values_[i].length());
+      }
+
+      Record &record = row_tuple->record();
+      delete_records.emplace_back(record);
     }
 
-    RowTuple *row_tuple = static_cast<RowTuple *>(tuple);
+    for (auto &record : delete_records) {
+      rc = trx_->delete_record(table_, record);
 
-    int cell_num = row_tuple->cell_num();
-    values.emplace_back(std::vector<Value>(cell_num));
-    Value *new_tuple = values.back().data();
-
-    for (int i = 0; i < cell_num; ++i) {
-      row_tuple->cell_at(i, new_tuple[i]);
+      if (rc != RC::SUCCESS) {
+        LOG_WARN("failed to delete record: %s", strrc(rc));
+      }
     }
 
-    for (int i = 0, n = indexs_.size(); i < n; ++i) {
-      new_tuple[indexs_[i]].set_data(values_[i].data(), values_[i].length());
-    }
+    for (auto &tuple : values) {
+      Record record;
+      rc = table_->make_record(tuple.size(), tuple.data(), record);
+      if (rc != RC::SUCCESS) {
+        LOG_WARN("failed to make record. rc=%s", strrc(rc));
+        return rc;
+      }
 
-    Record &record = row_tuple->record();
-    delete_records.emplace_back(record);
-  }
-
-  for (auto &record : delete_records) {
-    rc = trx_->delete_record(table_, record);
-
-    if (rc != RC::SUCCESS) {
-      LOG_WARN("failed to delete record: %s", strrc(rc));
-    }
-  }
-
-  for (auto &tuple : values) {
-    Record record;
-    rc = table_->make_record(tuple.size(), tuple.data(), record);
-    if (rc != RC::SUCCESS) {
-      LOG_WARN("failed to make record. rc=%s", strrc(rc));
-      return rc;
-    }
-
-    rc = trx_->insert_record(table_, record);
-    if (rc != RC::SUCCESS) {
-      LOG_WARN("failed to insert record by transaction. rc=%s", strrc(rc));
-      return rc;
+      rc = trx_->insert_record(table_, record);
+      if (rc != RC::SUCCESS) {
+        LOG_WARN("failed to insert record by transaction. rc=%s", strrc(rc));
+        return rc;
+      }
     }
   }
 
