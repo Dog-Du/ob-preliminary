@@ -24,6 +24,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/insert_logical_operator.h"
 #include "sql/operator/join_logical_operator.h"
 #include "sql/operator/logical_operator.h"
+#include "sql/operator/pipeline_break_physical_operator.h"
 #include "sql/operator/predicate_logical_operator.h"
 #include "sql/operator/project_logical_operator.h"
 #include "sql/operator/table_get_logical_operator.h"
@@ -367,8 +368,23 @@ RC LogicalPlanGenerator::create_plan(
     return rc;
   }
 
+  std::vector<UpdateLogicalNode> values;
+
+  for (auto &it : update_stmt->values()) {
+    if (!it.sub_query) {
+      values.emplace_back(UpdateLogicalNode(it.value, it.nullable));
+    } else {
+      std::unique_ptr<LogicalOperator> log;
+      if (create_plan(it.sub_query.get(), log) != RC::SUCCESS) {
+        return RC::SQL_SYNTAX;
+      }
+
+      values.emplace_back(UpdateLogicalNode(std::move(log), it.nullable));
+    }
+  }
+
   unique_ptr<LogicalOperator> update_oper(
-      new UpdateLogicalOperator(table, update_stmt->values(), update_stmt->indexs()));
+      new UpdateLogicalOperator(table, values, update_stmt->indexs()));
 
   if (predicate_oper) {
     predicate_oper->add_child(std::move(table_get_oper));

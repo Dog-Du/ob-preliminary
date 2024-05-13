@@ -19,6 +19,16 @@ See the Mulan PSL v2 for more details. */
 #include "storage/field/field_meta.h"
 #include <memory>
 
+struct UpdateLogicalNode
+{
+  Value                            value;
+  std::unique_ptr<LogicalOperator> sub_query;
+  bool                             nullable;
+  UpdateLogicalNode(const Value &v, bool n) : value(v), sub_query(nullptr), nullable(n) {}
+  UpdateLogicalNode(std::unique_ptr<LogicalOperator> sub, bool n)
+      : sub_query(std::move(sub)), nullable(n)
+  {}
+};
 /**
  * @brief 逻辑算子，用于执行delete语句
  * @ingroup LogicalOperator
@@ -26,16 +36,17 @@ See the Mulan PSL v2 for more details. */
 class UpdateLogicalOperator : public LogicalOperator
 {
 public:
-  UpdateLogicalOperator(Table *table, std::vector<Value> &values, std::vector<int> &indexs);
+  UpdateLogicalOperator(
+      Table *table, std::vector<UpdateLogicalNode> &values, std::vector<int> &indexs);
   virtual ~UpdateLogicalOperator() = default;
 
-  LogicalOperatorType type() const override { return LogicalOperatorType::UPDATE; }
-  Table              *table() const { return table_; }
-  std::vector<Value> &values() { return values_; }
-  std::vector<int>   &indexs() { return indexs_; }
+  LogicalOperatorType             type() const override { return LogicalOperatorType::UPDATE; }
+  Table                          *table() const { return table_; }
+  std::vector<UpdateLogicalNode> &values() { return values_; }
+  std::vector<int>               &indexs() { return indexs_; }
 
 private:
-  Table             *table_ = nullptr;
-  std::vector<Value> values_;
-  std::vector<int>   indexs_;
+  Table                         *table_ = nullptr;
+  std::vector<UpdateLogicalNode> values_;
+  std::vector<int>               indexs_;
 };

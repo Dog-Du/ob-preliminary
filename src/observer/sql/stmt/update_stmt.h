@@ -17,6 +17,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/rc.h"
 #include "sql/parser/value.h"
 #include "sql/stmt/filter_stmt.h"
+#include "sql/stmt/select_stmt.h"
 #include "sql/stmt/stmt.h"
 #include "storage/db/db.h"
 #include "storage/field/field_meta.h"
@@ -24,6 +25,15 @@ See the Mulan PSL v2 for more details. */
 
 class Table;
 
+struct UpdateStmtNode
+{
+  Value                       value;
+  std::shared_ptr<SelectStmt> sub_query{nullptr};
+  bool                        nullable;
+  UpdateStmtNode() = default;
+  UpdateStmtNode(const Value &v, bool n) : value(v), nullable(n) {}
+  UpdateStmtNode(Stmt *stmt, bool n) : sub_query(static_cast<SelectStmt *>(stmt)), nullable(n) {}
+};
 /**
  * @brief 更新语句
  * @ingroup Statement
@@ -32,8 +42,8 @@ class UpdateStmt : public Stmt
 {
 public:
   UpdateStmt() = default;
-  UpdateStmt(
-      Table *table, std::vector<Value> &values, std::vector<int> &indexs, FilterStmt *filter_stmt)
+  UpdateStmt(Table *table, std::vector<UpdateStmtNode> &values, std::vector<int> &indexs,
+      FilterStmt *filter_stmt)
       : table_(table), filter_stmt_(filter_stmt)
   {
     values_.swap(values);
@@ -46,15 +56,15 @@ public:
   static RC create(Db *db, const UpdateSqlNode &update_sql, Stmt *&stmt);
 
 public:
-  Table              *table() const { return table_; }
-  StmtType            type() const { return StmtType::UPDATE; }
-  FilterStmt         *filter_stmt() const { return filter_stmt_; }
-  std::vector<Value> &values() { return values_; }
-  std::vector<int>   &indexs() { return indexs_; }
+  Table                       *table() const { return table_; }
+  StmtType                     type() const { return StmtType::UPDATE; }
+  FilterStmt                  *filter_stmt() const { return filter_stmt_; }
+  std::vector<UpdateStmtNode> &values() { return values_; }
+  std::vector<int>            &indexs() { return indexs_; }
 
 private:
-  Table             *table_ = nullptr;
-  FilterStmt        *filter_stmt_;
-  std::vector<Value> values_;
-  std::vector<int>   indexs_;
+  Table                      *table_ = nullptr;
+  FilterStmt                 *filter_stmt_;
+  std::vector<UpdateStmtNode> values_;
+  std::vector<int>            indexs_;
 };

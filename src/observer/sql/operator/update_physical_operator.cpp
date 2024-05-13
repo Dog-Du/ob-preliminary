@@ -25,8 +25,80 @@ RC UpdatePhysicalOperator::open(Trx *trx)
     return RC::SUCCESS;
   }
 
+  RC rc = RC::SUCCESS;
+  {
+    for (auto &it : update_nodes_) {
+      if (it.child != nullptr) {
+        if ((rc = it.child->open(trx)) != RC::SUCCESS) {
+          return rc;
+        }
+
+        rc = it.child->next();
+
+        Value v;
+
+        // 得到空表，相当于null
+        if (rc == RC::RECORD_EOF) {
+          rc = RC::SUCCESS;
+          v.set_null();
+
+          if (!it.nullable) {  // 不可为空，返回错误
+            it.child->close();
+            return RC::SQL_SYNTAX;
+          }
+
+          // 可以为空，继续。
+          values_.emplace_back(v);
+          it.child->close();
+          continue;
+        }
+
+        if (rc != RC::SUCCESS) {
+          it.child->close();
+          return rc;
+        }
+
+        Tuple *tuple;
+        tuple = it.child->current_tuple();
+
+        if (tuple == nullptr) {
+          it.child->close();
+          return RC::SQL_SYNTAX;
+        }
+
+        if (tuple->cell_num() != 1) {
+          it.child->close();
+          return RC::SQL_SYNTAX;
+        }
+
+        tuple->cell_at(0, v);
+
+        rc = it.child->next();
+
+        if (rc == RC::SUCCESS) {
+          it.child->close();
+          return RC::SQL_SYNTAX;
+        }
+
+        if (rc == RC::RECORD_EOF) {
+          rc = RC::SUCCESS;
+        }
+
+        if (rc != RC::SUCCESS) {
+          it.child->close();
+          return RC::SQL_SYNTAX;
+        }
+
+        values_.emplace_back(v);
+        it.child->close();
+      } else {
+        values_.emplace_back(it.value);
+      }
+    }
+  }
+
   std::unique_ptr<PhysicalOperator> &child = children_[0];
-  RC                                 rc    = child->open(trx);
+  rc                                       = child->open(trx);
   if (rc != RC::SUCCESS) {
     LOG_WARN("failed to open child operator: %s", strrc(rc));
     return rc;

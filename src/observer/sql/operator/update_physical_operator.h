@@ -23,6 +23,17 @@ See the Mulan PSL v2 for more details. */
 class Trx;
 class UpdateStmt;
 
+struct UpdatePhysicalNode
+{
+  Value                             value;
+  std::unique_ptr<PhysicalOperator> child;
+  bool                              nullable;
+
+  UpdatePhysicalNode(const Value &v, bool n) : value(v), child(nullptr), nullable(n) {}
+  UpdatePhysicalNode(std::unique_ptr<PhysicalOperator> c, bool n) : child(std::move(c)), nullable(n)
+  {}
+};
+
 /**
  * @brief 物理算子，udpate
  * @ingroup PhysicalOperator
@@ -30,10 +41,11 @@ class UpdateStmt;
 class UpdatePhysicalOperator : public PhysicalOperator
 {
 public:
-  UpdatePhysicalOperator(Table *table, std::vector<Value> &values, std::vector<int> &indexs)
+  UpdatePhysicalOperator(
+      Table *table, std::vector<UpdatePhysicalNode> &values, std::vector<int> &indexs)
       : table_(table)
   {
-    values_.swap(values);
+    update_nodes_.swap(values);
     indexs_.swap(indexs);
   }
 
@@ -48,8 +60,9 @@ public:
   Tuple *current_tuple() override { return nullptr; }
 
 private:
-  Table             *table_ = nullptr;
-  Trx               *trx_   = nullptr;
-  std::vector<Value> values_;
-  std::vector<int>   indexs_;
+  Table                          *table_ = nullptr;
+  Trx                            *trx_   = nullptr;
+  std::vector<UpdatePhysicalNode> update_nodes_;
+  std::vector<Value>              values_;
+  std::vector<int>                indexs_;
 };

@@ -623,6 +623,17 @@ update_list:
     free($1);
     delete $3;
   }
+  | ID EQ LBRACE select_stmt RBRACE COMMA update_list
+  {
+    $$ = $7;
+    update_value tmp($4->selection);
+    tmp.attribute_name = $1;
+    tmp.is_sub = true;
+
+    $$->emplace_back(tmp);
+    free($1);
+    delete $4;
+  }
   | ID EQ value
   {
     $$ = new std::vector<update_value>;
@@ -632,6 +643,16 @@ update_list:
     $$->emplace_back(tmp);
     free($1);
     delete $3;
+  }
+  | ID EQ LBRACE select_stmt RBRACE
+  {
+    $$ = new std::vector<update_value>;
+    update_value tmp($4->selection);
+    tmp.attribute_name = $1;
+    tmp.is_sub = true;
+    $$->emplace_back(tmp);
+    free($1);
+    delete $4;
   }
   ;
 

@@ -18,6 +18,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/parser/value.h"
 #include "sql/stmt/delete_stmt.h"
 #include "sql/stmt/filter_stmt.h"
+#include "sql/stmt/select_stmt.h"
 #include "storage/field/field_meta.h"
 #include "storage/table/table_meta.h"
 #include <cstddef>
@@ -56,15 +57,16 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update, Stmt *&stmt)
     return rc;
   }
 
-  std::vector<int>   indexs;
-  std::vector<Value> values;
+  std::vector<int>            indexs;
+  std::vector<UpdateStmtNode> values;
+
   {  // 进行输入的检查、类型的检查与转化。
     int sys_num   = table->table_meta().sys_field_num();
     int field_num = table->table_meta().field_num();
 
     for (auto &it : update.update_values) {
       const FieldMeta *field_meta = nullptr;
-      int index = 0;
+      int              index      = 0;
 
       for (int i = sys_num; i < field_num; ++i, ++index) {
         auto table_field = table->table_meta().field(i);
@@ -79,28 +81,38 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update, Stmt *&stmt)
         return RC::VARIABLE_NOT_VALID;
       }
 
-      if (it.value.attr_type() == CHARS &&
-          (field_meta = table->table_meta().field(it.attribute_name.c_str())) != nullptr &&
-          field_meta->type() == DATES) {
-        date_t v = str_to_date(it.value.data());
-        if (check_date(v)) {
-          Value *value = const_cast<Value *>(&it.value);
-          value->set_date(v);
-        } else {
-          LOG_WARN("can't convert to date in update.");
+      indexs.emplace_back(index);
+
+      if (!it.is_sub) {
+        if (it.value.attr_type() == CHARS &&
+            (field_meta = table->table_meta().field(it.attribute_name.c_str())) != nullptr &&
+            field_meta->type() == DATES) {
+          date_t v = str_to_date(it.value.data());
+          if (check_date(v)) {
+            Value *value = const_cast<Value *>(&it.value);
+            value->set_date(v);
+          } else {
+            LOG_WARN("can't convert to date in update.");
+            return RC::VARIABLE_NOT_VALID;
+          }
+        }
+
+        // 排除一种情况，可为null，且为null
+        if (!(field_meta->nullable() && it.value.attr_type() == NULLS) &&
+            field_meta->type() != it.value.attr_type()) {
+          LOG_WARN("invalid value. rc=%d:%s", rc, strrc(rc));
           return RC::VARIABLE_NOT_VALID;
         }
-      }
 
-      // 排除一种情况，可为null，且为null
-      if (!(field_meta->nullable() && it.value.attr_type() == NULLS) &&
-          field_meta->type() != it.value.attr_type()) {
-        LOG_WARN("invalid value. rc=%d:%s", rc, strrc(rc));
-        return RC::VARIABLE_NOT_VALID;
-      }
+        values.emplace_back(UpdateStmtNode(it.value, field_meta->nullable()));
+      } else {
+        Stmt *tmp = nullptr;
+        if (SelectStmt::create(db, it.sub_query, tmp) != RC::SUCCESS || tmp == nullptr) {
+          return RC::SQL_SYNTAX;
+        }
 
-      indexs.emplace_back(index);
-      values.emplace_back(it.value);
+        values.emplace_back(UpdateStmtNode(tmp, field_meta->nullable()));
+      }
     }
   }
 

@@ -42,6 +42,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/update_physical_operator.h"
 #include "sql/operator/aggregation_physical_operator.h"
 #include "sql/operator/pipeline_break_physical_operator.h"
+#include "sql/parser/parse_defs.h"
 #include "sql/parser/value.h"
 
 using namespace std;
@@ -145,8 +146,24 @@ RC PhysicalPlanGenerator::create_plan(
     }
   }
 
+  std::vector<UpdatePhysicalNode> values;
+
+  for (auto &it : update_oper.values()) {
+    if (it.sub_query == nullptr) {
+      values.emplace_back(UpdatePhysicalNode(it.value, it.nullable));
+    } else {
+      std::unique_ptr<PhysicalOperator> phy;
+      if (create(*it.sub_query, phy) != RC::SUCCESS || phy == nullptr) {
+        return RC::SQL_SYNTAX;
+      }
+
+      // std::unique_ptr<PhysicalOperator> c(new PipeLineBreakPhysicalOperator(std::move(phy)));
+      values.emplace_back(UpdatePhysicalNode(std::move(phy), it.nullable));
+    }
+  }
+
   oper = unique_ptr<PhysicalOperator>(
-      new UpdatePhysicalOperator(update_oper.table(), update_oper.values(), update_oper.indexs()));
+      new UpdatePhysicalOperator(update_oper.table(), values, update_oper.indexs()));
 
   if (child_physical_oper) {
     oper->add_child(std::move(child_physical_oper));
@@ -184,7 +201,8 @@ RC PhysicalPlanGenerator::create_plan(
       SubLogicalExpression *sub_expr   = nullptr;
 
       if (left_expr->type() == ExprType::FIELD) {
-      //  ASSERT(right_expr->type() == ExprType::VALUE || right_expr->type() == ExprType::SUB_QUERY, "right expr should be a value expr while left is field expr");
+        //  ASSERT(right_expr->type() == ExprType::VALUE || right_expr->type() ==
+        //  ExprType::SUB_QUERY, "right expr should be a value expr while left is field expr");
         field_expr = static_cast<FieldExpr *>(left_expr.get());
 
         if (right_expr->type() == ExprType::VALUE) {
@@ -209,7 +227,8 @@ RC PhysicalPlanGenerator::create_plan(
           }
         }
       } else if (right_expr->type() == ExprType::FIELD) {
-      //  ASSERT(left_expr->type() == ExprType::VALUE || left_expr->type() == ExprType::SUB_QUERY, "left expr should be a value expr while right is a field expr");
+        //  ASSERT(left_expr->type() == ExprType::VALUE || left_expr->type() == ExprType::SUB_QUERY,
+        //  "left expr should be a value expr while right is a field expr");
 
         field_expr = static_cast<FieldExpr *>(right_expr.get());
 
@@ -235,7 +254,7 @@ RC PhysicalPlanGenerator::create_plan(
           }
         }
       } else if (left_expr->type() == ExprType::SUB_QUERY) {
-      //  ASSERT(right_expr->type() == ExprType::VALUE, "error ");
+        //  ASSERT(right_expr->type() == ExprType::VALUE, "error ");
 
         value_expr = static_cast<ValueExpr *>(right_expr.get());
 
@@ -257,7 +276,7 @@ RC PhysicalPlanGenerator::create_plan(
           left_expr.reset(tmp);
         }
       } else if (right_expr->type() == ExprType::SUB_QUERY) {
-      //  ASSERT(left_expr->type() == ExprType::VALUE, "error ");
+        //  ASSERT(left_expr->type() == ExprType::VALUE, "error ");
 
         value_expr = static_cast<ValueExpr *>(left_expr.get());
 
@@ -359,7 +378,8 @@ RC PhysicalPlanGenerator::create_plan(
       SubLogicalExpression *sub_expr = nullptr;
 
       if (left_expr->type() == ExprType::FIELD) {
-        // ASSERT(right_expr->type() == ExprType::VALUE || right_expr->type() == ExprType::SUB_QUERY, "right expr should be a value expr while left is field expr");
+        // ASSERT(right_expr->type() == ExprType::VALUE || right_expr->type() ==
+        // ExprType::SUB_QUERY, "right expr should be a value expr while left is field expr");
 
         if (right_expr->type() == ExprType::VALUE) {
           continue;
@@ -383,7 +403,8 @@ RC PhysicalPlanGenerator::create_plan(
           }
         }
       } else if (right_expr->type() == ExprType::FIELD) {
-       // ASSERT(left_expr->type() == ExprType::VALUE || left_expr->type() == ExprType::SUB_QUERY, "left expr should be a value expr while right is a field expr");
+        // ASSERT(left_expr->type() == ExprType::VALUE || left_expr->type() == ExprType::SUB_QUERY,
+        // "left expr should be a value expr while right is a field expr");
 
         if (left_expr->type() == ExprType::VALUE) {
           continue;
@@ -427,7 +448,7 @@ RC PhysicalPlanGenerator::create_plan(
           left_expr.reset(tmp);
         }
       } else if (right_expr->type() == ExprType::SUB_QUERY) {
-       // ASSERT(left_expr->type() == ExprType::VALUE, "error ");
+        // ASSERT(left_expr->type() == ExprType::VALUE, "error ");
 
         sub_expr                   = static_cast<SubLogicalExpression *>(right_expr.get());
         SubPhysicalExpression *tmp = new SubPhysicalExpression;

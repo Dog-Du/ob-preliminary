@@ -17,7 +17,7 @@ See the Mulan PSL v2 for more details. */
 #include <memory>
 
 UpdateLogicalOperator::UpdateLogicalOperator(
-    Table *table, std::vector<Value> &values, std::vector<int> &indexs)
+    Table *table, std::vector<UpdateLogicalNode> &values, std::vector<int> &indexs)
     : table_(table)
 {
   values_.swap(values);

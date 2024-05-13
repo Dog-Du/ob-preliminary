@@ -202,13 +202,16 @@ struct DeleteSqlNode
  */
 struct update_value
 {
-  std::string attribute_name;
-  Value       value;
+  std::string   attribute_name;
+  Value         value;
+  SelectSqlNode sub_query;
+  bool          is_sub{false};
+  update_value() = default;
+  update_value(const SelectSqlNode &s) : sub_query(s) {}
 };
 
 struct UpdateSqlNode
 {
-
   std::string relation_name;  ///< Relation to update
   // std::string                   attribute_name;  ///< 更新的字段，仅支持一个字段
   // Value                         value;           ///< 更新的值，仅支持一个字段
@@ -259,10 +262,10 @@ struct DropTableSqlNode
  */
 struct CreateIndexSqlNode
 {
-  std::string index_name;      ///< Index name
-  std::string relation_name;   ///< Relation name
- // std::string attribute_name;  ///< Attribute name
-  std::vector<std::string> attrs; // 因为懒得改，所以继续。
+  std::string index_name;          ///< Index name
+  std::string relation_name;       ///< Relation name
+                                   // std::string attribute_name;  ///< Attribute name
+  std::vector<std::string> attrs;  // 因为懒得改，所以继续。
 };
 
 /**
