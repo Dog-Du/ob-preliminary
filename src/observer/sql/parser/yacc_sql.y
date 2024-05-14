@@ -408,7 +408,7 @@ create_index_stmt:    /*create index 语句的语法解析树*/
       create_index.index_name = $4;
       create_index.relation_name = $6;
 
-      $8->emplace_back(std::string($8));
+      $9->emplace_back(std::string($8));
       free($8);
 
       create_index.attrs.swap(*$9);

@@ -2054,7 +2054,7 @@ yyreduce:
       create_index.index_name = (yyvsp[-6].string);
       create_index.relation_name = (yyvsp[-4].string);
 
-      (yyvsp[-2].string)->emplace_back(std::string((yyvsp[-2].string)));
+      (yyvsp[-1].relation_list)->emplace_back(std::string((yyvsp[-2].string)));
       free((yyvsp[-2].string));
 
       create_index.attrs.swap(*(yyvsp[-1].relation_list));
