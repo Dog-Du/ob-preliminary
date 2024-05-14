@@ -81,6 +81,8 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
         IN_T
         EXIST_T
 
+        UNIQUE_T
+
         DESC
         SHOW
         SYNC
@@ -399,6 +401,22 @@ create_index_stmt:    /*create index 语句的语法解析树*/
       free($5);
       delete $8;
     }
+    | CREATE UNIQUE_T INDEX ID ON ID LBRACE ID rel_list RBRACE
+    {
+      $$ = new ParsedSqlNode(SCF_CREATE_INDEX);
+      CreateIndexSqlNode &create_index = $$->create_index;
+      create_index.index_name = $4;
+      create_index.relation_name = $6;
+
+      $8->emplace_back(std::string($8));
+      free($8);
+
+      create_index.attrs.swap(*$9);
+      free($4);
+      free($6);
+      delete $9;
+    }
+
 
 
 /*********************************************************
