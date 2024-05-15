@@ -84,6 +84,8 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update, Stmt *&stmt)
       indexs.emplace_back(index);
 
       if (!it.is_sub) {
+
+        // 对常量的日期进行特判。
         if (it.value.attr_type() == CHARS &&
             (field_meta = table->table_meta().field(it.attribute_name.c_str())) != nullptr &&
             field_meta->type() == DATES) {

@@ -111,6 +111,7 @@ RC UpdatePhysicalOperator::open(Trx *trx)
         //   return RC::SQL_SYNTAX;
         // }
 
+        // 需要类型转化。
         if (v.attr_type() != it.attr_type) {
           v.set_type(it.attr_type);
         }
