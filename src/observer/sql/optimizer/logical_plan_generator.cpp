@@ -372,14 +372,14 @@ RC LogicalPlanGenerator::create_plan(
 
   for (auto &it : update_stmt->values()) {
     if (!it.sub_query) {
-      values.emplace_back(UpdateLogicalNode(it.value, it.nullable));
+      values.emplace_back(UpdateLogicalNode(it.value, it.nullable, it.attr_type));
     } else {
       std::unique_ptr<LogicalOperator> log;
       if (create_plan(it.sub_query.get(), log) != RC::SUCCESS) {
         return RC::SQL_SYNTAX;
       }
 
-      values.emplace_back(UpdateLogicalNode(std::move(log), it.nullable));
+      values.emplace_back(UpdateLogicalNode(std::move(log), it.nullable, it.attr_type));
     }
   }
 

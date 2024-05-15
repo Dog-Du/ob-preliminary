@@ -30,9 +30,12 @@ struct UpdateStmtNode
   Value                       value;
   std::shared_ptr<SelectStmt> sub_query{nullptr};
   bool                        nullable;
+  AttrType                    attr_type;
   UpdateStmtNode() = default;
-  UpdateStmtNode(const Value &v, bool n) : value(v), nullable(n) {}
-  UpdateStmtNode(Stmt *stmt, bool n) : sub_query(static_cast<SelectStmt *>(stmt)), nullable(n) {}
+  UpdateStmtNode(const Value &v, bool n, AttrType a) : value(v), nullable(n), attr_type(a) {}
+  UpdateStmtNode(Stmt *stmt, bool n, AttrType a)
+      : sub_query(static_cast<SelectStmt *>(stmt)), nullable(n), attr_type(a)
+  {}
 };
 /**
  * @brief 更新语句

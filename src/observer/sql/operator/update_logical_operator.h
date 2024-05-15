@@ -24,9 +24,12 @@ struct UpdateLogicalNode
   Value                            value;
   std::unique_ptr<LogicalOperator> sub_query;
   bool                             nullable;
-  UpdateLogicalNode(const Value &v, bool n) : value(v), sub_query(nullptr), nullable(n) {}
-  UpdateLogicalNode(std::unique_ptr<LogicalOperator> sub, bool n)
-      : sub_query(std::move(sub)), nullable(n)
+  AttrType                         attr_type;
+  UpdateLogicalNode(const Value &v, bool n, AttrType a)
+      : value(v), sub_query(nullptr), nullable(n), attr_type(a)
+  {}
+  UpdateLogicalNode(std::unique_ptr<LogicalOperator> sub, bool n, AttrType a)
+      : sub_query(std::move(sub)), nullable(n), attr_type(a)
   {}
 };
 /**

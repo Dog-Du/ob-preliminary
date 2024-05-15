@@ -28,9 +28,13 @@ struct UpdatePhysicalNode
   Value                             value;
   std::unique_ptr<PhysicalOperator> child;
   bool                              nullable;
+  AttrType                          attr_type;
 
-  UpdatePhysicalNode(const Value &v, bool n) : value(v), child(nullptr), nullable(n) {}
-  UpdatePhysicalNode(std::unique_ptr<PhysicalOperator> c, bool n) : child(std::move(c)), nullable(n)
+  UpdatePhysicalNode(const Value &v, bool n, AttrType a)
+      : value(v), child(nullptr), nullable(n), attr_type(a)
+  {}
+  UpdatePhysicalNode(std::unique_ptr<PhysicalOperator> c, bool n, AttrType a)
+      : child(std::move(c)), nullable(n), attr_type(a)
   {}
 };
 

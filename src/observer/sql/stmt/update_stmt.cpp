@@ -108,14 +108,14 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update, Stmt *&stmt)
           return RC::VARIABLE_NOT_VALID;
         }
 
-        values.emplace_back(UpdateStmtNode(it.value, field_meta->nullable()));
+        values.emplace_back(UpdateStmtNode(it.value, field_meta->nullable(), field_meta->type()));
       } else {
         Stmt *tmp = nullptr;
         if (SelectStmt::create(db, it.sub_query, tmp) != RC::SUCCESS || tmp == nullptr) {
           return RC::SQL_SYNTAX;
         }
 
-        values.emplace_back(UpdateStmtNode(tmp, field_meta->nullable()));
+        values.emplace_back(UpdateStmtNode(tmp, field_meta->nullable(), field_meta->type()));
       }
     }
   }

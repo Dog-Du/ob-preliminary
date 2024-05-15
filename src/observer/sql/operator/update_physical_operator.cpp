@@ -111,6 +111,9 @@ RC UpdatePhysicalOperator::open(Trx *trx)
         //   return RC::SQL_SYNTAX;
         // }
 
+        if (v.attr_type() != it.attr_type) {
+          v.set_type(it.attr_type);
+        }
         values_.emplace_back(v);
         it.child->close();
       } else {

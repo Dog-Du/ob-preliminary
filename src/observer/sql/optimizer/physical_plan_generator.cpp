@@ -150,7 +150,7 @@ RC PhysicalPlanGenerator::create_plan(
 
   for (auto &it : update_oper.values()) {
     if (it.sub_query == nullptr) {
-      values.emplace_back(UpdatePhysicalNode(it.value, it.nullable));
+      values.emplace_back(UpdatePhysicalNode(it.value, it.nullable, it.attr_type));
     } else {
       std::unique_ptr<PhysicalOperator> phy;
       if (create(*it.sub_query, phy) != RC::SUCCESS || phy == nullptr) {
@@ -158,7 +158,7 @@ RC PhysicalPlanGenerator::create_plan(
       }
 
       // std::unique_ptr<PhysicalOperator> c(new PipeLineBreakPhysicalOperator(std::move(phy)));
-      values.emplace_back(UpdatePhysicalNode(std::move(phy), it.nullable));
+      values.emplace_back(UpdatePhysicalNode(std::move(phy), it.nullable, it.attr_type));
     }
   }
 
