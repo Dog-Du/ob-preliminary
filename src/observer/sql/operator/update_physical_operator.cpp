@@ -15,6 +15,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/update_physical_operator.h"
 #include "common/log/log.h"
 #include "sql/expr/tuple.h"
+#include "sql/parser/value.h"
 #include "storage/record/record.h"
 #include "storage/table/table.h"
 #include "storage/trx/trx.h"
@@ -111,8 +112,13 @@ RC UpdatePhysicalOperator::open(Trx *trx)
         //   return RC::SQL_SYNTAX;
         // }
 
+        if (!it.nullable && v.attr_type() == AttrType::NULLS) {
+          it.child->close();
+          return RC::SQL_SYNTAX;
+        }
+
         // 需要类型转化。
-        if (v.attr_type() != it.attr_type) {
+        if (v.attr_type() != AttrType::NULLS && v.attr_type() != it.attr_type) {
           v.set_type(it.attr_type);
         }
         values_.emplace_back(v);
