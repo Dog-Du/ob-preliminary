@@ -118,6 +118,7 @@ public:
 
     CompareResult cmp_res = vl.compare(vr);
 
+    // 特判null
     if (cmp_res != CompareResult::INVALID) {
       return cmp_res;
     }

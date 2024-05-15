@@ -1353,6 +1353,7 @@ RC BplusTreeHandler::insert_entry(const char *user_key, const RID *rid)
     LOG_WARN("Failed to alloc memory for key.");
     return RC::NOMEM;
   }
+  
 
   char *key = static_cast<char *>(pkey.get());
 

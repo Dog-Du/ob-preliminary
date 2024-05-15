@@ -396,6 +396,7 @@ create_index_stmt:    /*create index 语句的语法解析树*/
       $8->emplace_back(std::string($7));
       free($7);
 
+      create_index.is_unique = false;
       create_index.attrs.swap(*$8);
       free($3);
       free($5);
@@ -411,6 +412,7 @@ create_index_stmt:    /*create index 语句的语法解析树*/
       $9->emplace_back(std::string($8));
       free($8);
 
+      create_index.is_unique = true;
       create_index.attrs.swap(*$9);
       free($4);
       free($6);

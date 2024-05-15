@@ -78,6 +78,14 @@ RC BplusTreeIndex::close()
 
 RC BplusTreeIndex::insert_entry(const char *record, const RID *rid)
 {
+  if (index_meta_.is_unique()) {
+    std::list<RID> rids;
+    index_handler_.get_entry(record + field_meta_.offset(), field_meta_.len(), rids);
+
+    if (!rids.empty()) {
+      return RC::VARIABLE_NOT_VALID;
+    }
+  }
   return index_handler_.insert_entry(record + field_meta_.offset(), rid);
 }
 
