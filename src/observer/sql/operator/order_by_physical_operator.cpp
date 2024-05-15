@@ -66,7 +66,7 @@ RC OrderByPhysicalOperator::open(Trx *trx)
         } else if (left.attr_type() == NULLS) {
           return (it->comp() == CompOp::LESS_THAN ? true : false);
         } else if (right.attr_type() == NULLS) {
-          return (it->comp() == CompOp::GREAT_THAN ? false : true);
+          return (it->comp() == CompOp::GREAT_THAN ? true : false);
         }
 
         bool l, r;
