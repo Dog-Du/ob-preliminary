@@ -99,7 +99,7 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update, Stmt *&stmt)
           }
         }
 
-        if (it.value.attr_type() != field_meta->type()) {
+        if (it.value.attr_type() != AttrType::NULLS && it.value.attr_type() != field_meta->type()) {
           const_cast<Value &>(it.value).convert_to_type(field_meta->type());
         }
 
