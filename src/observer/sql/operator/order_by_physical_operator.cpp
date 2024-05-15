@@ -60,6 +60,15 @@ RC OrderByPhysicalOperator::open(Trx *trx)
 
         lhs.cell_at(left.get_int(), left);
         rhs.cell_at(right.get_int(), right);
+
+        if (left.attr_type() == NULLS && right.attr_type() == NULLS) {
+          continue;
+        } else if (left.attr_type() == NULLS) {
+          return (it->comp() == CompOp::LESS_THAN ? true : false);
+        } else if (right.attr_type() == NULLS) {
+          return (it->comp() == CompOp::GREAT_THAN ? false : true);
+        }
+
         bool l, r;
         it->compare_value(left, right, l);
         it->compare_value(right, left, r);
@@ -77,7 +86,7 @@ RC OrderByPhysicalOperator::open(Trx *trx)
       return false;
     };
 
-    std::sort(tuples_.begin(), tuples_.end(), cmp);
+    std::stable_sort(tuples_.begin(), tuples_.end(), cmp);
   }
 
   i_ = -1;
