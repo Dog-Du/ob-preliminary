@@ -381,7 +381,7 @@ RC PhysicalPlanGenerator::create_plan(
         // ASSERT(right_expr->type() == ExprType::VALUE || right_expr->type() ==
         // ExprType::SUB_QUERY, "right expr should be a value expr while left is field expr");
 
-        if (right_expr->type() == ExprType::VALUE) {
+        if (right_expr->type() != ExprType::SUB_QUERY) {
           continue;
         } else {
           sub_expr                   = static_cast<SubLogicalExpression *>(right_expr.get());
@@ -406,7 +406,7 @@ RC PhysicalPlanGenerator::create_plan(
         // ASSERT(left_expr->type() == ExprType::VALUE || left_expr->type() == ExprType::SUB_QUERY,
         // "left expr should be a value expr while right is a field expr");
 
-        if (left_expr->type() == ExprType::VALUE) {
+        if (left_expr->type() != ExprType::SUB_QUERY) {
           continue;
         } else {
           sub_expr                   = static_cast<SubLogicalExpression *>(left_expr.get());
