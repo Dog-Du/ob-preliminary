@@ -25,7 +25,25 @@ RC UpdatePhysicalOperator::open(Trx *trx)
     return RC::SUCCESS;
   }
 
-  RC rc = RC::SUCCESS;
+  RC                                 rc    = RC::SUCCESS;
+  std::unique_ptr<PhysicalOperator> &child = children_[0];
+  rc                                       = child->open(trx);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("failed to open child operator: %s", strrc(rc));
+    return rc;
+  }
+
+  trx_ = trx;
+
+  // 如果是空，不再进行判断。
+  if ((rc = child->next()) != RC::SUCCESS) {
+    if (rc == RC::RECORD_EOF) {
+      rc = RC::SUCCESS;
+    }
+
+    return rc;
+  }
+
   {
     for (auto &it : update_nodes_) {
       if (it.child != nullptr) {  // 如果是sub-query
@@ -100,21 +118,12 @@ RC UpdatePhysicalOperator::open(Trx *trx)
     }
   }
 
-  std::unique_ptr<PhysicalOperator> &child = children_[0];
-  rc                                       = child->open(trx);
-  if (rc != RC::SUCCESS) {
-    LOG_WARN("failed to open child operator: %s", strrc(rc));
-    return rc;
-  }
-
-  trx_ = trx;
-
   {
     // 直接删除试试。
     std::vector<Record>             delete_records;
     std::vector<std::vector<Value>> values;
 
-    while (RC::SUCCESS == (rc = child->next())) {
+    do {
       Tuple *tuple = child->current_tuple();
       if (nullptr == tuple) {
         LOG_WARN("failed to get current record: %s", strrc(rc));
@@ -137,7 +146,7 @@ RC UpdatePhysicalOperator::open(Trx *trx)
 
       Record &record = row_tuple->record();
       delete_records.emplace_back(record);
-    }
+    } while (RC::SUCCESS == child->next());
 
     for (auto &record : delete_records) {
       rc = trx_->delete_record(table_, record);
