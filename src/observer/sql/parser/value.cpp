@@ -17,6 +17,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/lang/comparator.h"
 #include "common/lang/string.h"
 #include "common/log/log.h"
+#include <cmath>
 #include <cstdio>
 #include <cstring>
 #include <sstream>
@@ -421,7 +422,7 @@ int Value::get_int() const
       return num_value_.int_value_;
     }
     case FLOATS: {
-      return (int)(num_value_.float_value_);
+      return (int)(std::round(num_value_.float_value_));
     }
     case BOOLEANS: {
       return (int)(num_value_.bool_value_);
