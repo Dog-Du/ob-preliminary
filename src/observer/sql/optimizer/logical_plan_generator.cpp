@@ -30,6 +30,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/table_get_logical_operator.h"
 #include "sql/operator/update_logical_operator.h"
 #include "sql/operator/aggregation_logical_operator.h"
+#include "sql/operator/order_by_logical_operator.h"
 
 #include "sql/parser/parse_defs.h"
 #include "sql/parser/value.h"
@@ -219,35 +220,61 @@ RC LogicalPlanGenerator::create_plan(
     return rc;
   }
 
+  std::vector<std::unique_ptr<ComparisonExpr>> orders;
+  for (auto &it : select_stmt->orders()) {
+    unique_ptr<ValueExpr> left(new ValueExpr(Value(it.index)));
+    unique_ptr<ValueExpr> right(new ValueExpr(Value(it.index)));
+    ComparisonExpr       *comp = new ComparisonExpr(
+        it.is_asc ? CompOp::LESS_THAN : CompOp::GREAT_THAN, std::move(left), std::move(right));
+    orders.push_back(std::unique_ptr<ComparisonExpr>(comp));
+  }
+
   unique_ptr<LogicalOperator> project_oper(new ProjectLogicalOperator(all_fields));
   unique_ptr<LogicalOperator> aggregation_oper;
+  unique_ptr<LogicalOperator> order_by_oper;
+  unique_ptr<LogicalOperator> logical_oper;
 
   if (predicate_oper) {
     if (table_oper) {
       predicate_oper->add_child(std::move(table_oper));
     }
     project_oper->add_child(std::move(predicate_oper));
+    logical_oper = std::move(project_oper);
+
+    if (!orders.empty()) {
+      order_by_oper.reset(new OrderByLogicalOperator(orders));
+      order_by_oper->add_child(std::move(logical_oper));
+      logical_oper.swap(order_by_oper);
+    }
 
     if (select_stmt->is_agg()) {
       aggregation_oper.reset(new AggregationLogicalOperator(all_fields));
       aggregation_oper->add_child(
-          std::move(project_oper));  // 打错了，之前写错谓词了，找了半天问题。
+          std::move(logical_oper));  // 打错了，之前写错谓词了，找了半天问题。
+
+      logical_oper.swap(aggregation_oper);
     }
   } else {
     if (table_oper) {
       project_oper->add_child(std::move(table_oper));
+      logical_oper = std::move(project_oper);
+
+      if (!orders.empty()) {
+        order_by_oper.reset(new OrderByLogicalOperator(orders));
+        order_by_oper->add_child(std::move(logical_oper));
+        logical_oper.swap(order_by_oper);
+      }
+
       if (select_stmt->is_agg()) {
         aggregation_oper.reset(new AggregationLogicalOperator(all_fields));
-        aggregation_oper->add_child(std::move(project_oper));
+        aggregation_oper->add_child(std::move(logical_oper));
+
+        logical_oper.swap(aggregation_oper);
       }
     }
   }
 
-  if (select_stmt->is_agg()) {
-    logical_operator.swap(aggregation_oper);
-  } else {
-    logical_operator.swap(project_oper);
-  }
+  logical_operator.swap(logical_oper);
   return RC::SUCCESS;
 }
 

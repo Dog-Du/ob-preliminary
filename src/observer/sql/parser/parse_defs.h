@@ -142,6 +142,14 @@ struct JoinSqlNode
   std::vector<ConditionSqlNode> conditions;
 };
 
+struct OrderBySqlNode
+{
+  RelAttrSqlNode order_by_attr;
+  bool           is_asc;
+
+  OrderBySqlNode(const RelAttrSqlNode &t, bool a) : order_by_attr(t), is_asc(a) {}
+};
+
 struct SelectSqlNode
 {
   SelectSqlNode() : sub_sql(nullptr) {}
@@ -150,6 +158,7 @@ struct SelectSqlNode
   std::vector<std::string>      relations;   ///< 查询的表
   std::vector<ConditionSqlNode> conditions;  ///< 查询条件，使用AND串联起来多个条件
   std::vector<JoinSqlNode>      joins;
+  std::vector<OrderBySqlNode>   order_bys;
 
   std::shared_ptr<SelectSqlNode> sub_sql;
   bool                           is_sub{false};
@@ -159,6 +168,7 @@ struct SelectSqlNode
         relations(std::move(other.relations)),
         conditions(std::move(other.conditions)),
         joins(std::move(other.joins)),
+        order_bys(std::move(other.order_bys)),
         sub_sql(std::move(other.sub_sql)),
         is_sub(other.is_sub)
   {}

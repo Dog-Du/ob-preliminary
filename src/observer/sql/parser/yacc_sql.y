@@ -83,6 +83,10 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
 
         UNIQUE_T
 
+        ORDER_T
+        BY_T
+        ASC_T
+
         DESC
         SHOW
         SYNC
@@ -129,6 +133,9 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
   std::vector<JoinSqlNode> *        join_list;
 
   std::vector<update_value> *       update_list;
+
+  std::vector<OrderBySqlNode> *     order_by_list;
+  OrderBySqlNode *                  order_by_node;
 
   Value *                           value;
   enum CompOp                       comp;
@@ -182,10 +189,17 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
 
 %type <update_list>         update_list
 
+%type <order_by_list>       order_list
+%type <order_by_list>       order_by
+
+%type <order_by_node>       order_by_node
+
 %type <sql_node>            calc_stmt
 %type <sql_node>            select_stmt
 %type <sql_node>            insert_stmt
+
 %type <sql_node>            update_stmt
+
 %type <sql_node>            delete_stmt
 %type <sql_node>            create_table_stmt
 %type <sql_node>            drop_table_stmt
@@ -677,7 +691,7 @@ update_list:
   ;
 
 select_stmt:        /*  select 语句的语法解析树*/
-    SELECT select_attr FROM ID rel_list join_list where
+    SELECT select_attr FROM ID rel_list join_list where order_by
     {
       $$ = new ParsedSqlNode(SCF_SELECT);
       if ($2 != nullptr) {
@@ -701,9 +715,65 @@ select_stmt:        /*  select 语句的语法解析树*/
         $$->selection.conditions.swap(*$7);
         delete $7;
       }
+
+      if ($8 != nullptr) {
+        $$->selection.order_bys.swap(*$8);
+        delete $8;
+      }
+
       free($4);
     }
     ;
+
+order_by:
+  /* empty */
+  {
+    $$ = nullptr;
+  }
+
+
+| ORDER_T BY_T order_by_node order_list /* 保证有一个 */
+  {
+    $$ = $4;
+    $$->emplace_back(*$3);
+    delete $3;
+
+    /* 翻转 */
+    std::reverse($$->begin(), $$->end());
+  }
+  ;
+
+order_list:
+  /* empty */
+  {
+    $$ = new std::vector<OrderBySqlNode>;
+  }
+  | COMMA order_by_node order_list
+  {
+    $$ = $3;
+
+    $$->emplace_back(*$2);
+    delete $2;
+  }
+  ;
+
+order_by_node:
+  rel_attr /* 默认升序 */
+  {
+    $$ = new OrderBySqlNode(*$1, true);
+    delete $1;
+  }
+  | rel_attr ASC_T
+  {
+    $$ = new OrderBySqlNode(*$1, true);
+    delete $1;
+  }
+  | rel_attr DESC
+  {
+    $$ = new OrderBySqlNode(*$1, false);
+    delete $1;
+  }
+  ;
 
 join_list:
   /* empty */
@@ -876,6 +946,7 @@ where:
       $$ = $2;
     }
     ;
+
 condition_list:
     /* empty */
     {

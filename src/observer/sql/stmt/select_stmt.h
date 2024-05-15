@@ -29,6 +29,14 @@ class FilterStmt;
 class Db;
 class Table;
 
+struct OrderByStmtNode
+{
+  int  index;
+  bool is_asc;
+
+  OrderByStmtNode(int i, bool a) : index(i), is_asc(a) {}
+};
+
 /**
  * @brief 表示select语句
  * @ingroup Statement
@@ -37,7 +45,7 @@ class SelectStmt : public Stmt
 {
 public:
   SelectStmt() = default;
-  SelectStmt(bool is_agg) : is_agg_(is_agg) {}
+  SelectStmt(bool is_agg, std::vector<OrderByStmtNode> &orders);
 
   ~SelectStmt() override;
 
@@ -52,14 +60,16 @@ public:
   {
     return joined_tables_;
   }
-  const std::vector<Field> &query_fields() const { return query_fields_; }
-  FilterStmt               *filter_stmt() const { return filter_stmt_; }
-  bool                     &is_agg() { return is_agg_; }
+  const std::vector<Field>           &query_fields() const { return query_fields_; }
+  FilterStmt                         *filter_stmt() const { return filter_stmt_; }
+  bool                               &is_agg() { return is_agg_; }
+  const std::vector<OrderByStmtNode> &orders() { return order_by_nodes_; }
 
 private:
   std::vector<Field>                                         query_fields_;
   std::vector<Table *>                                       tables_;
   std::unordered_map<Table *, std::vector<ConditionSqlNode>> joined_tables_;
+  std::vector<OrderByStmtNode>                               order_by_nodes_;
   FilterStmt                                                *filter_stmt_{nullptr};
   bool                                                       is_agg_{false};
 };

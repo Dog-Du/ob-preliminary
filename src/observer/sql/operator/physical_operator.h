@@ -49,7 +49,8 @@ enum class PhysicalOperatorType
   INSERT,
   UPDATE,
   PipeLineBreak,
-  AGGREGATION
+  AGGREGATION,
+  ORDER_BY,
 };
 
 /**

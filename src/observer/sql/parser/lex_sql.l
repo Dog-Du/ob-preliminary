@@ -118,6 +118,10 @@ EXISTS                                  RETURN_TOKEN(EXIST_T);
 
 UNIQUE                                  RETURN_TOKEN(UNIQUE_T);
 
+ORDER                                   RETURN_TOKEN(ORDER_T);
+BY                                      RETURN_TOKEN(BY_T);
+ASC                                     RETURN_TOKEN(ASC_T);
+
 WHERE                                   RETURN_TOKEN(WHERE);
 AND                                     RETURN_TOKEN(AND);
 INSERT                                  RETURN_TOKEN(INSERT);

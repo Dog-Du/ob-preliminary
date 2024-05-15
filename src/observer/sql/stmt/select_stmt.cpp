@@ -19,6 +19,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/parser/value.h"
 #include "sql/stmt/filter_stmt.h"
 #include "storage/db/db.h"
+#include "storage/field/field.h"
 #include "storage/field/field_meta.h"
 #include "storage/table/table.h"
 #include <cstddef>
@@ -32,6 +33,10 @@ SelectStmt::~SelectStmt()
     filter_stmt_ = nullptr;
   }
 }
+
+SelectStmt::SelectStmt(bool is_agg, std::vector<OrderByStmtNode> &orders)
+    : order_by_nodes_(std::move(orders)), is_agg_(is_agg)
+{}
 
 static void wildcard_fields(Table *table, std::vector<Field> &field_metas)
 {
@@ -212,9 +217,43 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
     LOG_WARN("cannot construct filter stmt");
     return rc;
   }
+
+  std::vector<OrderByStmtNode> orders;
+  for (auto &it : select_sql.order_bys) {
+    Table *table = nullptr;
+    if (default_table == nullptr) {
+      table = db->find_table(it.order_by_attr.relation_name.c_str());
+
+      if (table == nullptr) {
+        return RC::VARIABLE_NOT_EXISTS;
+      }
+    } else {
+      table = default_table;
+    }
+
+    const FieldMeta *field = table->table_meta().field(it.order_by_attr.attribute_name.c_str());
+
+    if (field == nullptr) {
+      return RC::VARIABLE_NOT_EXISTS;
+    }
+
+    int i = 0;
+
+    for (int j = table->table_meta().sys_field_num(); j < table->table_meta().field_num();
+         ++j, ++i) {
+      if (table->table_meta().field(j) == field) {
+        break;
+      }
+    }
+
+    orders.emplace_back(OrderByStmtNode(i, it.is_asc));
+  }
+
   // everything alright
   SelectStmt *select_stmt = new SelectStmt(
-      !query_fields.empty() && query_fields.front().agg_type() != AggregationType::INVALID_TYPE);
+      !query_fields.empty() && query_fields.front().agg_type() != AggregationType::INVALID_TYPE,
+      orders);
+
   // TODO add expression copy
   select_stmt->tables_.swap(tables);
   select_stmt->query_fields_.swap(query_fields);
