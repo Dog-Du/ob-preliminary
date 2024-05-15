@@ -35,7 +35,8 @@ RC UpdatePhysicalOperator::open(Trx *trx)
 
   trx_ = trx;
 
-  // 如果是空，不再进行判断。
+  // 如果是空，不再进行判断。换句话说，如果被影响的列为0个，那么即使子查询有误也不用管。
+  // 妈的，终于找出来这个错误了，一点提示没有，只能靠MySQL对照，我怎么知道哪里错了。
   if ((rc = child->next()) != RC::SUCCESS) {
     if (rc == RC::RECORD_EOF) {
       rc = RC::SUCCESS;

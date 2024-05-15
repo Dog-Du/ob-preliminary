@@ -690,6 +690,7 @@ select_stmt:        /*  select 语句的语法解析树*/
       std::reverse($$->selection.relations.begin(), $$->selection.relations.end());
 
       if ($6 != nullptr) {
+        std::reverse($6->begin(), $6->end());
         $$->selection.joins.swap(*$6);
         delete $6;
       }
