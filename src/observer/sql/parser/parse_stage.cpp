@@ -12,6 +12,7 @@ See the Mulan PSL v2 for more details. */
 // Created by Longda on 2021/4/13.
 //
 
+#include <cstdio>
 #include <string.h>
 #include <string>
 
@@ -36,6 +37,7 @@ RC ParseStage::handle_request(SQLStageEvent *sql_event)
   SqlResult         *sql_result = sql_event->session_event()->sql_result();
   const std::string &sql        = sql_event->sql();
 
+  // std::cout << sql << std::endl;
   ParsedSqlResult parsed_sql_result;
 
   parse(sql.c_str(), &parsed_sql_result);

@@ -12,6 +12,8 @@ See the Mulan PSL v2 for more details. */
 // Created by Wangyunlai on 2023/06/25.
 //
 
+#include <cstddef>
+#include <cstdio>
 #include <setjmp.h>
 #include <signal.h>
 
@@ -27,7 +29,8 @@ See the Mulan PSL v2 for more details. */
 #include "readline/readline.h"
 #endif
 
-#define MAX_MEM_BUFFER_SIZE 1024 * 1024 * 4
+//
+#define MAX_MEM_BUFFER_SIZE 1024 * 1024
 #define PORT_DEFAULT 6789
 
 using namespace std;
@@ -91,8 +94,19 @@ char *my_readline(const char *prompt)
     LOG_WARN("failed to alloc line buffer");
     return nullptr;
   }
+
   fprintf(stdout, "%s", prompt);
-  char *s = fgets(buffer, MAX_MEM_BUFFER_SIZE, stdin);
+
+  char  *s = fgets(buffer, MAX_MEM_BUFFER_SIZE, stdin);
+  size_t t = strlen(s);
+
+  while (t % 4096 == 0) {
+    s = fgets(buffer + t - 1, MAX_MEM_BUFFER_SIZE, stdin);
+    t += strlen(s);
+  }
+
+  std::cout << buffer << ' ' << strlen(buffer) << std::endl;
+
   if (nullptr == s) {
     if (ferror(stdin) || feof(stdin)) {
       LOG_WARN("failed to read line: %s", strerror(errno));

@@ -24,8 +24,9 @@ class BasePacket;
  * @ingroup Communicator
  * @ingroup MySQLProtol
  * @details 实现MySQL通讯协议
- * 可以参考 [MySQL Page Protocol](https://dev.mysql.com/doc/dev/mysql-server/latest/PAGE_PROTOCOL.html)
- * 或 [MariaDB Protocol](https://mariadb.com/kb/en/clientserver-protocol/)
+ * 可以参考 [MySQL Page
+ * Protocol](https://dev.mysql.com/doc/dev/mysql-server/latest/PAGE_PROTOCOL.html) 或 [MariaDB
+ * Protocol](https://mariadb.com/kb/en/clientserver-protocol/)
  */
 class MysqlCommunicator : public Communicator
 {
@@ -59,7 +60,8 @@ private:
   RC send_packet(const BasePacket &packet);
 
   /**
-   * @brief 有些情况下不需要给客户端返回一行行的记录结果，而是返回执行是否成功即可，比如create table等
+   * @brief 有些情况下不需要给客户端返回一行行的记录结果，而是返回执行是否成功即可，比如create
+   * table等
    *
    * @param[in] event 处理的结果
    * @param[out] need_disconnect 是否需要断开连接

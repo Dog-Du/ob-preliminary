@@ -35,7 +35,7 @@ See the Mulan PSL v2 for more details. */
 #include "readline/readline.h"
 #endif
 
-#define MAX_MEM_BUFFER_SIZE 8192
+#define MAX_MEM_BUFFER_SIZE 1024 * 1024
 #define PORT_DEFAULT 6789
 
 using namespace common;
@@ -86,13 +86,15 @@ char *my_readline(const char *prompt)
 }
 #endif  // USE_READLINE
 
-/* this function config a exit-cmd list, strncasecmp func truncate the command from terminal according to the number,
-   'strncasecmp("exit", cmd, 4)' means that obclient read command string from terminal, truncate it to 4 chars from
-   the beginning, then compare the result with 'exit', if they match, exit the obclient.
+/* this function config a exit-cmd list, strncasecmp func truncate the command from terminal
+   according to the number, 'strncasecmp("exit", cmd, 4)' means that obclient read command string
+   from terminal, truncate it to 4 chars from the beginning, then compare the result with 'exit', if
+   they match, exit the obclient.
 */
 bool is_exit_command(const char *cmd)
 {
-  return 0 == strncasecmp("exit", cmd, 4) || 0 == strncasecmp("bye", cmd, 3) || 0 == strncasecmp("\\q", cmd, 2);
+  return 0 == strncasecmp("exit", cmd, 4) || 0 == strncasecmp("bye", cmd, 3) ||
+         0 == strncasecmp("\\q", cmd, 2);
 }
 
 int init_unix_sock(const char *unix_sock_path)
@@ -109,7 +111,10 @@ int init_unix_sock(const char *unix_sock_path)
   snprintf(sockaddr.sun_path, sizeof(sockaddr.sun_path), "%s", unix_sock_path);
 
   if (connect(sockfd, (struct sockaddr *)&sockaddr, sizeof(sockaddr)) < 0) {
-    fprintf(stderr, "failed to connect to server. unix socket path '%s'. error %s", sockaddr.sun_path, strerror(errno));
+    fprintf(stderr,
+        "failed to connect to server. unix socket path '%s'. error %s",
+        sockaddr.sun_path,
+        strerror(errno));
     close(sockfd);
     return -1;
   }
@@ -199,7 +204,8 @@ int main(int argc, char *argv[])
       break;
     }
 
-    if ((send_bytes = write(sockfd, input_command, strlen(input_command) + 1)) == -1) {  // TODO writen
+    if ((send_bytes = write(sockfd, input_command, strlen(input_command) + 1)) ==
+        -1) {  // TODO writen
       fprintf(stderr, "send error: %d:%s \n", errno, strerror(errno));
       exit(1);
     }
