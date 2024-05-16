@@ -237,13 +237,33 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
       return RC::VARIABLE_NOT_EXISTS;
     }
 
-    int i = 0;
+    int  i     = 0;
+    bool found = false;
 
-    for (int j = table->table_meta().sys_field_num(); j < table->table_meta().field_num();
-         ++j, ++i) {
-      if (table->table_meta().field(j) == field) {
+    for (auto &t : tables) {
+      if (t == table) {
+        found = true;
         break;
       }
+      i += t->table_meta().field_num() - t->table_meta().sys_field_num();
+    }
+
+    if (!found) {
+      return RC::VARIABLE_NOT_EXISTS;
+    }
+
+    found = false;
+
+    for (int j = table->table_meta().sys_field_num(); j < table->table_meta().field_num(); ++j) {
+      if (table->table_meta().field(j) == field) {
+        found = true;
+        break;
+      }
+      ++i;
+    }
+
+    if (!found) {
+      return RC::VARIABLE_NOT_EXISTS;
     }
 
     orders.emplace_back(OrderByStmtNode(i, it.is_asc));
