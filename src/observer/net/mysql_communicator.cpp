@@ -31,9 +31,11 @@ See the Mulan PSL v2 for more details. */
 // the flags below are negotiate by handshake packet
 const uint32_t CLIENT_PROTOCOL_41 = 512;
 // const uint32_t CLIENT_INTERACTIVE   = 1024;  // This is an interactive client
-const uint32_t CLIENT_TRANSACTIONS  = 8192;         // Client knows about transactions.
-const uint32_t CLIENT_SESSION_TRACK = (1UL << 23);  // Capable of handling server state change information
-const uint32_t CLIENT_DEPRECATE_EOF = (1UL << 24);  // Client no longer needs EOF_Packet and will use OK_Packet instead
+const uint32_t CLIENT_TRANSACTIONS = 8192;  // Client knows about transactions.
+const uint32_t CLIENT_SESSION_TRACK =
+    (1UL << 23);  // Capable of handling server state change information
+const uint32_t CLIENT_DEPRECATE_EOF =
+    (1UL << 24);  // Client no longer needs EOF_Packet and will use OK_Packet instead
 const uint32_t CLIENT_OPTIONAL_RESULTSET_METADATA =
     (1UL << 25);  // The client can handle optional metadata information in the resultset.
 // Support optional extension for query parameters into the COM_QUERY and COM_STMT_EXECUTE packets.
@@ -194,7 +196,8 @@ int store_int8(char *buf, int64_t value)
 
 /**
  * @brief 将数据写入到缓存中
- * @details 按照MySQL协议的描述，这是一个变长编码的整数，最大可以编码8个字节的整数。不同大小的数字，第一个字节的值不同。
+ * @details
+ * 按照MySQL协议的描述，这是一个变长编码的整数，最大可以编码8个字节的整数。不同大小的数字，第一个字节的值不同。
  * @param buf  数据缓存
  * @param value 要写入的值
  * @return int 写入的字节数
@@ -280,7 +283,8 @@ int store_lenenc_string(char *buf, const char *s)
 
 /**
  * @brief 每个包都有一个包头
- * @details [MySQL Basic Packet](https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_basic_packets.html)
+ * @details [MySQL Basic
+ * Packet](https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_basic_packets.html)
  * [MariaDB Packet](https://mariadb.com/kb/en/0-packet/)
  * @ingroup MySQLProtocol
  */
@@ -348,7 +352,7 @@ struct HandshakeV10 : public BasePacket
 
     char *buf = net_packet.data();
     int   pos = 0;
-    pos += 3; // skip packet length
+    pos += 3;  // skip packet length
 
     pos += store_int1(buf + pos, packet_header.sequence_id);
     pos += store_int1(buf + pos, protocol);
@@ -398,7 +402,7 @@ struct OkPacket : public BasePacket
     char *buf = net_packet.data();
     int   pos = 0;
 
-    pos += 3; // skip packet length
+    pos += 3;  // skip packet length
     pos += store_int1(buf + pos, packet_header.sequence_id);
     pos += store_int1(buf + pos, header);
     pos += store_lenenc_int(buf + pos, affected_rows);
@@ -428,7 +432,8 @@ struct OkPacket : public BasePacket
 /**
  * @brief EOF包
  * @ingroup MySQLProtocol
- * @details [basic_err_packet](https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_basic_err_packet.html)
+ * @details
+ * [basic_err_packet](https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_basic_err_packet.html)
  */
 struct EofPacket : public BasePacket
 {
@@ -468,7 +473,8 @@ struct EofPacket : public BasePacket
 
 /**
  * @brief ERR包，出现错误时返回
- * @details [eof_packet](https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_basic_eof_packet.html)
+ * @details
+ * [eof_packet](https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_basic_eof_packet.html)
  * @ingroup MySQLProtocol
  */
 struct ErrPacket : public BasePacket
@@ -514,8 +520,8 @@ struct ErrPacket : public BasePacket
  * @brief MySQL客户端发过来的请求包
  * @ingroup MySQLProtocol
  * @details [MySQL Protocol Command
- * Phase](https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_command_phase.html) [MariaDB Text
- * Protocol](https://mariadb.com/kb/en/2-text-protocol/)
+ * Phase](https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_command_phase.html)
+ * [MariaDB Text Protocol](https://mariadb.com/kb/en/2-text-protocol/)
  */
 struct QueryPacket
 {
@@ -527,7 +533,8 @@ struct QueryPacket
 /**
  * @brief decode query packet
  * @details packet_header is not included in net_packet
- * [MySQL Protocol COM_QUERY](https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_query.html)
+ * [MySQL Protocol
+ * COM_QUERY](https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_query.html)
  */
 RC decode_query_packet(std::vector<char> &net_packet, QueryPacket &query_packet)
 {
@@ -633,7 +640,7 @@ RC MysqlCommunicator::read_event(SessionEvent *&event)
   std::vector<char> buf(packet_header.payload_length);
   ret = common::readn(fd_, buf.data(), packet_header.payload_length);
   if (ret != 0) {
-    LOG_WARN("failed to read packet payload. length=%d, addr=%s, error=%s", 
+    LOG_WARN("failed to read packet payload. length=%d, addr=%s, error=%s",
              packet_header.payload_length, addr_.c_str(), strerror(errno));
     return RC::IOERR_READ;
   }
@@ -641,9 +648,11 @@ RC MysqlCommunicator::read_event(SessionEvent *&event)
   event = nullptr;
   if (!authed_) {
     /// 还没有做过认证，就先需要完成握手阶段
-    uint32_t client_flag = *(uint32_t *)buf.data();  // TODO should use decode (little endian as default)
+    uint32_t client_flag =
+        *(uint32_t *)buf.data();  // TODO should use decode (little endian as default)
     LOG_INFO("client handshake response with capabilities flag=%d", client_flag);
-    /// 经过测试sysbench 虽然发出的鉴权包中带了CLIENT_DEPRECATE_EOF标记，但是在接收row result set 时，
+    /// 经过测试sysbench 虽然发出的鉴权包中带了CLIENT_DEPRECATE_EOF标记，但是在接收row result set
+    /// 时，
     //  不能识别最后一个OK Packet。强制清除该标识，表现正常
     client_capabilities_flag_ = (client_flag & (~CLIENT_DEPRECATE_EOF));
     // send ok packet and return
@@ -900,7 +909,8 @@ RC MysqlCommunicator::send_column_definition(SqlResult *sql_result, bool &need_d
     pos += 2;
     store_int1(buf + pos, decimals);
     pos += 1;
-    store_int2(buf + pos, 0);  // 按照mariadb的文档描述，最后还有一个unused字段int<2>，不过mysql的文档没有给出这样的描述
+    store_int2(buf + pos,
+        0);  // 按照mariadb的文档描述，最后还有一个unused字段int<2>，不过mysql的文档没有给出这样的描述
     pos += 2;
 
     payload_length = pos - 4;
@@ -939,7 +949,8 @@ RC MysqlCommunicator::send_column_definition(SqlResult *sql_result, bool &need_d
  * @param no_column_def 为了特殊处理没有返回值的语句，比如insert/delete，需要做特殊处理。
  *                      这种语句只需要返回一个ok packet即可
  */
-RC MysqlCommunicator::send_result_rows(SqlResult *sql_result, bool no_column_def, bool &need_disconnect)
+RC MysqlCommunicator::send_result_rows(
+    SqlResult *sql_result, bool no_column_def, bool &need_disconnect)
 {
   RC rc = RC::SUCCESS;
 
