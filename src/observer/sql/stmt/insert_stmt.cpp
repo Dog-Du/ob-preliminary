@@ -55,6 +55,11 @@ RC InsertStmt::create(Db *db, const InsertSqlNode &inserts, Stmt *&stmt)
     const AttrType   field_type = field_meta->type();
     const AttrType   value_type = values[i].attr_type();
 
+    // 超出长度。
+    if (values[i].length() >= TEXT_SIZE) {
+      return RC::VARIABLE_NOT_VALID;
+    }
+
     // 特判空。
     if (!field_meta->nullable() && value_type == AttrType::NULLS) {
       return RC::EMPTY;
