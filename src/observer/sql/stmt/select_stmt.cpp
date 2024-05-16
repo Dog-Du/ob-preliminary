@@ -218,6 +218,7 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
     return rc;
   }
 
+  // 找下标。
   std::vector<OrderByStmtNode> orders;
   for (auto &it : select_sql.order_bys) {
     Table *table = nullptr;
