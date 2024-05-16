@@ -17,6 +17,8 @@ See the Mulan PSL v2 for more details. */
 #include <string>
 #include "common/defs.h"
 #include "common/lang/comparator.h"
+
+const int TEXT_SIZE = 64 * 1024;
 /**
  * @brief 属性的类型
  *
@@ -29,6 +31,7 @@ enum AttrType
   FLOATS,  ///< 浮点数类型(4字节)
   DATES,  ///< 日期类型，可以用一个int表示。为了初始化的时候与int区分，应该是用unsigned_int，即
           ///< uint32_t
+  // TEXTS,
   NULLS,
   BOOLEANS,  ///< boolean类型，当前不是由parser解析出来的，是程序内部使用的
 };
@@ -87,7 +90,7 @@ public:
   int length() const { return (attr_type_ == CHARS ? str_value_.size() : VALUE_SIZE_NOT_CHARS); }
 
   AttrType attr_type() const { return attr_type_; }
-  void convert_to_type(AttrType type);
+  void     convert_to_type(AttrType type);
   // const char *is_null_ptr() const { return &is_null_; }
 
 public:

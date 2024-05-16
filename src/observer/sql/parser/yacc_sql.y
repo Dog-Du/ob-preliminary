@@ -87,6 +87,8 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
         BY_T
         ASC_T
 
+        TEXT_T
+
         DESC
         SHOW
         SYNC
@@ -552,6 +554,33 @@ attr_def:
       $$->nullable = false;
       free($1);
     }
+    | ID TEXT_T
+    {
+      $$ = new AttrInfoSqlNode;
+      $$->type = AttrType::CHARS;
+      $$->name = $1;
+      $$->length = TEXT_SIZE;
+      $$->nullable = true;
+      free($1);
+    }
+    | ID TEXT_T NULL_T
+    {
+      $$ = new AttrInfoSqlNode;
+      $$->type = AttrType::CHARS;
+      $$->name = $1;
+      $$->length = TEXT_SIZE;
+      $$->nullable = true;
+      free($1);
+    }
+    | ID TEXT_T NOT NULL_T
+    {
+      $$ = new AttrInfoSqlNode;
+      $$->type = AttrType::CHARS;
+      $$->name = $1;
+      $$->length = TEXT_SIZE;
+      $$->nullable = false;
+      free($1);
+    }
     ;
 number:
     NUMBER {$$ = $1;}
@@ -730,7 +759,6 @@ order_by:
   {
     $$ = nullptr;
   }
-
 
 | ORDER_T BY_T order_by_node order_list /* 保证有一个 */
   {

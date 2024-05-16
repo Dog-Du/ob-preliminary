@@ -20,7 +20,7 @@ See the Mulan PSL v2 for more details. */
 using namespace std;
 
 // const int32_t DEFAULT_BUFFER_SIZE = 16 * 1024;
-const int32_t DEFAULT_BUFFER_SIZE = 5 * 1024 * 1024;  // 2MB
+const int32_t DEFAULT_BUFFER_SIZE = 5 * 1024 * 1024;  // 5MB
 
 RingBuffer::RingBuffer() : RingBuffer(DEFAULT_BUFFER_SIZE) {}
 
