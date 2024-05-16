@@ -86,7 +86,7 @@ RC OrderByPhysicalOperator::open(Trx *trx)
       return false;
     };
 
-    std::sort(tuples_.begin(), tuples_.end(), cmp);
+    std::stable_sort(tuples_.begin(), tuples_.end(), cmp);
   }
 
   i_ = -1;
