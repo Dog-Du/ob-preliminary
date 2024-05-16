@@ -197,6 +197,79 @@ simple-sub-query:
       最后是，空间上的问题，因为PipeLineBreaker是字面意义上的火山模型破坏者，对于内存不太优化，当然这样可以避免反复读磁盘。
 
 
+multi-index:
+  额，骗过去的。其实没实现对应功能。主要是我不清楚multi-index到底有啥用（目移）
+  骗的方法是：
+    先在语法上支持multi-index,然后实际运行时。
+    只以第一个字段建立索引即可，这样就能骗过去（）。
+
+unique:
+  呃呃，也是骗过去的。不过这个算是完成对应功能了。
+  骗的方法是：
+    先在语法上支持unique，实际运行时，先检查index里面有没有相同的
+    然后如果有，则不插入，返回错误信息即可。
+  需要在index_meta添加一条信息，is_unique，bool值。
+  然后在to_json和from_json时，添加is_unique，这样就实现了is_unique信息的持久化。
+  unique就可以骗过去了。
+
+update_select:
+  这个不是骗的，思路类似于simple-sub-quey，只是把子查询从where移到了set哪里。
+  同时，增加一个结构体，把子查询和常量放在一起，如果子查询为空，就说明是常量输入。
+  然后在update-physical-operator中新增一个判断。
+  需要注意的点：
+    1.如果子查询结果为空，相当于置为NULL，需要注意判断对应列能否为NULL
+    2.子查询结果是否为多行，多行则返回错误信息
+    3.子查询如果为多列，返回错误信息。
+    4.如果需要update的行数为0个，那么即使子查询有上面三个错误也返回success
+      （这个我卡了好久，一直没发现哪里错了，后来猜想可能是这里错了，然后MySQL尝试之后还真是。）
+    5.注意类型转化，会出现在CHARS里面插入INT类型。
+
+order-by、big-order-by:
+  order-by在语法树上应该是聚合之上，投影之下。
+  因为后面group-by需要考虑，group-by的位置应该是在聚合之下，谓词之上
+
+  我实现的order-by是pipelinebreaker，先得到所有tuple，然后用std::sort+自定义排序函数进行排序。
+
+  当然，需要在语法树先支持order by。然后获得排序字段以及升序降序的信息。
+  在select_stmt阶段，解析排序字段，然后得到排序字段的下标已经升序降序信息。
+  因为会有表的连接，所以这里需要注意，下标 = 前面几个表的field_num + 在该表下标位置。
+  比较函数：遍历排序字段，出现的顺序就是优先级。
+  需要先判断是否是null。
+  可以选择把order-by哪里选择用comparisonexpr，比较方便。
+
+  当然效率一般，对比了一下，大概是1W的数据量，我的代码从输入sql到完全输出大概需要6s，而MySQL只需要不到2s。
+  薄纱，甚至我的内存还有泄露().....
+
+null :
+  首先，需要在表中记录下来各个列的可空否nullable。
+    方法是在fieldmeta中新增nullable，bool值，然后在to_json和from_json中新增nullable。
+    实现了field的nullable的可持久化。
+  齐次，支持null关键词，和not关键字。
+    先实现创建table的时候的nullable，默认是可为空的，行为可参考MySQL
+    完成table的创建
+  最后，实现值的null。
+    我的方法是Value的类型增加NULLS，同时添加一个字节用来表示nullable。
+    num_value_中新增char is_null_[5]，每一个value的大小都增加了1字节。
+    对于str_value_如果是chars，那么把str_value[0]用来表示是否为空。
+
+    一个value的字节流就是包含了null的信息的字节流了。
+    但是chars和非chars的保存nullable的位置不同,chars在字节流头部，非chars在字节流尾部。
+    所以，一个value置为null需要把is_null_[5]的首和尾均置为true同时清空str_value_。
+    之后就是关于Value的部分细节的调整，还需要在compare进行调整，NULL和任何值进行比较都是小于。
+    如果比较两者中有NULL，则返回一个非法值，比如 2，建议把比较的结果设置成CompareResult枚举类型
+    在index中也需要修改对应修改，需要特判NULL。
+
+    当然，在聚合，condition，update，等等地方都需要注意NULL。
+
+    还需要支持IS，IS NOT来判断NULL。
+    在子查询中，IN和NOT IN相当于是用=进行比较，所以NULL都会返回false。
+
+  有的方法不是在Value中放null，而是在sys_field中记录对应是否是空。
+  这样应该可以占用空间更少，但是实现更复杂更麻烦。
+
+  还有一件事，实现的方法一定要保证Value的字节流（data）返回的值
+  一定是一次性返回整个字节流，能够根据字节流还原。
+
 
 
 
