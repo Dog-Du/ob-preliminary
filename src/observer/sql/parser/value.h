@@ -93,6 +93,13 @@ public:
   void     convert_to_type(AttrType type);
   // const char *is_null_ptr() const { return &is_null_; }
 
+  void swap(Value &rhs)
+  {
+    std::swap(num_value_, rhs.num_value_);
+    str_value_.swap(rhs.str_value_);
+    std::swap(attr_type_, rhs.attr_type_);
+  }
+
 public:
   /**
    * 获取对应的值
@@ -137,3 +144,9 @@ private:
 
   std::string str_value_;  // 让它的第一位始终是 is_null_。
 };
+
+template <>
+inline void std::swap<Value>(Value &lhs, Value &rhs)
+{
+  lhs.swap(rhs);
+}
