@@ -17,6 +17,7 @@ See the Mulan PSL v2 for more details. */
 #include <string>
 #include <vector>
 
+#include "common/types.h"
 #include "sql/stmt/stmt.h"
 
 class Db;

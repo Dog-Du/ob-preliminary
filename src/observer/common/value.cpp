@@ -19,6 +19,8 @@ See the Mulan PSL v2 for more details. */
 #include "common/lang/sstream.h"
 #include "common/lang/string.h"
 #include "common/log/log.h"
+#include "common/type/attr_type.h"
+#include "common/type/date_type.h"
 
 Value::Value(int val) { set_int(val); }
 
@@ -125,6 +127,10 @@ void Value::set_data(char *data, int length)
       value_.bool_value_ = *(int *)data != 0;
       length_            = length;
     } break;
+    case AttrType::DATES: {
+      value_.int_value_ = *(int *)data;
+      length_           = length;
+    } break;
     default: {
       LOG_WARN("unknown data type: %d", attr_type_);
     } break;
@@ -173,6 +179,12 @@ void Value::set_string(const char *s, int len /*= 0*/)
     memcpy(value_.pointer_value_, s, len);
     value_.pointer_value_[len] = '\0';
   }
+}
+
+void Value::set_date(int y, int m, int d){
+  reset();
+  attr_type_ = AttrType::DATES;
+  value_.int_value_ = y * 10000 + m * 100 + d;
 }
 
 void Value::set_value(const Value &value)
@@ -229,7 +241,10 @@ string Value::to_string() const
   return res;
 }
 
-int Value::compare(const Value &other) const { return DataType::type_instance(this->attr_type_)->compare(*this, other); }
+int Value::compare(const Value &other) const
+{
+  return DataType::type_instance(this->attr_type_)->compare(*this, other);
+}
 
 int Value::get_int() const
 {
