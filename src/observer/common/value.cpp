@@ -111,18 +111,13 @@ void Value::reset()
 
 void Value::resize(int len)
 {
-  ASSERT(len > 0, "resize should be greater than zero.");
-
   if (attr_type_ != AttrType::CHARS || length_ >= len) {
     return;
   }
-  attr_type_ = AttrType::CHARS;
-  char *s    = new char[len + 1];
-  memset(s, 0, len + 1);
-  memcpy(s, value_.pointer_value_, length_);
-  s[length_] = '\0';
-  own_data_  = true;
-  length_    = len;
+
+  string s(value_.pointer_value_);
+  s.resize(len);
+  set_string(s.c_str(), len);
 }
 
 void Value::set_data(char *data, int length)
