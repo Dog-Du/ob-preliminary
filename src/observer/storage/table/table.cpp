@@ -12,6 +12,7 @@ See the Mulan PSL v2 for more details. */
 // Created by Meiyi & Wangyunlai on 2021/5/13.
 //
 
+#include <cstdio>
 #include <limits.h>
 #include <string.h>
 
@@ -21,6 +22,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/lang/algorithm.h"
 #include "common/log/log.h"
 #include "common/global_context.h"
+#include "common/rc.h"
 #include "storage/db/db.h"
 #include "storage/buffer/disk_buffer_pool.h"
 #include "storage/common/condition_filter.h"
@@ -125,6 +127,33 @@ RC Table::create(Db *db, int32_t table_id, const char *path, const char *name, c
 
   LOG_INFO("Successfully create table %s:%s", base_dir, name);
   return rc;
+}
+
+RC Table::drop(const char *path)
+{
+
+  if (::remove(path) < 0) {
+    LOG_ERROR("Drop table file failed. filename=%s, errmsg=%s", path, strerror(errno));
+    return RC::INTERNAL;
+  }
+
+  string             data_file = table_data_file(base_dir_.c_str(), table_meta_.name());
+  BufferPoolManager &bpm       = db_->buffer_pool_manager();
+  bpm.remove_file(data_file.c_str());
+  data_buffer_pool_ = nullptr;
+
+  if (record_handler_ != nullptr) {
+    delete record_handler_;
+    record_handler_ = nullptr;
+  }
+
+  for (auto &index : indexes_) {
+    index->destroy();
+    delete index;
+    index = nullptr;
+  }
+
+  return RC::SUCCESS;
 }
 
 RC Table::open(Db *db, const char *meta_file, const char *base_dir)
@@ -272,7 +301,7 @@ RC Table::make_record(int value_num, const Value *values, Record &record)
 
   for (int i = 0; i < value_num && OB_SUCC(rc); i++) {
     const FieldMeta *field = table_meta_.field(i + normal_field_start_index);
-    const Value &    value = values[i];
+    const Value     &value = values[i];
     if (field->type() != value.attr_type()) {
       Value real_value;
       rc = Value::cast_to(value, field->type(), real_value);

@@ -15,6 +15,7 @@ See the Mulan PSL v2 for more details. */
 #include "storage/db/db.h"
 
 #include <fcntl.h>
+#include <string>
 #include <sys/stat.h>
 #include <vector>
 #include <filesystem>
@@ -23,6 +24,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/log/log.h"
 #include "common/os/path.h"
 #include "common/global_context.h"
+#include "common/rc.h"
 #include "storage/common/meta_util.h"
 #include "storage/table/table.h"
 #include "storage/table/table_meta.h"
@@ -158,6 +160,27 @@ RC Db::create_table(const char *table_name, span<const AttrInfoSqlNode> attribut
 
   opened_tables_[table_name] = table;
   LOG_INFO("Create table success. table name=%s, table_id:%d", table_name, table_id);
+  return RC::SUCCESS;
+}
+
+RC Db::drop_table(const char *table_name) {
+  // RC rc = RC::SUCCESS;
+
+  if (opened_tables_.count(table_name) == 0) {
+    LOG_WARN("%s has been opened before.", table_name);
+    return RC::SCHEMA_TABLE_NOT_EXIST;
+  }
+
+  Table *table = find_table(table_name);
+  if (nullptr == table) {
+    return RC::SCHEMA_TABLE_NOT_EXIST;
+  }
+  string  table_file_path = table_meta_file(path_.c_str(), table_name);
+  table->drop(table_file_path.c_str());
+
+  delete table;
+  opened_tables_.erase(std::string(table_name));
+
   return RC::SUCCESS;
 }
 
