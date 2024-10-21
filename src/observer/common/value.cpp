@@ -116,8 +116,8 @@ void Value::resize(int len)
   }
 
   string s(value_.pointer_value_);
-  s.resize(len);
-  set_string(s.c_str(), len);
+  s.resize(len + 1);
+  set_string(s.c_str(), len + 1);
 }
 
 void Value::set_data(char *data, int length)
