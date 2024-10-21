@@ -109,6 +109,22 @@ void Value::reset()
   own_data_  = false;
 }
 
+void Value::resize(int len)
+{
+  ASSERT(len > 0, "resize should be greater than zero.");
+
+  if (attr_type_ != AttrType::CHARS || length_ >= len) {
+    return;
+  }
+  attr_type_ = AttrType::CHARS;
+  char *s    = new char[len + 1];
+  memset(s, 0, len + 1);
+  memcpy(s, value_.pointer_value_, length_);
+  s[length_] = '\0';
+  own_data_  = true;
+  length_    = len;
+}
+
 void Value::set_data(char *data, int length)
 {
   switch (attr_type_) {
@@ -181,9 +197,10 @@ void Value::set_string(const char *s, int len /*= 0*/)
   }
 }
 
-void Value::set_date(int y, int m, int d){
+void Value::set_date(int y, int m, int d)
+{
   reset();
-  attr_type_ = AttrType::DATES;
+  attr_type_        = AttrType::DATES;
   value_.int_value_ = y * 10000 + m * 100 + d;
 }
 

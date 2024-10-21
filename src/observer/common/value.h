@@ -56,6 +56,7 @@ public:
   Value &operator=(Value &&other);
 
   void reset();
+  void resize(int len);
 
   static RC add(const Value &left, const Value &right, Value &result)
   {
@@ -130,7 +131,6 @@ private:
     float   float_value_;
     bool    bool_value_;
     char   *pointer_value_;
-
   } value_ = {.int_value_ = 0};
 
   /// 是否申请并占有内存, 目前对于 CHARS 类型 own_data_ 为true, 其余类型 own_data_ 为false

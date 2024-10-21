@@ -29,6 +29,7 @@ See the Mulan PSL v2 for more details. */
 #include "storage/common/meta_util.h"
 #include "storage/index/bplus_tree_index.h"
 #include "storage/index/index.h"
+#include "storage/record/record.h"
 #include "storage/record/record_manager.h"
 #include "storage/table/table.h"
 #include "storage/trx/trx.h"
@@ -129,31 +130,39 @@ RC Table::create(Db *db, int32_t table_id, const char *path, const char *name, c
   return rc;
 }
 
-RC Table::drop(const char *path)
+RC Table::drop(const char *dir)
 {
-
-  if (::remove(path) < 0) {
-    LOG_ERROR("Drop table file failed. filename=%s, errmsg=%s", path, strerror(errno));
-    return RC::INTERNAL;
+  RC          rc   = sync();
+  std::string path = table_meta_file(dir, name());
+  if (unlink(path.c_str()) != 0) {
+    LOG_ERROR("Failed to remove meta file = %s, error=%d",path.c_str(),errno);
+    rc = RC::FILE_REMOVE;
+    return rc;
   }
 
-  string             data_file = table_data_file(base_dir_.c_str(), table_meta_.name());
-  BufferPoolManager &bpm       = db_->buffer_pool_manager();
-  bpm.remove_file(data_file.c_str());
-  data_buffer_pool_ = nullptr;
+  std::string data_file = std::string(dir) + "/" + name() + TABLE_DATA_SUFFIX;
 
-  if (record_handler_ != nullptr) {
-    delete record_handler_;
-    record_handler_ = nullptr;
+  if (unlink(data_file.c_str()) != 0) {
+    LOG_ERROR("Failed to remove meta file = %s, error=%d",path.c_str(),errno);
+    rc = RC::FILE_REMOVE;
+    return rc;
   }
 
-  for (auto &index : indexes_) {
-    index->destroy();
-    delete index;
-    index = nullptr;
-  }
+  const int index_num = table_meta_.index_num();
 
-  return RC::SUCCESS;
+  for (int i = 0; i < index_num; ++i) {
+    ((BplusTreeIndex *)indexes_[i])->close();
+    const IndexMeta *index_meta = table_meta_.index(i);
+    std::string      index_file = std::string(dir) + "/" + name() + "-" + index_meta->name() + TABLE_INDEX_SUFFIX;
+
+    if (unlink(index_file.c_str()) != 0) {
+      LOG_ERROR("Failed to remove meta file = %s, error=%d",path.c_str(),errno);
+      rc = RC::FILE_REMOVE;
+      return rc;
+    }
+  }
+  rc = RC::SUCCESS;
+  return rc;
 }
 
 RC Table::open(Db *db, const char *meta_file, const char *base_dir)
@@ -236,6 +245,18 @@ RC Table::insert_record(Record &record)
                 name(), rc2, strrc(rc2));
     }
   }
+  return rc;
+}
+
+RC Table::update_record(const RID &rid, Record &old_record, Record &new_record)
+{
+  RC rc = RC::SUCCESS;
+  for (Index *index : indexes_) {
+    rc = index->delete_entry(old_record.data(), &old_record.rid());
+  }
+
+  rc = record_handler_->delete_record(&old_record.rid());
+  insert_record(new_record);
   return rc;
 }
 
@@ -393,7 +414,7 @@ RC Table::create_index(Trx *trx, const FieldMeta *field_meta, const char *index_
 
   RC rc = new_index_meta.init(index_name, *field_meta);
   if (rc != RC::SUCCESS) {
-    LOG_INFO("Failed to init IndexMeta in table:%s, index_name:%s, field_name:%s", 
+    LOG_INFO("Failed to init IndexMeta in table:%s, index_name:%s, field_name:%s",
              name(), index_name, field_meta->name());
     return rc;
   }
@@ -413,7 +434,7 @@ RC Table::create_index(Trx *trx, const FieldMeta *field_meta, const char *index_
   RecordFileScanner scanner;
   rc = get_record_scanner(scanner, trx, ReadWriteMode::READ_ONLY);
   if (rc != RC::SUCCESS) {
-    LOG_WARN("failed to create scanner while creating index. table=%s, index=%s, rc=%s", 
+    LOG_WARN("failed to create scanner while creating index. table=%s, index=%s, rc=%s",
              name(), index_name, strrc(rc));
     return rc;
   }
@@ -497,7 +518,7 @@ RC Table::delete_record(const Record &record)
   RC rc = RC::SUCCESS;
   for (Index *index : indexes_) {
     rc = index->delete_entry(record.data(), &record.rid());
-    ASSERT(RC::SUCCESS == rc, 
+    ASSERT(RC::SUCCESS == rc,
            "failed to delete entry from index. table name=%s, index name=%s, rid=%s, rc=%s",
            name(), index->index_meta().name(), record.rid().to_string().c_str(), strrc(rc));
   }

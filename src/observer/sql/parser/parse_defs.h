@@ -124,6 +124,7 @@ struct DeleteSqlNode
   std::vector<ConditionSqlNode> conditions;
 };
 
+
 /**
  * @brief 描述一个update语句
  * @ingroup SQLParser

@@ -163,7 +163,8 @@ RC Db::create_table(const char *table_name, span<const AttrInfoSqlNode> attribut
   return RC::SUCCESS;
 }
 
-RC Db::drop_table(const char *table_name) {
+RC Db::drop_table(const char *table_name)
+{
   // RC rc = RC::SUCCESS;
 
   if (opened_tables_.count(table_name) == 0) {
@@ -172,11 +173,13 @@ RC Db::drop_table(const char *table_name) {
   }
 
   Table *table = find_table(table_name);
-  if (nullptr == table) {
+  if (table == nullptr) {
+    LOG_WARN("%s not exists.",table_name);
+
     return RC::SCHEMA_TABLE_NOT_EXIST;
   }
-  string  table_file_path = table_meta_file(path_.c_str(), table_name);
-  table->drop(table_file_path.c_str());
+
+  table->drop(path_.c_str());
 
   delete table;
   opened_tables_.erase(std::string(table_name));
@@ -335,7 +338,7 @@ RC Db::init_meta()
   RC  rc = RC::SUCCESS;
   int fd = open(db_meta_file_path.c_str(), O_RDONLY);
   if (fd < 0) {
-    LOG_ERROR("Failed to open db meta file. db=%s, file=%s, errno=%s", 
+    LOG_ERROR("Failed to open db meta file. db=%s, file=%s, errno=%s",
               name_.c_str(), db_meta_file_path.c_str(), strerror(errno));
     return RC::IOERR_READ;
   }
@@ -343,19 +346,19 @@ RC Db::init_meta()
   char buffer[1024];
   int  n = read(fd, buffer, sizeof(buffer));
   if (n < 0) {
-    LOG_ERROR("Failed to read db meta file. db=%s, file=%s, errno=%s", 
+    LOG_ERROR("Failed to read db meta file. db=%s, file=%s, errno=%s",
               name_.c_str(), db_meta_file_path.c_str(), strerror(errno));
     rc = RC::IOERR_READ;
   } else {
     if (n >= static_cast<int>(sizeof(buffer))) {
-      LOG_WARN("Db meta file is too large. db=%s, file=%s, buffer size=%ld", 
+      LOG_WARN("Db meta file is too large. db=%s, file=%s, buffer size=%ld",
                name_.c_str(), db_meta_file_path.c_str(), sizeof(buffer));
       return RC::IOERR_TOO_LONG;
     }
 
     buffer[n]        = '\0';
     check_point_lsn_ = atoll(buffer);  // 当前元数据就这一个数字
-    LOG_INFO("Successfully read db meta file. db=%s, file=%s, check_point_lsn=%ld", 
+    LOG_INFO("Successfully read db meta file. db=%s, file=%s, check_point_lsn=%ld",
              name_.c_str(), db_meta_file_path.c_str(), check_point_lsn_);
   }
   close(fd);
@@ -376,7 +379,7 @@ RC Db::flush_meta()
   RC  rc = RC::SUCCESS;
   int fd = open(temp_meta_file_path.c_str(), O_CREAT | O_WRONLY | O_TRUNC, 0644);
   if (fd < 0) {
-    LOG_ERROR("Failed to open db meta file. db=%s, file=%s, errno=%s", 
+    LOG_ERROR("Failed to open db meta file. db=%s, file=%s, errno=%s",
               name_.c_str(), temp_meta_file_path.c_str(), strerror(errno));
     return RC::IOERR_WRITE;
   }
@@ -384,23 +387,23 @@ RC Db::flush_meta()
   string buffer = std::to_string(check_point_lsn_);
   int    n      = write(fd, buffer.c_str(), buffer.size());
   if (n < 0) {
-    LOG_ERROR("Failed to write db meta file. db=%s, file=%s, errno=%s", 
+    LOG_ERROR("Failed to write db meta file. db=%s, file=%s, errno=%s",
               name_.c_str(), temp_meta_file_path.c_str(), strerror(errno));
     rc = RC::IOERR_WRITE;
   } else if (n != static_cast<int>(buffer.size())) {
-    LOG_ERROR("Failed to write db meta file. db=%s, file=%s, buffer size=%ld, write size=%d", 
+    LOG_ERROR("Failed to write db meta file. db=%s, file=%s, buffer size=%ld, write size=%d",
               name_.c_str(), temp_meta_file_path.c_str(), buffer.size(), n);
     rc = RC::IOERR_WRITE;
   } else {
     error_code ec;
     filesystem::rename(temp_meta_file_path, meta_file_path, ec);
     if (ec) {
-      LOG_ERROR("Failed to rename db meta file. db=%s, file=%s, errno=%s", 
+      LOG_ERROR("Failed to rename db meta file. db=%s, file=%s, errno=%s",
                 name_.c_str(), temp_meta_file_path.c_str(), ec.message().c_str());
       rc = RC::IOERR_WRITE;
     } else {
 
-      LOG_INFO("Successfully write db meta file. db=%s, file=%s, check_point_lsn=%ld", 
+      LOG_INFO("Successfully write db meta file. db=%s, file=%s, check_point_lsn=%ld",
                name_.c_str(), temp_meta_file_path.c_str(), check_point_lsn_);
     }
   }

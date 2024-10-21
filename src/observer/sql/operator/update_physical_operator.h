@@ -9,41 +9,42 @@ MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details. */
 
 //
-// Created by Wangyunlai on 2022/5/22.
+// Created by WangYunlai on 2022/6/9.
 //
 
 #pragma once
 
-#include "sql/stmt/stmt.h"
+#include "common/value.h"
+#include "sql/operator/physical_operator.h"
 
-class Table;
+class Trx;
+class DeleteStmt;
 class FieldMeta;
-class Value;
-class FilterStmt;
 
 /**
- * @brief 更新语句
- * @ingroup Statement
+ * @brief 物理算子，删除
+ * @ingroup PhysicalOperator
  */
-class UpdateStmt : public Stmt
+class UpdatePhysicalOperator : public PhysicalOperator
 {
 public:
-  UpdateStmt() = default;
-  UpdateStmt(Table *table, const FieldMeta *field, const Value &value, FilterStmt *filter_stmt);
-  StmtType type() const override { return StmtType::UPDATE; }
+  UpdatePhysicalOperator(Table *table, const FieldMeta *field, const Value &value)
+      : table_(table), field_(field), value_(value)
+  {}
 
-public:
-  static RC create(Db *db, const UpdateSqlNode &update_sql, Stmt *&stmt);
+  virtual ~UpdatePhysicalOperator() = default;
 
-public:
-  Table           *table() const { return table_; }
-  const Value     &value() const { return value_; }
-  FilterStmt      *filter_stmt() { return filter_stmt_; }
-  const FieldMeta *field() const { return field_; }
+  PhysicalOperatorType type() const override { return PhysicalOperatorType::UPDATE; }
+
+  RC open(Trx *trx) override;
+  RC next() override;
+  RC close() override;
+
+  Tuple *current_tuple() override { return nullptr; }
 
 private:
   Table           *table_ = nullptr;
   const FieldMeta *field_ = nullptr;
   Value            value_;
-  FilterStmt      *filter_stmt_;
+  Trx             *trx_;
 };

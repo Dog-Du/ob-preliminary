@@ -31,8 +31,7 @@ RC CharType::set_value_from_str(Value &val, const string &data) const
 RC CharType::cast_to(const Value &val, AttrType type, Value &result) const
 {
   switch (type) {
-    case AttrType::DATES:
-    {
+    case AttrType::DATES: {
       result.attr_type_ = AttrType::DATES;
       int y, m, d;
       if (sscanf(val.value_.pointer_value_, "%d-%d-%d", &y, &m, &d) != 3) {
@@ -43,8 +42,14 @@ RC CharType::cast_to(const Value &val, AttrType type, Value &result) const
         return RC::INVALID_ARGUMENT;
       }
       result.set_date(y, m, d);
-    }break;
-    default: return RC::UNIMPLEMENTED;
+    } break;
+    case AttrType::CHARS: {
+      result.set_string(val.data(), val.length());
+      return RC::SUCCESS;
+    };
+    default: {
+      return RC::UNIMPLEMENTED;
+    }
   }
   return RC::SUCCESS;
 }

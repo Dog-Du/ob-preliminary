@@ -184,8 +184,8 @@ RC RecordPageHandler::init_empty_page(
   page_header_->data_offset    = align8(PAGE_HEADER_SIZE + page_bitmap_size(page_header_->record_capacity)) +
                               column_num * sizeof(int) /* column index*/;
   this->fix_record_capacity();
-  ASSERT(page_header_->data_offset + page_header_->record_capacity * page_header_->record_size 
-              <= BP_PAGE_DATA_SIZE, 
+  ASSERT(page_header_->data_offset + page_header_->record_capacity * page_header_->record_size
+              <= BP_PAGE_DATA_SIZE,
          "Record overflow the page size");
 
   bitmap_ = frame_->data() + PAGE_HEADER_SIZE;
@@ -203,7 +203,7 @@ RC RecordPageHandler::init_empty_page(
 
   rc = log_handler_.init_new_page(frame_, page_num, span((const char *)column_index, column_num * sizeof(int)));
   if (OB_FAIL(rc)) {
-    LOG_ERROR("Failed to init empty page: write log failed. page_num:record_size %d:%d. rc=%s", 
+    LOG_ERROR("Failed to init empty page: write log failed. page_num:record_size %d:%d. rc=%s",
               page_num, record_size, strrc(rc));
     return rc;
   }
@@ -232,8 +232,8 @@ RC RecordPageHandler::init_empty_page(DiskBufferPool &buffer_pool, LogHandler &l
   page_header_->data_offset    = align8(PAGE_HEADER_SIZE + page_bitmap_size(page_header_->record_capacity)) +
                               column_num * sizeof(int) /* column index*/;
   this->fix_record_capacity();
-  ASSERT(page_header_->data_offset + page_header_->record_capacity * page_header_->record_size 
-              <= BP_PAGE_DATA_SIZE, 
+  ASSERT(page_header_->data_offset + page_header_->record_capacity * page_header_->record_size
+              <= BP_PAGE_DATA_SIZE,
          "Record overflow the page size");
 
   bitmap_ = frame_->data() + PAGE_HEADER_SIZE;
@@ -243,7 +243,7 @@ RC RecordPageHandler::init_empty_page(DiskBufferPool &buffer_pool, LogHandler &l
   memcpy(column_index, col_idx_data, column_num * sizeof(int));
 
   if (OB_FAIL(rc)) {
-    LOG_ERROR("Failed to init empty page: write log failed. page_num:record_size %d:%d. rc=%s", 
+    LOG_ERROR("Failed to init empty page: write log failed. page_num:record_size %d:%d. rc=%s",
               page_num, record_size, strrc(rc));
     return rc;
   }
@@ -268,7 +268,7 @@ RC RecordPageHandler::cleanup()
 
 RC RowRecordPageHandler::insert_record(const char *data, RID *rid)
 {
-  ASSERT(rw_mode_ != ReadWriteMode::READ_ONLY, 
+  ASSERT(rw_mode_ != ReadWriteMode::READ_ONLY,
          "cannot insert record into page while the page is readonly");
 
   if (page_header_->record_num == page_header_->record_capacity) {
@@ -328,7 +328,7 @@ RC RowRecordPageHandler::recover_insert_record(const char *data, const RID &rid)
 
 RC RowRecordPageHandler::delete_record(const RID *rid)
 {
-  ASSERT(rw_mode_ != ReadWriteMode::READ_ONLY, 
+  ASSERT(rw_mode_ != ReadWriteMode::READ_ONLY,
          "cannot delete record from page while the page is readonly");
 
   Bitmap bitmap(bitmap_, page_header_->record_capacity);
@@ -373,7 +373,7 @@ RC RowRecordPageHandler::update_record(const RID &rid, const char *data)
 
     RC rc = log_handler_.update_record(frame_, rid, data);
     if (OB_FAIL(rc)) {
-      LOG_ERROR("Failed to update record. page_num %d:%d. rc=%s", 
+      LOG_ERROR("Failed to update record. page_num %d:%d. rc=%s",
                 disk_buffer_pool_->file_desc(), frame_->page_num(), strrc(rc));
       // return rc; // ignore errors
     }
@@ -422,7 +422,7 @@ RC PaxRecordPageHandler::insert_record(const char *data, RID *rid)
 
 RC PaxRecordPageHandler::delete_record(const RID *rid)
 {
-  ASSERT(rw_mode_ != ReadWriteMode::READ_ONLY, 
+  ASSERT(rw_mode_ != ReadWriteMode::READ_ONLY,
          "cannot delete record from page while the page is readonly");
 
   Bitmap bitmap(bitmap_, page_header_->record_capacity);
@@ -618,6 +618,34 @@ RC RecordFileHandler::recover_insert_record(const char *data, int record_size, c
   }
 
   return record_page_handler->recover_insert_record(data, rid);
+}
+
+RC RecordFileHandler::update_record(const char *data, const RID *rid)
+{
+  RC rc = RC::SUCCESS;
+
+  unique_ptr<RecordPageHandler> record_page_handler(RecordPageHandler::create(storage_format_));
+
+  rc = record_page_handler->init(*disk_buffer_pool_, *log_handler_, rid->page_num, ReadWriteMode::READ_WRITE);
+  if (OB_FAIL(rc)) {
+    LOG_ERROR("Failed to init record page handler.page number=%d. rc=%s", rid->page_num, strrc(rc));
+    return rc;
+  }
+
+  rc = record_page_handler->update_record(*rid, data);
+  // 📢 这里注意要清理掉资源，否则会与insert_record中的加锁顺序冲突而可能出现死锁
+  // delete record的加锁逻辑是拿到页面锁，删除指定记录，然后加上和释放record manager锁
+  // insert record是加上 record manager锁，然后拿到指定页面锁再释放record manager锁
+  record_page_handler->cleanup();
+  if (OB_SUCC(rc)) {
+    // 因为这里已经释放了页面锁，并发时，其它线程可能又把该页面填满了，那就不应该再放入 free_pages_
+    // 中。但是这里可以不关心，因为在查找空闲页面时，会自动过滤掉已经满的页面
+    lock_.lock();
+    free_pages_.insert(rid->page_num);
+    LOG_TRACE("add free page %d to free page list", rid->page_num);
+    lock_.unlock();
+  }
+  return rc;
 }
 
 RC RecordFileHandler::delete_record(const RID *rid)
