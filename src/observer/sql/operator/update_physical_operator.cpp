@@ -46,7 +46,7 @@ RC UpdatePhysicalOperator::open(Trx *trx)
     }
 
     RowTuple *row_tuple  = static_cast<RowTuple *>(tuple);
-    Record   &new_record = row_tuple->record();
+    Record    new_record = row_tuple->record();
     Record    old_record(new_record);
 
     memcpy(new_record.data() + field_->offset(), value_.data(), field_->len());
