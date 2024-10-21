@@ -45,7 +45,8 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update, Stmt *&stmt)
   }
 
   Value val;
-  if (update.value.cast_to(update.value, field->type(), val) != RC::SUCCESS) {
+  if (update.value.attr_type() != field->type() &&
+      update.value.cast_to(update.value, field->type(), val) != RC::SUCCESS) {
     return RC::VARIABLE_NOT_VALID;
   }
 
