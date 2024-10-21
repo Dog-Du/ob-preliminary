@@ -34,7 +34,7 @@ RC UpdatePhysicalOperator::open(Trx *trx)
   }
 
   trx_ = trx;
-  value_.resize(field_->len());
+  // value_.resize(field_->len());
 
   std::vector<Record> new_records;
   std::vector<Record> old_records;
@@ -49,7 +49,7 @@ RC UpdatePhysicalOperator::open(Trx *trx)
     Record    new_record = row_tuple->record();
     Record    old_record(new_record);
 
-    memcpy(new_record.data() + field_->offset(), value_.data(), field_->len());
+    memcpy(new_record.data() + field_->offset(), value_.data(), value_.length());
     old_records.emplace_back(old_record);
     new_records.emplace_back(new_record);
   }
