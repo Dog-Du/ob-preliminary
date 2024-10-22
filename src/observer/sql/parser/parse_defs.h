@@ -51,7 +51,9 @@ enum CompOp
   LESS_THAN,    ///< "<"
   GREAT_EQUAL,  ///< ">="
   GREAT_THAN,   ///< ">"
-  NO_OP
+  LIKE,
+  NOT_LIKE,
+  NO_OP,
 };
 
 /**
@@ -123,7 +125,6 @@ struct DeleteSqlNode
   std::string                   relation_name;  ///< Relation to delete from
   std::vector<ConditionSqlNode> conditions;
 };
-
 
 /**
  * @brief 描述一个update语句

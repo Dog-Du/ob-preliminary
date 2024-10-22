@@ -15,8 +15,43 @@ See the Mulan PSL v2 for more details. */
 #include "sql/expr/expression.h"
 #include "sql/expr/tuple.h"
 #include "sql/expr/arithmetic_operator.hpp"
+#include "sql/parser/parse_defs.h"
 
 using namespace std;
+
+bool match_str(const std::string &pattern, const std::string &text)
+{
+  int                  m = pattern.size();
+  int                  n = text.size();
+  vector<vector<bool>> dp(m + 1, vector<bool>(n + 1, false));
+
+  dp[0][0] = true;  // Empty pattern matches empty text
+
+  // Initialize the first row (pattern is empty)
+  for (int j = 1; j <= n; ++j) {
+    dp[0][j] = false;
+  }
+
+  // Initialize the first column (text is empty)
+  for (int i = 1; i <= m; ++i) {
+    if (pattern[i - 1] == '%') {
+      dp[i][0] = dp[i - 1][0];
+    }
+  }
+
+  // Fill in the rest of the dp table
+  for (int i = 1; i <= m; ++i) {
+    for (int j = 1; j <= n; ++j) {
+      if (pattern[i - 1] == text[j - 1] || pattern[i - 1] == '_') {
+        dp[i][j] = dp[i - 1][j - 1];
+      } else if (pattern[i - 1] == '%') {
+        dp[i][j] = dp[i - 1][j] || dp[i][j - 1];
+      }
+    }
+  }
+
+  return dp[m][n];
+}
 
 RC FieldExpr::get_value(const Tuple &tuple, Value &value) const
 {
@@ -91,7 +126,7 @@ RC CastExpr::cast(const Value &value, Value &cast_value) const
 RC CastExpr::get_value(const Tuple &tuple, Value &result) const
 {
   Value value;
-  RC rc = child_->get_value(tuple, value);
+  RC    rc = child_->get_value(tuple, value);
   if (rc != RC::SUCCESS) {
     return rc;
   }
@@ -102,7 +137,7 @@ RC CastExpr::get_value(const Tuple &tuple, Value &result) const
 RC CastExpr::try_get_value(Value &result) const
 {
   Value value;
-  RC rc = child_->try_get_value(value);
+  RC    rc = child_->try_get_value(value);
   if (rc != RC::SUCCESS) {
     return rc;
   }
@@ -142,6 +177,12 @@ RC ComparisonExpr::compare_value(const Value &left, const Value &right, bool &re
     case GREAT_THAN: {
       result = (cmp_result > 0);
     } break;
+    case LIKE: {
+      result = match_str(right.get_string(), left.get_string());
+    } break;
+    case NOT_LIKE : {
+      result = !match_str(right.get_string(), left.get_string());
+    } break;
     default: {
       LOG_WARN("unsupported comparison. %d", comp_);
       rc = RC::INTERNAL;
@@ -154,8 +195,8 @@ RC ComparisonExpr::compare_value(const Value &left, const Value &right, bool &re
 RC ComparisonExpr::try_get_value(Value &cell) const
 {
   if (left_->type() == ExprType::VALUE && right_->type() == ExprType::VALUE) {
-    ValueExpr *  left_value_expr  = static_cast<ValueExpr *>(left_.get());
-    ValueExpr *  right_value_expr = static_cast<ValueExpr *>(right_.get());
+    ValueExpr   *left_value_expr  = static_cast<ValueExpr *>(left_.get());
+    ValueExpr   *right_value_expr = static_cast<ValueExpr *>(right_.get());
     const Value &left_cell        = left_value_expr->get_value();
     const Value &right_cell       = right_value_expr->get_value();
 

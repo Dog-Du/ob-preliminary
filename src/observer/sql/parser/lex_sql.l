@@ -40,7 +40,7 @@ while (0);
 #include "yacc_sql.hpp"
 
 #ifndef register
-#define register 
+#define register
 #endif // register
 
 extern int atoi();
@@ -99,6 +99,10 @@ FROM                                    RETURN_TOKEN(FROM);
 WHERE                                   RETURN_TOKEN(WHERE);
 AND                                     RETURN_TOKEN(AND);
 INSERT                                  RETURN_TOKEN(INSERT);
+
+NOT                                     RETURN_TOKEN(NOT_T);
+LIKE                                    RETURN_TOKEN(LIKE_T);
+
 INTO                                    RETURN_TOKEN(INTO);
 VALUES                                  RETURN_TOKEN(VALUES);
 DELETE                                  RETURN_TOKEN(DELETE);
