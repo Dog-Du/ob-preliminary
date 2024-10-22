@@ -211,7 +211,7 @@ public:
     return RC::SUCCESS;
   }
 
-  RC set_field(int field_offset, int field_len, char *data)
+  RC set_field(int field_offset, int field_len, const char *data)
   {
     if (!owner_) {
       LOG_ERROR("cannot set field when record does not own the memory");

@@ -117,7 +117,11 @@ void Value::resize(int len)
 
   string s(value_.pointer_value_);
   s.resize(len + 1);
-  set_string(s.c_str(), len + 1);
+  reset();
+  attr_type_            = AttrType::CHARS;
+  value_.pointer_value_ = new char[len + 1];
+  memcpy(value_.pointer_value_, s.c_str(), len + 1);
+  length_ = len;
 }
 
 void Value::set_data(char *data, int length)

@@ -44,7 +44,7 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update, Stmt *&stmt)
     return RC::SCHEMA_FIELD_NOT_EXIST;
   }
 
-  Value val;
+  Value val = update.value;
   if (update.value.attr_type() != field->type() &&
       update.value.cast_to(update.value, field->type(), val) != RC::SUCCESS) {
     return RC::VARIABLE_NOT_VALID;

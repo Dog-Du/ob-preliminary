@@ -14,6 +14,7 @@ See the Mulan PSL v2 for more details. */
 
 #include "sql/operator/update_physical_operator.h"
 #include "common/log/log.h"
+#include "common/value.h"
 #include "storage/record/record.h"
 #include "storage/table/table.h"
 #include "storage/trx/trx.h"
@@ -48,7 +49,6 @@ RC UpdatePhysicalOperator::open(Trx *trx)
     RowTuple *row_tuple  = static_cast<RowTuple *>(tuple);
     Record    new_record = row_tuple->record();
     Record    old_record(new_record);
-
     memcpy(new_record.data() + field_->offset(), value_.data(), field_->len());
     old_records.emplace_back(old_record);
     new_records.emplace_back(new_record);
