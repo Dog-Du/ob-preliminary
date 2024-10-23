@@ -362,7 +362,7 @@ attr_def:
       $$ = new AttrInfoSqlNode;
       $$->type = AttrType::CHARS;
       $$->name = $1;
-      $$->length = TEXT_LENGTH;
+      $$->length = TEXT_LENGTH - 1;
       free($1);
     }
     ;

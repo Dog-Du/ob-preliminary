@@ -20,7 +20,7 @@ const int32_t DEFAULT_BUFFER_SIZE = 1024 * 1024 ;
 
 RingBuffer::RingBuffer() : RingBuffer(DEFAULT_BUFFER_SIZE) {}
 
-RingBuffer::RingBuffer(int32_t size) : buffer_(DEFAULT_BUFFER_SIZE) {}
+RingBuffer::RingBuffer(int32_t size) : buffer_(size) {}
 
 RingBuffer::~RingBuffer() {}
 
