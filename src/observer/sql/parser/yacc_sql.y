@@ -419,6 +419,7 @@ value:
     |SSS {
       int len = strlen($1) - 2;
       if (len >= TEXT_LENGTH) {
+        free ($1);
         yyerror (&yylloc, sql_string, sql_result, scanner, yymsg);
       }
 
