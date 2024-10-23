@@ -31,11 +31,6 @@ RC InsertStmt::create(Db *db, const InsertSqlNode &inserts, Stmt *&stmt)
     return RC::INVALID_ARGUMENT;
   }
 
-  for (auto &node : inserts.values) {
-    if (node.length() >= TEXT_LENGTH) {
-      return RC::VARIABLE_NOT_VALID;
-    }
-  }
   // check whether the table exists
   Table *table = db->find_table(table_name);
   if (nullptr == table) {

@@ -417,7 +417,12 @@ value:
       @$ = @1;
     }
     |SSS {
-      char *tmp = common::substr($1,1,strlen($1)-2);
+      int len = strlen($1) - 2;
+      if (len >= TEXT_LENGTH) {
+        yyerror (&yylloc, sql_string, sql_result, scanner, yymsg);
+      }
+
+      char *tmp = common::substr($1,1,len);
       $$ = new Value(tmp);
       free(tmp);
       free($1);
