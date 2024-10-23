@@ -20,7 +20,7 @@ See the Mulan PSL v2 for more details. */
 
 #include "common/value.h"
 
-#define TEXT_LENGTH 1024 * 8  // 8096 bytes
+#define TEXT_LENGTH 1024 * 8 * 8  // 65536 bytes
 
 class Expression;
 
