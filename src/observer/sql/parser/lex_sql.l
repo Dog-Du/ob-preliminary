@@ -102,6 +102,7 @@ INSERT                                  RETURN_TOKEN(INSERT);
 
 NOT                                     RETURN_TOKEN(NOT_T);
 LIKE                                    RETURN_TOKEN(LIKE_T);
+TEXT                                    RETURN_TOKEN(TEXT_T);
 
 INTO                                    RETURN_TOKEN(INTO);
 VALUES                                  RETURN_TOKEN(VALUES);

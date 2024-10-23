@@ -84,6 +84,7 @@ char *my_readline(const char *prompt)
 #else   // USE_READLINE
 char *my_readline(const char *prompt)
 {
+  abort();
   char *buffer = (char *)malloc(MAX_MEM_BUFFER_SIZE);
   if (nullptr == buffer) {
     LOG_WARN("failed to alloc line buffer");
@@ -114,8 +115,8 @@ char *my_readline(const char *prompt)
 */
 bool is_exit_command(const char *cmd)
 {
-  return 0 == strncasecmp("exit", cmd, 4) 
-      || 0 == strncasecmp("bye", cmd, 3) 
+  return 0 == strncasecmp("exit", cmd, 4)
+      || 0 == strncasecmp("bye", cmd, 3)
       || 0 == strncasecmp("\\q", cmd, 2)
       || 0 == strncasecmp("interrupted", cmd, 11);
 }

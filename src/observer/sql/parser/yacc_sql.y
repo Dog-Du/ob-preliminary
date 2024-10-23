@@ -69,6 +69,7 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
         CREATE
         LIKE_T
         NOT_T
+        TEXT_T
         DROP
         GROUP
         TABLE
@@ -354,6 +355,14 @@ attr_def:
       $$->type = (AttrType)$2;
       $$->name = $1;
       $$->length = 4;
+      free($1);
+    }
+    | ID TEXT_T
+    {
+      $$ = new AttrInfoSqlNode;
+      $$->type = AttrType::CHARS;
+      $$->name = $1;
+      $$->length = TEXT_LENGTH;
       free($1);
     }
     ;
