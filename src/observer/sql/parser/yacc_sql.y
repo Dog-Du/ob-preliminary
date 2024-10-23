@@ -720,34 +720,36 @@ update_list:
   ;
 
 select_stmt:        /*  select 语句的语法解析树*/
-    SELECT select_attr FROM ID rel_list join_list where order_by
+    SELECT select_attr FROM ID /*rel_list*/ join_list where order_by
     {
       $$ = new ParsedSqlNode(SCF_SELECT);
       if ($2 != nullptr) {
         $$->selection.attributes.swap(*$2);
         delete $2;
       }
-      if ($5 != nullptr) {
-        $$->selection.relations.swap(*$5);
-        delete $5;
-      }
+
+    //  if ($5 != nullptr) {
+    //    $$->selection.relations.swap(*$5);
+    //    delete $5;
+    //  }
+
       $$->selection.relations.push_back($4);
       std::reverse($$->selection.relations.begin(), $$->selection.relations.end());
 
+      if ($5 != nullptr) {
+        std::reverse($5->begin(), $5->end());
+        $$->selection.joins.swap(*$5);
+        delete $5;
+      }
+
       if ($6 != nullptr) {
-        std::reverse($6->begin(), $6->end());
-        $$->selection.joins.swap(*$6);
+        $$->selection.conditions.swap(*$6);
         delete $6;
       }
 
       if ($7 != nullptr) {
-        $$->selection.conditions.swap(*$7);
+        $$->selection.order_bys.swap(*$7);
         delete $7;
-      }
-
-      if ($8 != nullptr) {
-        $$->selection.order_bys.swap(*$8);
-        delete $8;
       }
 
       free($4);
