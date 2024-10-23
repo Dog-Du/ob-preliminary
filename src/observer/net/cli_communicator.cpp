@@ -84,7 +84,6 @@ char *my_readline(const char *prompt)
 #else   // USE_READLINE
 char *my_readline(const char *prompt)
 {
-  abort();
   char *buffer = (char *)malloc(MAX_MEM_BUFFER_SIZE);
   if (nullptr == buffer) {
     LOG_WARN("failed to alloc line buffer");
@@ -123,8 +122,14 @@ bool is_exit_command(const char *cmd)
 
 char *read_command()
 {
-  const char *prompt_str    = "miniob > ";
-  char       *input_command = my_readline(prompt_str);
+  const char *prompt_str = "miniob > ";
+  char *input_command = nullptr;
+  for (input_command = my_readline(prompt_str);
+        common::is_blank(input_command);
+        input_command = my_readline(prompt_str)) {
+    free(input_command);
+    input_command = nullptr;
+  }
   return input_command;
 }
 

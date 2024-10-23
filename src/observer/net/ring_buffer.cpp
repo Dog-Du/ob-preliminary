@@ -16,7 +16,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/log/log.h"
 #include "net/ring_buffer.h"
 
-const int32_t DEFAULT_BUFFER_SIZE = 16 * 1024;
+const int32_t DEFAULT_BUFFER_SIZE = 16 * 1024 * 8;
 
 RingBuffer::RingBuffer() : RingBuffer(DEFAULT_BUFFER_SIZE) {}
 
