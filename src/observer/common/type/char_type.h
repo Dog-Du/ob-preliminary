@@ -24,7 +24,8 @@ public:
 
   virtual ~CharType() = default;
 
-  int compare(const Value &left, const Value &right) const override;
+  bool is_null(const Value &val) const override;
+  int  compare(const Value &left, const Value &right) const override;
 
   RC cast_to(const Value &val, AttrType type, Value &result) const override;
 

@@ -18,7 +18,7 @@ See the Mulan PSL v2 for more details. */
 #include "storage/field/field.h"
 #include "storage/record/record.h"
 
-PredicatePhysicalOperator::PredicatePhysicalOperator(std::unique_ptr<Expression> expr) : expression_(std::move(expr))
+PredicatePhysicalOperator::PredicatePhysicalOperator(std::shared_ptr<Expression> expr) : expression_(std::move(expr))
 {
   ASSERT(expression_->value_type() == AttrType::BOOLEANS, "predicate's expression should be BOOLEAN type");
 }

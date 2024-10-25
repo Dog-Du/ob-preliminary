@@ -20,7 +20,7 @@ See the Mulan PSL v2 for more details. */
 
 using namespace std;
 
-GroupByLogicalOperator::GroupByLogicalOperator(vector<unique_ptr<Expression>> &&group_by_exprs,
+GroupByLogicalOperator::GroupByLogicalOperator(vector<shared_ptr<Expression>> &&group_by_exprs,
                                                vector<Expression *> &&expressions)
 {
   group_by_expressions_ = std::move(group_by_exprs);

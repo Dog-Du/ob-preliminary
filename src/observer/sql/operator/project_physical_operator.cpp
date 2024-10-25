@@ -19,7 +19,7 @@ See the Mulan PSL v2 for more details. */
 
 using namespace std;
 
-ProjectPhysicalOperator::ProjectPhysicalOperator(vector<unique_ptr<Expression>> &&expressions)
+ProjectPhysicalOperator::ProjectPhysicalOperator(vector<shared_ptr<Expression>> &&expressions)
   : expressions_(std::move(expressions)), tuple_(expressions_)
 {
 }
@@ -63,7 +63,7 @@ Tuple *ProjectPhysicalOperator::current_tuple()
 
 RC ProjectPhysicalOperator::tuple_schema(TupleSchema &schema) const
 {
-  for (const unique_ptr<Expression> &expression : expressions_) {
+  for (const shared_ptr<Expression> &expression : expressions_) {
     schema.append_cell(expression->name());
   }
   return RC::SUCCESS;

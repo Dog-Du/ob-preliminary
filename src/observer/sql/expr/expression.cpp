@@ -70,6 +70,56 @@ bool FieldExpr::equal(const Expression &other) const
   return table_name() == other_field_expr.table_name() && field_name() == other_field_expr.field_name();
 }
 
+RC FieldExpr::check_field(const std::unordered_map<std::string, Table *> &all_tables, Table *default_table,
+    const std::vector<Table *> &tables, const std::unordered_map<std::string, std::string> &alias_map)
+{
+
+  auto   table_name = field_.table_name();
+  auto   field_name = field_.field_name();
+  Table *table      = nullptr;
+
+  if (!common::is_blank(table_name)) {
+    auto iter = all_tables.find(table_name);
+    if (iter == all_tables.end()) {
+
+      return RC::SCHEMA_TABLE_NOT_EXIST;
+    }
+    table = iter->second;
+  } else {
+    if (tables.size() != 1 && default_table == nullptr) {
+      return RC::SCHEMA_FIELD_MISSING;
+    }
+
+    table = default_table;
+  }
+
+  // 得到了表的名字
+  table_name = table->name();
+
+  const FieldMeta *field_meta = table->table_meta().field(field_name);
+
+  if (nullptr == field_meta) {
+    return RC::SCHEMA_FIELD_NOT_EXIST;
+  }
+
+  if (strlen(Expression::alias()) > 0) {
+    set_name(Expression::alias());
+  } else {
+    if (tables.size() > 1) {
+      set_name(std::string(table_name) + "." + field_name);
+    } else {
+      set_name(field_name);
+    }
+  }
+
+  set_table_name(table_name);
+  set_field_name(field_name);
+
+  field_ = Field(table, field_meta);
+
+  return RC::SUCCESS;
+}
+
 // TODO: 在进行表达式计算时，`chunk` 包含了所有列，因此可以通过 `field_id` 获取到对应列。
 // 后续可以优化成在 `FieldExpr` 中存储 `chunk` 中某列的位置信息。
 RC FieldExpr::get_column(Chunk &chunk, Column &column)
@@ -107,7 +157,7 @@ RC ValueExpr::get_column(Chunk &chunk, Column &column)
 }
 
 /////////////////////////////////////////////////////////////////////////////////
-CastExpr::CastExpr(unique_ptr<Expression> child, AttrType cast_type) : child_(std::move(child)), cast_type_(cast_type)
+CastExpr::CastExpr(shared_ptr<Expression> child, AttrType cast_type) : child_(std::move(child)), cast_type_(cast_type)
 {}
 
 CastExpr::~CastExpr() {}
@@ -147,7 +197,7 @@ RC CastExpr::try_get_value(Value &result) const
 
 ////////////////////////////////////////////////////////////////////////////////
 
-ComparisonExpr::ComparisonExpr(CompOp comp, unique_ptr<Expression> left, unique_ptr<Expression> right)
+ComparisonExpr::ComparisonExpr(CompOp comp, shared_ptr<Expression> left, shared_ptr<Expression> right)
     : comp_(comp), left_(std::move(left)), right_(std::move(right))
 {}
 
@@ -180,7 +230,7 @@ RC ComparisonExpr::compare_value(const Value &left, const Value &right, bool &re
     case LIKE: {
       result = match_str(right.get_string(), left.get_string());
     } break;
-    case NOT_LIKE : {
+    case NOT_LIKE: {
       result = !match_str(right.get_string(), left.get_string());
     } break;
     default: {
@@ -290,7 +340,7 @@ RC ComparisonExpr::compare_column(const Column &left, const Column &right, std::
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-ConjunctionExpr::ConjunctionExpr(Type type, vector<unique_ptr<Expression>> &children)
+ConjunctionExpr::ConjunctionExpr(Type type, vector<shared_ptr<Expression>> &children)
     : conjunction_type_(type), children_(std::move(children))
 {}
 
@@ -303,7 +353,7 @@ RC ConjunctionExpr::get_value(const Tuple &tuple, Value &value) const
   }
 
   Value tmp_value;
-  for (const unique_ptr<Expression> &expr : children_) {
+  for (const shared_ptr<Expression> &expr : children_) {
     rc = expr->get_value(tuple, tmp_value);
     if (rc != RC::SUCCESS) {
       LOG_WARN("failed to get value by child expression. rc=%s", strrc(rc));
@@ -326,7 +376,7 @@ RC ConjunctionExpr::get_value(const Tuple &tuple, Value &value) const
 ArithmeticExpr::ArithmeticExpr(ArithmeticExpr::Type type, Expression *left, Expression *right)
     : arithmetic_type_(type), left_(left), right_(right)
 {}
-ArithmeticExpr::ArithmeticExpr(ArithmeticExpr::Type type, unique_ptr<Expression> left, unique_ptr<Expression> right)
+ArithmeticExpr::ArithmeticExpr(ArithmeticExpr::Type type, shared_ptr<Expression> left, shared_ptr<Expression> right)
     : arithmetic_type_(type), left_(std::move(left)), right_(std::move(right))
 {}
 
@@ -553,14 +603,14 @@ RC ArithmeticExpr::try_get_value(Value &value) const
 
 ////////////////////////////////////////////////////////////////////////////////
 
-UnboundAggregateExpr::UnboundAggregateExpr(const char *aggregate_name, Expression *child)
-    : aggregate_name_(aggregate_name), child_(child)
+UnboundAggregateExpr::UnboundAggregateExpr(const char *aggregate_name, Expression *child, const char *alias)
+    : aggregate_name_(aggregate_name), alias_(alias), child_(child)
 {}
 
 ////////////////////////////////////////////////////////////////////////////////
 AggregateExpr::AggregateExpr(Type type, Expression *child) : aggregate_type_(type), child_(child) {}
 
-AggregateExpr::AggregateExpr(Type type, unique_ptr<Expression> child) : aggregate_type_(type), child_(std::move(child))
+AggregateExpr::AggregateExpr(Type type, shared_ptr<Expression> child) : aggregate_type_(type), child_(std::move(child))
 {}
 
 RC AggregateExpr::get_column(Chunk &chunk, Column &column)
@@ -586,9 +636,9 @@ bool AggregateExpr::equal(const Expression &other) const
   return aggregate_type_ == other_aggr_expr.aggregate_type() && child_->equal(*other_aggr_expr.child());
 }
 
-unique_ptr<Aggregator> AggregateExpr::create_aggregator() const
+shared_ptr<Aggregator> AggregateExpr::create_aggregator() const
 {
-  unique_ptr<Aggregator> aggregator;
+  shared_ptr<Aggregator> aggregator;
   switch (aggregate_type_) {
     case Type::SUM: {
       aggregator = make_unique<SumAggregator>();

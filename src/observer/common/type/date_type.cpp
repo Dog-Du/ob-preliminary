@@ -12,8 +12,10 @@
 
 int DateType::compare(const Value &left, const Value &right) const
 {
-  return common::compare_int((void *)&left.value_.int_value_, (void *)&right.value_.int_value_);
+  return common::compare_int((void *)&left.value_.date_value_, (void *)&right.value_.date_value_);
 }
+
+bool DateType::is_null(const Value &val) const { return val.value_.date_value_ == DATE_NULL; }
 
 RC DateType::to_string(const Value &val, string &result) const
 {

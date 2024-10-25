@@ -31,7 +31,7 @@ using namespace common;
 
 RC OptimizeStage::handle_request(SQLStageEvent *sql_event)
 {
-  unique_ptr<LogicalOperator> logical_operator;
+  shared_ptr<LogicalOperator> logical_operator;
 
   RC rc = create_logical_plan(sql_event, logical_operator);
   if (rc != RC::SUCCESS) {
@@ -55,26 +55,26 @@ RC OptimizeStage::handle_request(SQLStageEvent *sql_event)
     return rc;
   }
 
-  unique_ptr<PhysicalOperator> physical_operator;
+  shared_ptr<PhysicalOperator> physical_operator;
   rc = generate_physical_plan(logical_operator, physical_operator, sql_event->session_event()->session());
   if (rc != RC::SUCCESS) {
     LOG_WARN("failed to generate physical plan. rc=%s", strrc(rc));
     return rc;
   }
 
-  sql_event->set_operator(std::move(physical_operator));
+  sql_event->set_operator(physical_operator);
 
   return rc;
 }
 
-RC OptimizeStage::optimize(unique_ptr<LogicalOperator> &oper)
+RC OptimizeStage::optimize(shared_ptr<LogicalOperator> &oper)
 {
   // do nothing
   return RC::SUCCESS;
 }
 
 RC OptimizeStage::generate_physical_plan(
-    unique_ptr<LogicalOperator> &logical_operator, unique_ptr<PhysicalOperator> &physical_operator, Session *session)
+    shared_ptr<LogicalOperator> &logical_operator, shared_ptr<PhysicalOperator> &physical_operator, Session *session)
 {
   RC rc = RC::SUCCESS;
   if (session->get_execution_mode() == ExecutionMode::CHUNK_ITERATOR && LogicalOperator::can_generate_vectorized_operator(logical_operator->type())) {
@@ -92,7 +92,7 @@ RC OptimizeStage::generate_physical_plan(
   return rc;
 }
 
-RC OptimizeStage::rewrite(unique_ptr<LogicalOperator> &logical_operator)
+RC OptimizeStage::rewrite(shared_ptr<LogicalOperator> &logical_operator)
 {
   RC rc = RC::SUCCESS;
 
@@ -109,7 +109,7 @@ RC OptimizeStage::rewrite(unique_ptr<LogicalOperator> &logical_operator)
   return rc;
 }
 
-RC OptimizeStage::create_logical_plan(SQLStageEvent *sql_event, unique_ptr<LogicalOperator> &logical_operator)
+RC OptimizeStage::create_logical_plan(SQLStageEvent *sql_event, shared_ptr<LogicalOperator> &logical_operator)
 {
   Stmt *stmt = sql_event->stmt();
   if (nullptr == stmt) {

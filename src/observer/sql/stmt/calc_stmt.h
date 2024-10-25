@@ -39,14 +39,14 @@ public:
   static RC create(CalcSqlNode &calc_sql, Stmt *&stmt)
   {
     CalcStmt *calc_stmt     = new CalcStmt();
-    calc_stmt->expressions_ = std::move(calc_sql.expressions);
+    calc_stmt->expressions_ = calc_sql.expressions;
     stmt                    = calc_stmt;
     return RC::SUCCESS;
   }
 
 public:
-  std::vector<std::unique_ptr<Expression>> &expressions() { return expressions_; }
+  std::vector<std::shared_ptr<Expression>> &expressions() { return expressions_; }
 
 private:
-  std::vector<std::unique_ptr<Expression>> expressions_;
+  std::vector<std::shared_ptr<Expression>> expressions_;
 };

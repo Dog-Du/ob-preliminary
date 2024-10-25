@@ -25,6 +25,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/stmt/select_stmt.h"
 #include "sql/stmt/stmt.h"
 #include "storage/default/default_handler.h"
+#include "sql/operator/project_physical_operator.h"
 
 using namespace std;
 using namespace common;
@@ -33,7 +34,7 @@ RC ExecuteStage::handle_request(SQLStageEvent *sql_event)
 {
   RC rc = RC::SUCCESS;
 
-  const unique_ptr<PhysicalOperator> &physical_operator = sql_event->physical_operator();
+  auto &physical_operator = sql_event->physical_operator();
   if (physical_operator != nullptr) {
     return handle_request_with_physical_operator(sql_event);
   }
@@ -55,10 +56,43 @@ RC ExecuteStage::handle_request_with_physical_operator(SQLStageEvent *sql_event)
 {
   RC rc = RC::SUCCESS;
 
-  unique_ptr<PhysicalOperator> &physical_operator = sql_event->physical_operator();
+  Stmt *stmt = sql_event->stmt();
+  ASSERT(stmt != nullptr, "SQL Statement shouldn't be empty!");
+
+  auto &physical_operator = sql_event->physical_operator();
   ASSERT(physical_operator != nullptr, "physical operator should not be null");
 
+  // TODO 这里也可以优化一下，是否可以让physical operator自己设置tuple schema
+  TupleSchema schema;
+  switch (stmt->type()) {
+    case StmtType::SELECT: {
+      ProjectPhysicalOperator *project_operator = static_cast<ProjectPhysicalOperator *>(physical_operator.get());
+      for (const auto &expr : project_operator->projection_expressions()) {
+        if (strlen(expr->alias()) == 0) {
+          schema.append_cell(expr->name());
+        } else {
+          schema.append_cell(expr->alias());
+        }
+      }
+    } break;
+
+    case StmtType::CALC: {
+      CalcPhysicalOperator *calc_operator = static_cast<CalcPhysicalOperator *>(physical_operator.get());
+      for (const auto &expr : calc_operator->expressions()) {
+        schema.append_cell(expr->name());
+      }
+    } break;
+
+    case StmtType::EXPLAIN: {
+      schema.append_cell("Query Plan");
+    } break;
+    default: {
+      // 只有select返回结果
+    } break;
+  }
+
   SqlResult *sql_result = sql_event->session_event()->sql_result();
+  sql_result->set_tuple_schema(schema);
   sql_result->set_operator(std::move(physical_operator));
   return rc;
 }

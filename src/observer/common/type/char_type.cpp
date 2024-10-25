@@ -28,6 +28,11 @@ RC CharType::set_value_from_str(Value &val, const string &data) const
   return RC::SUCCESS;
 }
 
+bool CharType::is_null(const Value &val) const
+{
+  return val.length_ == 0 || val.value_.pointer_value_ == nullptr || val.value_.pointer_value_[0] == '\0';
+}
+
 RC CharType::cast_to(const Value &val, AttrType type, Value &result) const
 {
   switch (type) {

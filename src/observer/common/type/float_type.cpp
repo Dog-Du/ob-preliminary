@@ -12,6 +12,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/lang/sstream.h"
 #include "common/log/log.h"
 #include "common/type/float_type.h"
+#include "common/type/attr_type.h"
 #include "common/value.h"
 #include "common/lang/limits.h"
 #include "common/value.h"
@@ -23,6 +24,27 @@ int FloatType::compare(const Value &left, const Value &right) const
   float left_val  = left.get_float();
   float right_val = right.get_float();
   return common::compare_float((void *)&left_val, (void *)&right_val);
+}
+
+bool FloatType::is_null(const Value &val) const { return val.value_.float_value_ == FLOAT_NULL; }
+
+RC FloatType::cast_to(const Value &val, AttrType attr_type, Value &result) const
+{
+  RC rc = RC::SUCCESS;
+  switch (attr_type) {
+    case AttrType::FLOATS: {
+      result.attr_type_          = AttrType::FLOATS;
+      result.value_.float_value_ = val.get_float();
+    } break;
+    case AttrType::INTS: {
+      result.attr_type_        = AttrType::INTS;
+      result.value_.int_value_ = static_cast<int>(val.get_float());
+    } break;
+    default: {
+      rc = RC::VARIABLE_NOT_VALID;
+    }
+  }
+  return rc;
 }
 
 RC FloatType::add(const Value &left, const Value &right, Value &result) const
@@ -46,7 +68,7 @@ RC FloatType::divide(const Value &left, const Value &right, Value &result) const
   if (right.get_float() > -EPSILON && right.get_float() < EPSILON) {
     // NOTE:
     // 设置为浮点数最大值是不正确的。通常的做法是设置为NULL，但是当前的miniob没有NULL概念，所以这里设置为浮点数最大值。
-    result.set_float(numeric_limits<float>::max());
+    result.set_float(FLOAT_NULL);
   } else {
     result.set_float(left.get_float() / right.get_float());
   }
@@ -61,7 +83,7 @@ RC FloatType::negative(const Value &val, Value &result) const
 
 RC FloatType::set_value_from_str(Value &val, const string &data) const
 {
-  RC                rc = RC::SUCCESS;
+  RC           rc = RC::SUCCESS;
   stringstream deserialize_stream;
   deserialize_stream.clear();
   deserialize_stream.str(data);

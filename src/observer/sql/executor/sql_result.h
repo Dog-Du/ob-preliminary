@@ -39,7 +39,7 @@ public:
   void set_return_code(RC rc) { return_code_ = rc; }
   void set_state_string(const std::string &state_string) { state_string_ = state_string; }
 
-  void set_operator(std::unique_ptr<PhysicalOperator> oper);
+  void set_operator(std::shared_ptr<PhysicalOperator> oper);
 
   bool               has_operator() const { return operator_ != nullptr; }
   const TupleSchema &tuple_schema() const { return tuple_schema_; }
@@ -53,7 +53,7 @@ public:
 
 private:
   Session                          *session_ = nullptr;  ///< 当前所属会话
-  std::unique_ptr<PhysicalOperator> operator_;           ///< 执行计划
+  std::shared_ptr<PhysicalOperator> operator_;           ///< 执行计划
   TupleSchema                       tuple_schema_;       ///< 返回的表头信息。可能有也可能没有
   RC                                return_code_ = RC::SUCCESS;
   std::string                       state_string_;

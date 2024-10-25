@@ -19,6 +19,9 @@ See the Mulan PSL v2 for more details. */
 #include "common/type/attr_type.h"
 #include "common/type/data_type.h"
 #include "common/type/date_type.h"
+#include <cfloat>
+#include <cstdint>
+#include <ctype.h>
 
 /**
  * @brief 属性的值
@@ -37,6 +40,7 @@ public:
   friend class CharType;
   friend class VectorType;
   friend class DateType;
+  friend class NullType;
 
   Value() = default;
 
@@ -57,6 +61,8 @@ public:
 
   void reset();
   void resize(int len);
+
+  static bool is_null(const Value &val) { return DataType::type_instance(val.attr_type())->is_null(val); }
 
   static RC add(const Value &left, const Value &right, Value &result)
   {
@@ -128,6 +134,7 @@ private:
   union Val
   {
     int32_t int_value_;
+    int32_t date_value_;
     float   float_value_;
     bool    bool_value_;
     char   *pointer_value_;

@@ -36,7 +36,7 @@ public:
   RC next(Chunk &chunk) override;
   RC close() override;
 
-  void set_predicates(std::vector<std::unique_ptr<Expression>> &&exprs);
+  void set_predicates(std::vector<std::shared_ptr<Expression>> &&exprs);
 
 private:
   RC filter(Chunk &chunk);
@@ -48,5 +48,5 @@ private:
   Chunk                                    all_columns_;
   Chunk                                    filterd_columns_;
   std::vector<uint8_t>                     select_;
-  std::vector<std::unique_ptr<Expression>> predicates_;
+  std::vector<std::shared_ptr<Expression>> predicates_;
 };

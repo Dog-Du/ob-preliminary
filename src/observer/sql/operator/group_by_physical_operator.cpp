@@ -35,17 +35,17 @@ GroupByPhysicalOperator::GroupByPhysicalOperator(vector<Expression *> &&expressi
 
 void GroupByPhysicalOperator::create_aggregator_list(AggregatorList &aggregator_list)
 {
-  aggregator_list.clear();
-  aggregator_list.reserve(aggregate_expressions_.size());
-  ranges::for_each(aggregate_expressions_, [&aggregator_list](Expression *expr) {
-    auto *aggregate_expr = static_cast<AggregateExpr *>(expr);
-    aggregator_list.emplace_back(aggregate_expr->create_aggregator());
-  });
+  // aggregator_list.clear();
+  // aggregator_list.reserve(aggregate_expressions_.size());
+  // ranges::for_each(aggregate_expressions_, [&aggregator_list](Expression *expr) {
+  //   auto *aggregate_expr = static_cast<AggregateExpr *>(expr);
+  //   aggregator_list.emplace_back(aggregate_expr->create_aggregator());
+  // });
 }
 
 RC GroupByPhysicalOperator::aggregate(AggregatorList &aggregator_list, const Tuple &tuple)
 {
-  ASSERT(static_cast<int>(aggregator_list.size()) == tuple.cell_num(), 
+  ASSERT(static_cast<int>(aggregator_list.size()) == tuple.cell_num(),
          "aggregator list size must be equal to tuple size. aggregator num: %d, tuple num: %d",
          aggregator_list.size(), tuple.cell_num());
 

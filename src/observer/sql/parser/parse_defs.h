@@ -39,6 +39,7 @@ struct RelAttrSqlNode
 {
   std::string relation_name;   ///< relation name (may be NULL) 表名
   std::string attribute_name;  ///< attribute name              属性名
+  std::string alias;
 };
 
 /**
@@ -66,6 +67,8 @@ enum CompOp
  * 左边和右边理论上都可以是任意的数据，比如是字段（属性，列），也可以是数值常量。
  * 这个结构中记录的仅仅支持字段和值。
  */
+
+// 用不到了。
 struct ConditionSqlNode
 {
   int left_is_attr;              ///< TRUE if left-hand side is an attribute
@@ -77,6 +80,13 @@ struct ConditionSqlNode
                                  ///< 1时，操作符右边是属性名，0时，是属性值
   RelAttrSqlNode right_attr;     ///< right-hand side attribute if right_is_attr = TRUE 右边的属性
   Value          right_value;    ///< right-hand side value if right_is_attr = FALSE
+};
+
+struct JoinSqlNode  // 用expression * 可以使用多态，更方便一些。
+{
+  RelAttrSqlNode                           first_rel;
+  std::vector<RelAttrSqlNode>              join_rel_list;
+  std::vector<std::shared_ptr<Expression>> conditions;
 };
 
 /**
@@ -92,10 +102,10 @@ struct ConditionSqlNode
 
 struct SelectSqlNode
 {
-  std::vector<std::unique_ptr<Expression>> expressions;  ///< 查询的表达式
-  std::vector<std::string>                 relations;    ///< 查询的表
-  std::vector<ConditionSqlNode>            conditions;   ///< 查询条件，使用AND串联起来多个条件
-  std::vector<std::unique_ptr<Expression>> group_by;     ///< group by clause
+  std::vector<std::shared_ptr<Expression>> expressions;  ///< 查询的表达式
+  std::vector<JoinSqlNode>                 relations;    ///< 查询的表
+  std::shared_ptr<Expression>              conditions;   ///< 查询条件，使用AND串联起来多个条件
+  std::vector<std::shared_ptr<Expression>> group_by;     ///< group by clause
 };
 
 /**
@@ -104,7 +114,7 @@ struct SelectSqlNode
  */
 struct CalcSqlNode
 {
-  std::vector<std::unique_ptr<Expression>> expressions;  ///< calc clause
+  std::vector<std::shared_ptr<Expression>> expressions;  ///< calc clause
 };
 
 /**
@@ -124,8 +134,8 @@ struct InsertSqlNode
  */
 struct DeleteSqlNode
 {
-  std::string                   relation_name;  ///< Relation to delete from
-  std::vector<ConditionSqlNode> conditions;
+  std::string                 relation_name;  ///< Relation to delete from
+  std::shared_ptr<Expression> conditions;
 };
 
 /**
@@ -134,10 +144,10 @@ struct DeleteSqlNode
  */
 struct UpdateSqlNode
 {
-  std::string                   relation_name;   ///< Relation to update
-  std::string                   attribute_name;  ///< 更新的字段，仅支持一个字段
-  Value                         value;           ///< 更新的值，仅支持一个字段
-  std::vector<ConditionSqlNode> conditions;
+  std::string                 relation_name;   ///< Relation to update
+  std::string                 attribute_name;  ///< 更新的字段，仅支持一个字段
+  Value                       value;           ///< 更新的值，仅支持一个字段
+  std::shared_ptr<Expression> conditions;
 };
 
 /**
@@ -150,6 +160,7 @@ struct AttrInfoSqlNode
   AttrType    type;    ///< Type of attribute
   std::string name;    ///< Attribute name
   size_t      length;  ///< Length of attribute
+  bool        nullable;
 };
 
 /**
@@ -239,7 +250,7 @@ class ParsedSqlNode;
  */
 struct ExplainSqlNode
 {
-  std::unique_ptr<ParsedSqlNode> sql_node;
+  std::shared_ptr<ParsedSqlNode> sql_node;
 };
 
 /**
@@ -318,10 +329,10 @@ public:
 class ParsedSqlResult
 {
 public:
-  void add_sql_node(std::unique_ptr<ParsedSqlNode> sql_node);
+  void add_sql_node(std::shared_ptr<ParsedSqlNode> sql_node);
 
-  std::vector<std::unique_ptr<ParsedSqlNode>> &sql_nodes() { return sql_nodes_; }
+  std::vector<std::shared_ptr<ParsedSqlNode>> &sql_nodes() { return sql_nodes_; }
 
 private:
-  std::vector<std::unique_ptr<ParsedSqlNode>> sql_nodes_;  ///< 这里记录SQL命令。虽然看起来支持多个，但是当前仅处理一个
+  std::vector<std::shared_ptr<ParsedSqlNode>> sql_nodes_;  ///< 这里记录SQL命令。虽然看起来支持多个，但是当前仅处理一个
 };

@@ -30,7 +30,7 @@ class RewriteRule
 public:
   virtual ~RewriteRule() = default;
 
-  virtual RC rewrite(std::unique_ptr<LogicalOperator> &oper, bool &change_made) = 0;
+  virtual RC rewrite(std::shared_ptr<LogicalOperator> &oper, bool &change_made) = 0;
 };
 
 /**
@@ -42,5 +42,5 @@ class ExpressionRewriteRule
 public:
   virtual ~ExpressionRewriteRule() = default;
 
-  virtual RC rewrite(std::unique_ptr<Expression> &expr, bool &change_made) = 0;
+  virtual RC rewrite(std::shared_ptr<Expression> &expr, bool &change_made) = 0;
 };

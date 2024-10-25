@@ -67,7 +67,7 @@ RC TableScanVecPhysicalOperator::close() { return chunk_scanner_.close_scan(); }
 
 string TableScanVecPhysicalOperator::param() const { return table_->name(); }
 
-void TableScanVecPhysicalOperator::set_predicates(vector<unique_ptr<Expression>> &&exprs)
+void TableScanVecPhysicalOperator::set_predicates(vector<shared_ptr<Expression>> &&exprs)
 {
   predicates_ = std::move(exprs);
 }
@@ -75,7 +75,7 @@ void TableScanVecPhysicalOperator::set_predicates(vector<unique_ptr<Expression>>
 RC TableScanVecPhysicalOperator::filter(Chunk &chunk)
 {
   RC rc = RC::SUCCESS;
-  for (unique_ptr<Expression> &expr : predicates_) {
+  for (shared_ptr<Expression> &expr : predicates_) {
     rc = expr->eval(chunk, select_);
     if (rc != RC::SUCCESS) {
       return rc;

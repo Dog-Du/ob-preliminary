@@ -191,6 +191,7 @@ RC PlainCommunicator::write_result_internal(SessionEvent *event, bool &need_disc
   }
 
   rc = sql_result->open();
+  
   if (OB_FAIL(rc)) {
     sql_result->close();
     sql_result->set_return_code(rc);

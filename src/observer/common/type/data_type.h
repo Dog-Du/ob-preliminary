@@ -38,6 +38,7 @@ public:
 
   inline AttrType get_attr_type() const { return attr_type_; }
 
+  virtual bool is_null(const Value &val) const { return false; }
   /**
    * @return
    *  -1 表示 left < right

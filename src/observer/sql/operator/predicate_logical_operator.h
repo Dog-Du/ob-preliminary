@@ -16,6 +16,7 @@ See the Mulan PSL v2 for more details. */
 
 #include "sql/expr/expression.h"
 #include "sql/operator/logical_operator.h"
+#include <memory>
 
 /**
  * @brief 谓词/过滤逻辑算子
@@ -24,7 +25,7 @@ See the Mulan PSL v2 for more details. */
 class PredicateLogicalOperator : public LogicalOperator
 {
 public:
-  PredicateLogicalOperator(std::unique_ptr<Expression> expression);
+  PredicateLogicalOperator(std::shared_ptr<Expression> expression);
   virtual ~PredicateLogicalOperator() = default;
 
   LogicalOperatorType type() const override { return LogicalOperatorType::PREDICATE; }

@@ -14,6 +14,7 @@ See the Mulan PSL v2 for more details. */
 
 #pragma once
 
+#include <functional>
 #include <memory>
 #include <string>
 
@@ -21,6 +22,7 @@ See the Mulan PSL v2 for more details. */
 #include "storage/field/field.h"
 #include "sql/expr/aggregator.h"
 #include "storage/common/chunk.h"
+#include "storage/field/field_meta.h"
 
 class Tuple;
 
@@ -65,7 +67,10 @@ enum class ExprType
 class Expression
 {
 public:
-  Expression()          = default;
+  Expression() = default;
+  Expression(const std::string &table_name, const std::string &field_name, const std::string &alias)
+      : name_(), table_name_(table_name), field_name_(field_name), alias_(alias)
+  {}
   virtual ~Expression() = default;
 
   /**
@@ -88,6 +93,9 @@ public:
    */
   virtual RC get_column(Chunk &chunk, Column &column) { return RC::UNIMPLEMENTED; }
 
+  // 使用匿名函数，传递进入作为参数，然后进行检查，或者获取某些信息的接口，提供遍历的操作。
+  virtual void check_or_get(std::function<void(Expression *)> &worker_func) = 0;
+
   /**
    * @brief 表达式的类型
    * 可以根据表达式类型来转换为具体的子类
@@ -109,7 +117,14 @@ public:
    * @brief 表达式的名字，比如是字段名称，或者用户在执行SQL语句时输入的内容
    */
   virtual const char *name() const { return name_.c_str(); }
-  virtual void        set_name(std::string name) { name_ = name; }
+  virtual const char *alias() const { return alias_.c_str(); }
+  virtual const char *table_name() const { return table_name_.c_str(); }
+  virtual const char *field_name() const { return field_name_.c_str(); }
+
+  virtual void set_name(std::string name) { name_ = name; }
+  virtual void set_alias(std::string alias) { alias_ = alias; }
+  virtual void set_field_name(std::string field_name) { field_name_ = field_name; }
+  virtual void set_table_name(std::string table_name) { table_name_ = table_name; }
 
   /**
    * @brief 表达式在下层算子返回的 chunk 中的位置
@@ -133,6 +148,9 @@ protected:
 
 private:
   std::string name_;
+  std::string table_name_;
+  std::string field_name_;
+  std::string alias_;
 };
 
 class StarExpr : public Expression
@@ -147,7 +165,8 @@ public:
 
   RC get_value(const Tuple &tuple, Value &value) const override { return RC::UNIMPLEMENTED; }  // 不需要实现
 
-  const char *table_name() const { return table_name_.c_str(); }
+  const char *table_name() const override { return table_name_.c_str(); }
+  void        check_or_get(std::function<void(Expression *)> &worker_func) override { worker_func(this); }
 
 private:
   std::string table_name_;
@@ -156,8 +175,8 @@ private:
 class UnboundFieldExpr : public Expression
 {
 public:
-  UnboundFieldExpr(const std::string &table_name, const std::string &field_name)
-      : table_name_(table_name), field_name_(field_name)
+  UnboundFieldExpr(const std::string &table_name, const std::string &field_name, const std::string &alias)
+      : table_name_(table_name), field_name_(field_name), alias_(alias)
   {}
 
   virtual ~UnboundFieldExpr() = default;
@@ -167,12 +186,14 @@ public:
 
   RC get_value(const Tuple &tuple, Value &value) const override { return RC::INTERNAL; }
 
-  const char *table_name() const { return table_name_.c_str(); }
-  const char *field_name() const { return field_name_.c_str(); }
+  const char *table_name() const override { return table_name_.c_str(); }
+  const char *field_name() const override { return field_name_.c_str(); }
+  void        check_or_get(std::function<void(Expression *)> &worker_func) override { worker_func(this); }
 
 private:
   std::string table_name_;
   std::string field_name_;
+  std::string alias_;
 };
 
 /**
@@ -183,7 +204,16 @@ class FieldExpr : public Expression
 {
 public:
   FieldExpr() = default;
-  FieldExpr(const Table *table, const FieldMeta *field) : field_(table, field) {}
+  FieldExpr(std::string table_name, std::string field_name, std::string alias)
+      : Expression(table_name, field_name, alias)
+  {}
+
+  FieldExpr(const Table *table, const FieldMeta *field) : field_(table, field) {
+    set_field_name(field_.field_name());
+    set_table_name(field_.table_name());
+    // set_alias("");
+  }
+
   FieldExpr(const Field &field) : field_(field) {}
 
   virtual ~FieldExpr() = default;
@@ -198,12 +228,17 @@ public:
 
   const Field &field() const { return field_; }
 
-  const char *table_name() const { return field_.table_name(); }
-  const char *field_name() const { return field_.field_name(); }
+  const char      *alias() const override { return Expression::alias(); }
+  const char      *table_name() const override { return Expression::table_name(); }
+  const char      *field_name() const override { return Expression::field_name(); }
+  const FieldMeta *get_field_meta() const { return field_.meta(); }
+  RC               get_column(Chunk &chunk, Column &column) override;
 
-  RC get_column(Chunk &chunk, Column &column) override;
+  RC check_field(const std::unordered_map<std::string, Table *> &all_tables, Table *default_table,
+      const std::vector<Table *> &tables, const std::unordered_map<std::string, std::string> &alias_map);
 
-  RC get_value(const Tuple &tuple, Value &value) const override;
+  RC   get_value(const Tuple &tuple, Value &value) const override;
+  void check_or_get(std::function<void(Expression *)> &worker_func) override { worker_func(this); }
 
 private:
   Field field_;
@@ -237,6 +272,7 @@ public:
 
   void         get_value(Value &value) const { value = value_; }
   const Value &get_value() const { return value_; }
+  void         check_or_get(std::function<void(Expression *)> &worker_func) override { worker_func(this); }
 
 private:
   Value value_;
@@ -249,7 +285,7 @@ private:
 class CastExpr : public Expression
 {
 public:
-  CastExpr(std::unique_ptr<Expression> child, AttrType cast_type);
+  CastExpr(std::shared_ptr<Expression> child, AttrType cast_type);
   virtual ~CastExpr();
 
   ExprType type() const override { return ExprType::CAST; }
@@ -260,13 +296,15 @@ public:
 
   AttrType value_type() const override { return cast_type_; }
 
-  std::unique_ptr<Expression> &child() { return child_; }
+  std::shared_ptr<Expression> &child() { return child_; }
+
+  void check_or_get(std::function<void(Expression *)> &worker_func) override { worker_func(this); }
 
 private:
   RC cast(const Value &value, Value &cast_value) const;
 
 private:
-  std::unique_ptr<Expression> child_;      ///< 从这个表达式转换
+  std::shared_ptr<Expression> child_;      ///< 从这个表达式转换
   AttrType                    cast_type_;  ///< 想要转换成这个类型
 };
 
@@ -277,7 +315,7 @@ private:
 class ComparisonExpr : public Expression
 {
 public:
-  ComparisonExpr(CompOp comp, std::unique_ptr<Expression> left, std::unique_ptr<Expression> right);
+  ComparisonExpr(CompOp comp, std::shared_ptr<Expression> left, std::shared_ptr<Expression> right);
   virtual ~ComparisonExpr();
 
   ExprType type() const override { return ExprType::COMPARISON; }
@@ -291,9 +329,15 @@ public:
    */
   RC eval(Chunk &chunk, std::vector<uint8_t> &select) override;
 
-  std::unique_ptr<Expression> &left() { return left_; }
-  std::unique_ptr<Expression> &right() { return right_; }
+  std::shared_ptr<Expression> &left() { return left_; }
+  std::shared_ptr<Expression> &right() { return right_; }
 
+  void check_or_get(std::function<void(Expression *)> &worker_func) override
+  {
+    worker_func(left_.get());
+    worker_func(right_.get());
+    worker_func(this);
+  }
   /**
    * 尝试在没有tuple的情况下获取当前表达式的值
    * 在优化的时候，可能会使用到
@@ -311,8 +355,8 @@ public:
 
 private:
   CompOp                      comp_;
-  std::unique_ptr<Expression> left_;
-  std::unique_ptr<Expression> right_;
+  std::shared_ptr<Expression> left_;
+  std::shared_ptr<Expression> right_;
 };
 
 /**
@@ -331,7 +375,7 @@ public:
   };
 
 public:
-  ConjunctionExpr(Type type, std::vector<std::unique_ptr<Expression>> &children);
+  ConjunctionExpr(Type type, std::vector<std::shared_ptr<Expression>> &children);
   virtual ~ConjunctionExpr() = default;
 
   ExprType type() const override { return ExprType::CONJUNCTION; }
@@ -340,11 +384,18 @@ public:
 
   Type conjunction_type() const { return conjunction_type_; }
 
-  std::vector<std::unique_ptr<Expression>> &children() { return children_; }
+  void check_or_get(std::function<void(Expression *)> &worker_func) override
+  {
+    for (auto &expr : children_) {
+      worker_func(expr.get());
+    }
+    worker_func(this);
+  }
+  std::vector<std::shared_ptr<Expression>> &children() { return children_; }
 
 private:
   Type                                     conjunction_type_;
-  std::vector<std::unique_ptr<Expression>> children_;
+  std::vector<std::shared_ptr<Expression>> children_;
 };
 
 /**
@@ -365,7 +416,7 @@ public:
 
 public:
   ArithmeticExpr(Type type, Expression *left, Expression *right);
-  ArithmeticExpr(Type type, std::unique_ptr<Expression> left, std::unique_ptr<Expression> right);
+  ArithmeticExpr(Type type, std::shared_ptr<Expression> left, std::shared_ptr<Expression> right);
   virtual ~ArithmeticExpr() = default;
 
   bool     equal(const Expression &other) const override;
@@ -387,9 +438,15 @@ public:
   RC try_get_value(Value &value) const override;
 
   Type arithmetic_type() const { return arithmetic_type_; }
+  void check_or_get(std::function<void(Expression *)> &worker_func) override
+  {
+    worker_func(left_.get());
+    worker_func(right_.get());
+    worker_func(this);
+  }
 
-  std::unique_ptr<Expression> &left() { return left_; }
-  std::unique_ptr<Expression> &right() { return right_; }
+  std::shared_ptr<Expression> &left() { return left_; }
+  std::shared_ptr<Expression> &right() { return right_; }
 
 private:
   RC calc_value(const Value &left_value, const Value &right_value, Value &value) const;
@@ -401,28 +458,35 @@ private:
 
 private:
   Type                        arithmetic_type_;
-  std::unique_ptr<Expression> left_;
-  std::unique_ptr<Expression> right_;
+  std::shared_ptr<Expression> left_;
+  std::shared_ptr<Expression> right_;
 };
 
+// 未绑定的聚合表达式。
 class UnboundAggregateExpr : public Expression
 {
 public:
-  UnboundAggregateExpr(const char *aggregate_name, Expression *child);
+  UnboundAggregateExpr(const char *aggregate_name, Expression *child, const char *alias);
   virtual ~UnboundAggregateExpr() = default;
 
   ExprType type() const override { return ExprType::UNBOUND_AGGREGATION; }
 
   const char *aggregate_name() const { return aggregate_name_.c_str(); }
 
-  std::unique_ptr<Expression> &child() { return child_; }
+  std::shared_ptr<Expression> &child() { return child_; }
 
+  void check_or_get(std::function<void(Expression *)> &worker_func) override
+  {
+    worker_func(child_.get());
+    worker_func(this);
+  }
   RC       get_value(const Tuple &tuple, Value &value) const override { return RC::INTERNAL; }
   AttrType value_type() const override { return child_->value_type(); }
 
 private:
   std::string                 aggregate_name_;
-  std::unique_ptr<Expression> child_;
+  std::string                 alias_;
+  std::shared_ptr<Expression> child_;
 };
 
 class AggregateExpr : public Expression
@@ -439,7 +503,7 @@ public:
 
 public:
   AggregateExpr(Type type, Expression *child);
-  AggregateExpr(Type type, std::unique_ptr<Expression> child);
+  AggregateExpr(Type type, std::shared_ptr<Expression> child);
   virtual ~AggregateExpr() = default;
 
   bool equal(const Expression &other) const override;
@@ -455,16 +519,20 @@ public:
 
   Type aggregate_type() const { return aggregate_type_; }
 
-  std::unique_ptr<Expression> &child() { return child_; }
+  std::shared_ptr<Expression> &child() { return child_; }
 
-  const std::unique_ptr<Expression> &child() const { return child_; }
-
-  std::unique_ptr<Aggregator> create_aggregator() const;
+  const std::shared_ptr<Expression> &child() const { return child_; }
+  void                               check_or_get(std::function<void(Expression *)> &worker_func) override
+  {
+    worker_func(child_.get());
+    worker_func(this);
+  }
+  std::shared_ptr<Aggregator> create_aggregator() const;
 
 public:
   static RC type_from_string(const char *type_str, Type &type);
 
 private:
   Type                        aggregate_type_;
-  std::unique_ptr<Expression> child_;
+  std::shared_ptr<Expression> child_;
 };

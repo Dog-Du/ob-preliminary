@@ -25,6 +25,13 @@ class FieldMeta;
 class FilterStmt;
 class Db;
 class Table;
+class Table;
+
+struct JoinNodes
+{
+  std::vector<Table *>                     tables_;
+  std::vector<std::shared_ptr<FilterStmt>> conditions_;  // on的条件
+};
 
 /**
  * @brief 表示select语句
@@ -39,18 +46,19 @@ public:
   StmtType type() const override { return StmtType::SELECT; }
 
 public:
-  static RC create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt);
+  static RC create(
+      Db *db, SelectSqlNode &select_sql, Stmt *&stmt, const std::unordered_map<std::string, Table *> &all_tables = {});
 
 public:
   const std::vector<Table *> &tables() const { return tables_; }
-  FilterStmt                 *filter_stmt() const { return filter_stmt_; }
+  FilterStmt                 *filter_stmt() const { return filter_stmt_.get(); }
 
-  std::vector<std::unique_ptr<Expression>> &query_expressions() { return query_expressions_; }
-  std::vector<std::unique_ptr<Expression>> &group_by() { return group_by_; }
+  std::vector<std::shared_ptr<Expression>> &query_expressions() { return query_expressions_; }
+  std::vector<std::shared_ptr<Expression>> &group_by() { return group_by_; }
 
 private:
-  std::vector<std::unique_ptr<Expression>> query_expressions_;
+  std::vector<std::shared_ptr<Expression>> query_expressions_;
   std::vector<Table *>                     tables_;
-  FilterStmt                              *filter_stmt_ = nullptr;
-  std::vector<std::unique_ptr<Expression>> group_by_;
+  std::shared_ptr<FilterStmt>              filter_stmt_ = nullptr;
+  std::vector<std::shared_ptr<Expression>> group_by_;
 };

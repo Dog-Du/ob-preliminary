@@ -29,7 +29,7 @@ public:
   ConjunctionSimplificationRule()          = default;
   virtual ~ConjunctionSimplificationRule() = default;
 
-  RC rewrite(std::unique_ptr<Expression> &expr, bool &change_made) override;
+  RC rewrite(std::shared_ptr<Expression> &expr, bool &change_made) override;
 
 private:
 };

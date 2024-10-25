@@ -12,7 +12,9 @@ See the Mulan PSL v2 for more details. */
 #include "common/lang/sstream.h"
 #include "common/log/log.h"
 #include "common/type/integer_type.h"
+#include "common/type/attr_type.h"
 #include "common/value.h"
+#include <gtest/gtest.h>
 
 int IntegerType::compare(const Value &left, const Value &right) const
 {
@@ -28,9 +30,41 @@ int IntegerType::compare(const Value &left, const Value &right) const
   return INT32_MAX;
 }
 
+bool IntegerType::is_null(const Value &val) const { return val.value_.int_value_ == INT_NULL; }
+
+RC IntegerType::cast_to(const Value &val, AttrType attr_type, Value &result) const
+{
+  RC rc = RC::SUCCESS;
+  switch (attr_type) {
+    case AttrType::INTS: {
+      result.attr_type_        = AttrType::INTS;
+      result.value_.int_value_ = val.get_int();
+    } break;
+    case AttrType::FLOATS: {
+      result.attr_type_          = AttrType::FLOATS;
+      result.value_.float_value_ = static_cast<float>(val.value_.int_value_);
+    } break;
+    default: {
+      rc = RC::VARIABLE_NOT_VALID;
+    } break;
+  }
+  return rc;
+};
+
 RC IntegerType::add(const Value &left, const Value &right, Value &result) const
 {
   result.set_int(left.get_int() + right.get_int());
+  return RC::SUCCESS;
+}
+
+RC IntegerType::divide(const Value &left, const Value &right, Value &result) const
+{
+  if (right.get_float() == 0) {
+    result.set_int(INT_NULL);
+    return RC::SUCCESS;
+  }
+
+  result.set_float(left.get_float() / right.get_float());
   return RC::SUCCESS;
 }
 
@@ -54,7 +88,7 @@ RC IntegerType::negative(const Value &val, Value &result) const
 
 RC IntegerType::set_value_from_str(Value &val, const string &data) const
 {
-  RC                rc = RC::SUCCESS;
+  RC           rc = RC::SUCCESS;
   stringstream deserialize_stream;
   deserialize_stream.clear();  // 清理stream的状态，防止多次解析出现异常
   deserialize_stream.str(data);

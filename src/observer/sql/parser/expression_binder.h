@@ -44,27 +44,27 @@ public:
   ExpressionBinder(BinderContext &context) : context_(context) {}
   virtual ~ExpressionBinder() = default;
 
-  RC bind_expression(std::unique_ptr<Expression> &expr, std::vector<std::unique_ptr<Expression>> &bound_expressions);
+  RC bind_expression(std::shared_ptr<Expression> &expr, std::vector<std::shared_ptr<Expression>> &bound_expressions);
 
 private:
   RC bind_star_expression(
-      std::unique_ptr<Expression> &star_expr, std::vector<std::unique_ptr<Expression>> &bound_expressions);
+      std::shared_ptr<Expression> &star_expr, std::vector<std::shared_ptr<Expression>> &bound_expressions);
   RC bind_unbound_field_expression(
-      std::unique_ptr<Expression> &unbound_field_expr, std::vector<std::unique_ptr<Expression>> &bound_expressions);
+      std::shared_ptr<Expression> &unbound_field_expr, std::vector<std::shared_ptr<Expression>> &bound_expressions);
   RC bind_field_expression(
-      std::unique_ptr<Expression> &field_expr, std::vector<std::unique_ptr<Expression>> &bound_expressions);
+      std::shared_ptr<Expression> &field_expr, std::vector<std::shared_ptr<Expression>> &bound_expressions);
   RC bind_value_expression(
-      std::unique_ptr<Expression> &value_expr, std::vector<std::unique_ptr<Expression>> &bound_expressions);
+      std::shared_ptr<Expression> &value_expr, std::vector<std::shared_ptr<Expression>> &bound_expressions);
   RC bind_cast_expression(
-      std::unique_ptr<Expression> &cast_expr, std::vector<std::unique_ptr<Expression>> &bound_expressions);
+      std::shared_ptr<Expression> &cast_expr, std::vector<std::shared_ptr<Expression>> &bound_expressions);
   RC bind_comparison_expression(
-      std::unique_ptr<Expression> &comparison_expr, std::vector<std::unique_ptr<Expression>> &bound_expressions);
+      std::shared_ptr<Expression> &comparison_expr, std::vector<std::shared_ptr<Expression>> &bound_expressions);
   RC bind_conjunction_expression(
-      std::unique_ptr<Expression> &conjunction_expr, std::vector<std::unique_ptr<Expression>> &bound_expressions);
+      std::shared_ptr<Expression> &conjunction_expr, std::vector<std::shared_ptr<Expression>> &bound_expressions);
   RC bind_arithmetic_expression(
-      std::unique_ptr<Expression> &arithmetic_expr, std::vector<std::unique_ptr<Expression>> &bound_expressions);
+      std::shared_ptr<Expression> &arithmetic_expr, std::vector<std::shared_ptr<Expression>> &bound_expressions);
   RC bind_aggregate_expression(
-      std::unique_ptr<Expression> &aggregate_expr, std::vector<std::unique_ptr<Expression>> &bound_expressions);
+      std::shared_ptr<Expression> &aggregate_expr, std::vector<std::shared_ptr<Expression>> &bound_expressions);
 
 private:
   BinderContext &context_;

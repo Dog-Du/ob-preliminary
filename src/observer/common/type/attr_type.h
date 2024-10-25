@@ -17,7 +17,8 @@ See the Mulan PSL v2 for more details. */
 enum class AttrType
 {
   UNDEFINED,
-  DATES,      ///< 日期类型
+  DATES,     ///< 日期类型
+  NULLS,     ///< null
   CHARS,     ///< 字符串类型
   INTS,      ///< 整数类型(4字节)
   FLOATS,    ///< 浮点数类型(4字节)

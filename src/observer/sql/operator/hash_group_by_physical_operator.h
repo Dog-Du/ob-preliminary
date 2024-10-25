@@ -28,7 +28,7 @@ class HashGroupByPhysicalOperator : public GroupByPhysicalOperator
 {
 public:
   HashGroupByPhysicalOperator(
-      std::vector<std::unique_ptr<Expression>> &&group_by_exprs, std::vector<Expression *> &&expressions);
+      std::vector<std::shared_ptr<Expression>> &&group_by_exprs, std::vector<Expression *> &&expressions);
 
   virtual ~HashGroupByPhysicalOperator() = default;
 
@@ -50,7 +50,7 @@ private:
   RC find_group(const Tuple &child_tuple, GroupType *&found_group);
 
 private:
-  std::vector<std::unique_ptr<Expression>> group_by_exprs_;
+  std::vector<std::shared_ptr<Expression>> group_by_exprs_;
 
   /// 一组一条数据
   /// pair的first是group by 的值列表，second是计算出来的表达式值列表

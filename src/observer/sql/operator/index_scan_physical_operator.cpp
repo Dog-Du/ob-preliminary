@@ -115,7 +115,7 @@ Tuple *IndexScanPhysicalOperator::current_tuple()
   return &tuple_;
 }
 
-void IndexScanPhysicalOperator::set_predicates(std::vector<std::unique_ptr<Expression>> &&exprs)
+void IndexScanPhysicalOperator::set_predicates(std::vector<std::shared_ptr<Expression>> &&exprs)
 {
   predicates_ = std::move(exprs);
 }
@@ -124,7 +124,7 @@ RC IndexScanPhysicalOperator::filter(RowTuple &tuple, bool &result)
 {
   RC    rc = RC::SUCCESS;
   Value value;
-  for (std::unique_ptr<Expression> &expr : predicates_) {
+  for (std::shared_ptr<Expression> &expr : predicates_) {
     rc = expr->get_value(tuple, value);
     if (rc != RC::SUCCESS) {
       return rc;

@@ -20,7 +20,7 @@ class GroupByLogicalOperator : public LogicalOperator
 {
 public:
   GroupByLogicalOperator(
-      std::vector<std::unique_ptr<Expression>> &&group_by_exprs, std::vector<Expression *> &&expressions);
+      std::vector<std::shared_ptr<Expression>> &&group_by_exprs, std::vector<Expression *> &&expressions);
 
   virtual ~GroupByLogicalOperator() = default;
 
@@ -30,6 +30,6 @@ public:
   auto &aggregate_expressions() { return aggregate_expressions_; }
 
 private:
-  std::vector<std::unique_ptr<Expression>> group_by_expressions_;
+  std::vector<std::shared_ptr<Expression>> group_by_expressions_;
   std::vector<Expression *>                aggregate_expressions_;  ///< 输出的表达式，可能包含聚合函数
 };

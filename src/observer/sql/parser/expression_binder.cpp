@@ -33,7 +33,7 @@ Table *BinderContext::find_table(const char *table_name) const
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-static void wildcard_fields(Table *table, vector<unique_ptr<Expression>> &expressions)
+static void wildcard_fields(Table *table, vector<shared_ptr<Expression>> &expressions)
 {
   const TableMeta &table_meta = table->table_meta();
   const int        field_num  = table_meta.field_num();
@@ -45,7 +45,7 @@ static void wildcard_fields(Table *table, vector<unique_ptr<Expression>> &expres
   }
 }
 
-RC ExpressionBinder::bind_expression(unique_ptr<Expression> &expr, vector<unique_ptr<Expression>> &bound_expressions)
+RC ExpressionBinder::bind_expression(shared_ptr<Expression> &expr, vector<shared_ptr<Expression>> &bound_expressions)
 {
   if (nullptr == expr) {
     return RC::SUCCESS;
@@ -101,7 +101,7 @@ RC ExpressionBinder::bind_expression(unique_ptr<Expression> &expr, vector<unique
 }
 
 RC ExpressionBinder::bind_star_expression(
-    unique_ptr<Expression> &expr, vector<unique_ptr<Expression>> &bound_expressions)
+    shared_ptr<Expression> &expr, vector<shared_ptr<Expression>> &bound_expressions)
 {
   if (nullptr == expr) {
     return RC::SUCCESS;
@@ -133,7 +133,7 @@ RC ExpressionBinder::bind_star_expression(
 }
 
 RC ExpressionBinder::bind_unbound_field_expression(
-    unique_ptr<Expression> &expr, vector<unique_ptr<Expression>> &bound_expressions)
+    shared_ptr<Expression> &expr, vector<shared_ptr<Expression>> &bound_expressions)
 {
   if (nullptr == expr) {
     return RC::SUCCESS;
@@ -179,21 +179,21 @@ RC ExpressionBinder::bind_unbound_field_expression(
 }
 
 RC ExpressionBinder::bind_field_expression(
-    unique_ptr<Expression> &field_expr, vector<unique_ptr<Expression>> &bound_expressions)
+    shared_ptr<Expression> &field_expr, vector<shared_ptr<Expression>> &bound_expressions)
 {
   bound_expressions.emplace_back(std::move(field_expr));
   return RC::SUCCESS;
 }
 
 RC ExpressionBinder::bind_value_expression(
-    unique_ptr<Expression> &value_expr, vector<unique_ptr<Expression>> &bound_expressions)
+    shared_ptr<Expression> &value_expr, vector<shared_ptr<Expression>> &bound_expressions)
 {
   bound_expressions.emplace_back(std::move(value_expr));
   return RC::SUCCESS;
 }
 
 RC ExpressionBinder::bind_cast_expression(
-    unique_ptr<Expression> &expr, vector<unique_ptr<Expression>> &bound_expressions)
+    shared_ptr<Expression> &expr, vector<shared_ptr<Expression>> &bound_expressions)
 {
   if (nullptr == expr) {
     return RC::SUCCESS;
@@ -201,8 +201,8 @@ RC ExpressionBinder::bind_cast_expression(
 
   auto cast_expr = static_cast<CastExpr *>(expr.get());
 
-  vector<unique_ptr<Expression>> child_bound_expressions;
-  unique_ptr<Expression>        &child_expr = cast_expr->child();
+  vector<shared_ptr<Expression>> child_bound_expressions;
+  shared_ptr<Expression>        &child_expr = cast_expr->child();
 
   RC rc = bind_expression(child_expr, child_bound_expressions);
   if (rc != RC::SUCCESS) {
@@ -214,18 +214,18 @@ RC ExpressionBinder::bind_cast_expression(
     return RC::INVALID_ARGUMENT;
   }
 
-  unique_ptr<Expression> &child = child_bound_expressions[0];
+  shared_ptr<Expression> &child = child_bound_expressions[0];
   if (child.get() == child_expr.get()) {
     return RC::SUCCESS;
   }
 
-  child_expr.reset(child.release());
+  child_expr = child;
   bound_expressions.emplace_back(std::move(expr));
   return RC::SUCCESS;
 }
 
 RC ExpressionBinder::bind_comparison_expression(
-    unique_ptr<Expression> &expr, vector<unique_ptr<Expression>> &bound_expressions)
+    shared_ptr<Expression> &expr, vector<shared_ptr<Expression>> &bound_expressions)
 {
   if (nullptr == expr) {
     return RC::SUCCESS;
@@ -233,9 +233,9 @@ RC ExpressionBinder::bind_comparison_expression(
 
   auto comparison_expr = static_cast<ComparisonExpr *>(expr.get());
 
-  vector<unique_ptr<Expression>> child_bound_expressions;
-  unique_ptr<Expression>        &left_expr  = comparison_expr->left();
-  unique_ptr<Expression>        &right_expr = comparison_expr->right();
+  vector<shared_ptr<Expression>> child_bound_expressions;
+  shared_ptr<Expression>        &left_expr  = comparison_expr->left();
+  shared_ptr<Expression>        &right_expr = comparison_expr->right();
 
   RC rc = bind_expression(left_expr, child_bound_expressions);
   if (rc != RC::SUCCESS) {
@@ -247,9 +247,9 @@ RC ExpressionBinder::bind_comparison_expression(
     return RC::INVALID_ARGUMENT;
   }
 
-  unique_ptr<Expression> &left = child_bound_expressions[0];
+  shared_ptr<Expression> &left = child_bound_expressions[0];
   if (left.get() != left_expr.get()) {
-    left_expr.reset(left.release());
+    left_expr = left;
   }
 
   child_bound_expressions.clear();
@@ -263,9 +263,9 @@ RC ExpressionBinder::bind_comparison_expression(
     return RC::INVALID_ARGUMENT;
   }
 
-  unique_ptr<Expression> &right = child_bound_expressions[0];
+  shared_ptr<Expression> &right = child_bound_expressions[0];
   if (right.get() != right_expr.get()) {
-    right_expr.reset(right.release());
+    right_expr = right;
   }
 
   bound_expressions.emplace_back(std::move(expr));
@@ -273,7 +273,7 @@ RC ExpressionBinder::bind_comparison_expression(
 }
 
 RC ExpressionBinder::bind_conjunction_expression(
-    unique_ptr<Expression> &expr, vector<unique_ptr<Expression>> &bound_expressions)
+    shared_ptr<Expression> &expr, vector<shared_ptr<Expression>> &bound_expressions)
 {
   if (nullptr == expr) {
     return RC::SUCCESS;
@@ -281,10 +281,10 @@ RC ExpressionBinder::bind_conjunction_expression(
 
   auto conjunction_expr = static_cast<ConjunctionExpr *>(expr.get());
 
-  vector<unique_ptr<Expression>>  child_bound_expressions;
-  vector<unique_ptr<Expression>> &children = conjunction_expr->children();
+  vector<shared_ptr<Expression>>  child_bound_expressions;
+  vector<shared_ptr<Expression>> &children = conjunction_expr->children();
 
-  for (unique_ptr<Expression> &child_expr : children) {
+  for (shared_ptr<Expression> &child_expr : children) {
     child_bound_expressions.clear();
 
     RC rc = bind_expression(child_expr, child_bound_expressions);
@@ -297,9 +297,9 @@ RC ExpressionBinder::bind_conjunction_expression(
       return RC::INVALID_ARGUMENT;
     }
 
-    unique_ptr<Expression> &child = child_bound_expressions[0];
+    shared_ptr<Expression> &child = child_bound_expressions[0];
     if (child.get() != child_expr.get()) {
-      child_expr.reset(child.release());
+      child_expr = child;
     }
   }
 
@@ -309,7 +309,7 @@ RC ExpressionBinder::bind_conjunction_expression(
 }
 
 RC ExpressionBinder::bind_arithmetic_expression(
-    unique_ptr<Expression> &expr, vector<unique_ptr<Expression>> &bound_expressions)
+    shared_ptr<Expression> &expr, vector<shared_ptr<Expression>> &bound_expressions)
 {
   if (nullptr == expr) {
     return RC::SUCCESS;
@@ -317,9 +317,9 @@ RC ExpressionBinder::bind_arithmetic_expression(
 
   auto arithmetic_expr = static_cast<ArithmeticExpr *>(expr.get());
 
-  vector<unique_ptr<Expression>> child_bound_expressions;
-  unique_ptr<Expression>        &left_expr  = arithmetic_expr->left();
-  unique_ptr<Expression>        &right_expr = arithmetic_expr->right();
+  vector<shared_ptr<Expression>> child_bound_expressions;
+  shared_ptr<Expression>        &left_expr  = arithmetic_expr->left();
+  shared_ptr<Expression>        &right_expr = arithmetic_expr->right();
 
   RC rc = bind_expression(left_expr, child_bound_expressions);
   if (OB_FAIL(rc)) {
@@ -331,9 +331,9 @@ RC ExpressionBinder::bind_arithmetic_expression(
     return RC::INVALID_ARGUMENT;
   }
 
-  unique_ptr<Expression> &left = child_bound_expressions[0];
+  shared_ptr<Expression> &left = child_bound_expressions[0];
   if (left.get() != left_expr.get()) {
-    left_expr.reset(left.release());
+    left_expr = left;
   }
 
   child_bound_expressions.clear();
@@ -347,9 +347,9 @@ RC ExpressionBinder::bind_arithmetic_expression(
     return RC::INVALID_ARGUMENT;
   }
 
-  unique_ptr<Expression> &right = child_bound_expressions[0];
+  shared_ptr<Expression> &right = child_bound_expressions[0];
   if (right.get() != right_expr.get()) {
-    right_expr.reset(right.release());
+    right_expr = right;
   }
 
   bound_expressions.emplace_back(std::move(expr));
@@ -386,7 +386,7 @@ RC check_aggregate_expression(AggregateExpr &expression)
   }
 
   // 子表达式中不能再包含聚合表达式
-  function<RC(std::unique_ptr<Expression>&)> check_aggregate_expr = [&](unique_ptr<Expression> &expr) -> RC {
+  function<RC(std::shared_ptr<Expression>&)> check_aggregate_expr = [&](shared_ptr<Expression> &expr) -> RC {
     RC rc = RC::SUCCESS;
     if (expr->type() == ExprType::AGGREGATION) {
       LOG_WARN("aggregate expression cannot be nested");
@@ -402,7 +402,7 @@ RC check_aggregate_expression(AggregateExpr &expression)
 }
 
 RC ExpressionBinder::bind_aggregate_expression(
-    unique_ptr<Expression> &expr, vector<unique_ptr<Expression>> &bound_expressions)
+    shared_ptr<Expression> &expr, vector<shared_ptr<Expression>> &bound_expressions)
 {
   if (nullptr == expr) {
     return RC::SUCCESS;
@@ -417,8 +417,8 @@ RC ExpressionBinder::bind_aggregate_expression(
     return rc;
   }
 
-  unique_ptr<Expression>        &child_expr = unbound_aggregate_expr->child();
-  vector<unique_ptr<Expression>> child_bound_expressions;
+  shared_ptr<Expression>        &child_expr = unbound_aggregate_expr->child();
+  vector<shared_ptr<Expression>> child_bound_expressions;
 
   if (child_expr->type() == ExprType::STAR && aggregate_type == AggregateExpr::Type::COUNT) {
     ValueExpr *value_expr = new ValueExpr(Value(1));
@@ -435,7 +435,7 @@ RC ExpressionBinder::bind_aggregate_expression(
     }
 
     if (child_bound_expressions[0].get() != child_expr.get()) {
-      child_expr.reset(child_bound_expressions[0].release());
+      child_expr = child_bound_expressions[0];
     }
   }
 

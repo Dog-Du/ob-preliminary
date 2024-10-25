@@ -42,7 +42,7 @@ public:
 
   Tuple *current_tuple() override;
 
-  void set_predicates(std::vector<std::unique_ptr<Expression>> &&exprs);
+  void set_predicates(std::vector<std::shared_ptr<Expression>> &&exprs);
 
 private:
   RC filter(RowTuple &tuple, bool &result);
@@ -54,5 +54,5 @@ private:
   RecordFileScanner                        record_scanner_;
   Record                                   current_record_;
   RowTuple                                 tuple_;
-  std::vector<std::unique_ptr<Expression>> predicates_;  // TODO chang predicate to table tuple filter
+  std::vector<std::shared_ptr<Expression>> predicates_;  // TODO chang predicate to table tuple filter
 };

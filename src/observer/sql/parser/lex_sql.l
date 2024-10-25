@@ -98,11 +98,17 @@ CALC                                    RETURN_TOKEN(CALC);
 FROM                                    RETURN_TOKEN(FROM);
 WHERE                                   RETURN_TOKEN(WHERE);
 AND                                     RETURN_TOKEN(AND);
+OR                                      RETURN_TOKEN(OR);
 INSERT                                  RETURN_TOKEN(INSERT);
-
 NOT                                     RETURN_TOKEN(NOT_T);
 LIKE                                    RETURN_TOKEN(LIKE_T);
 TEXT                                    RETURN_TOKEN(TEXT_T);
+INNER                                   RETURN_TOKEN(INNER_T);
+JOIN                                    RETURN_TOKEN(JOIN_T);
+AS                                      RETURN_TOKEN(AS_T);
+NULL                                    RETURN_TOKEN(NULL_T);
+NULLABLE                                RETURN_TOKEN(NULL_T);
+IS                                      RETURN_TOKEN(IS_T);
 
 INTO                                    RETURN_TOKEN(INTO);
 VALUES                                  RETURN_TOKEN(VALUES);

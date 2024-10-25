@@ -114,7 +114,7 @@ void ExplainPhysicalOperator::to_string(
   }
   ends[level + 1] = false;
 
-  vector<std::unique_ptr<PhysicalOperator>> &children = oper->children();
+  auto &children = oper->children();
   const auto                                 size     = static_cast<int>(children.size());
   for (auto i = 0; i < size - 1; i++) {
     to_string(os, children[i].get(), level + 1, false /*last_child*/, ends);

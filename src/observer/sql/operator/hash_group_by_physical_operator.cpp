@@ -21,7 +21,7 @@ using namespace std;
 using namespace common;
 
 HashGroupByPhysicalOperator::HashGroupByPhysicalOperator(
-    vector<unique_ptr<Expression>> &&group_by_exprs, vector<Expression *> &&expressions)
+    vector<shared_ptr<Expression>> &&group_by_exprs, vector<Expression *> &&expressions)
     : GroupByPhysicalOperator(std::move(expressions)), group_by_exprs_(std::move(group_by_exprs))
 {
 }
@@ -132,7 +132,7 @@ RC HashGroupByPhysicalOperator::find_group(const Tuple &child_tuple, GroupType *
 
   RC rc = RC::SUCCESS;
 
-  ExpressionTuple<unique_ptr<Expression>> group_by_expression_tuple(group_by_exprs_);
+  ExpressionTuple<shared_ptr<Expression>> group_by_expression_tuple(group_by_exprs_);
   ValueListTuple                          group_by_evaluated_tuple;
   group_by_expression_tuple.set_tuple(&child_tuple);
   rc = ValueListTuple::make(group_by_expression_tuple, group_by_evaluated_tuple);
@@ -170,7 +170,7 @@ RC HashGroupByPhysicalOperator::find_group(const Tuple &child_tuple, GroupType *
 
     CompositeTuple composite_tuple;
     composite_tuple.add_tuple(make_unique<ValueListTuple>(std::move(child_tuple_to_value)));
-    groups_.emplace_back(std::move(group_by_evaluated_tuple), 
+    groups_.emplace_back(std::move(group_by_evaluated_tuple),
                          GroupValueType(std::move(aggregator_list), std::move(composite_tuple)));
     found_group = &groups_.back();
   }

@@ -5,15 +5,17 @@
 #include "common/value.h"
 #include <string>
 
+#define DATE_NULL INT32_MIN
+
 class DateType : public DataType
 {
 public:
   DateType() : DataType(AttrType::DATES) {}
   virtual ~DateType() = default;
-
-  int compare(const Value &left, const Value &right) const override;
+  bool is_null(const Value &val) const override;
+  int  compare(const Value &left, const Value &right) const override;
 
   RC to_string(const Value &val, string &result) const override;
-
+  
   static bool check_data(int y, int m, int d);
 };
