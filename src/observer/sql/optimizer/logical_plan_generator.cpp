@@ -15,7 +15,9 @@ See the Mulan PSL v2 for more details. */
 #include "sql/optimizer/logical_plan_generator.h"
 
 #include <common/log/log.h>
+#include <cstddef>
 
+#include "common/types.h"
 #include "sql/expr/expression.h"
 #include "sql/operator/calc_logical_operator.h"
 #include "sql/operator/delete_logical_operator.h"
@@ -96,30 +98,76 @@ RC LogicalPlanGenerator::create_plan(CalcStmt *calc_stmt, std::shared_ptr<Logica
   return RC::SUCCESS;
 }
 
+RC LogicalPlanGenerator::join_table_in_tree(
+    std::shared_ptr<LogicalOperator> &oper, Table *table, FilterStmt *filter_stmt)
+{
+  RC                               rc = RC::SUCCESS;
+  std::vector<Field>               fields;
+  std::shared_ptr<LogicalOperator> table_get_oper(new TableGetLogicalOperator(table, ReadWriteMode::READ_ONLY));
+  std::shared_ptr<LogicalOperator> this_table_predicate_oper;
+
+  if (nullptr != filter_stmt) {
+    rc = LogicalPlanGenerator::create_plan(filter_stmt, this_table_predicate_oper);
+    if (rc != RC::SUCCESS) {
+      return rc;
+    }
+  }
+
+  // oper == nullptr 说明还没有表被设置。
+  if (oper == nullptr) {
+    if (this_table_predicate_oper != nullptr) {
+      auto oper = static_cast<TableGetLogicalOperator *>(table_get_oper.get());
+      oper->set_predicates(std::move(this_table_predicate_oper->expressions()));
+    }
+    oper = table_get_oper;
+  } else {
+    std::shared_ptr<JoinLogicalOperator> join_oper(new JoinLogicalOperator());
+    join_oper->add_child(oper);
+    join_oper->add_child(table_get_oper);
+
+    if (this_table_predicate_oper != nullptr) {
+      this_table_predicate_oper->add_child(join_oper);
+      oper = this_table_predicate_oper;
+    } else {
+      oper = join_oper;
+    }
+  }
+  return rc;
+}
+
 RC LogicalPlanGenerator::create_plan(SelectStmt *select_stmt, shared_ptr<LogicalOperator> &logical_operator)
 {
+  RC                           rc        = RC::SUCCESS;
   shared_ptr<LogicalOperator> *last_oper = nullptr;
 
   shared_ptr<LogicalOperator> table_oper(nullptr);
   last_oper = &table_oper;
 
-  const std::vector<Table *> &tables = select_stmt->tables();
-  for (Table *table : tables) {
+  auto &join_nodes = select_stmt->join_nodes();
+  for (auto &join_node : join_nodes) {
+    std::shared_ptr<LogicalOperator> oper;
 
-    shared_ptr<LogicalOperator> table_get_oper(new TableGetLogicalOperator(table, ReadWriteMode::READ_ONLY));
+    for (size_t j = 0; j < join_node.tables_.size(); ++j) {
+      rc = join_table_in_tree(oper, join_node.tables_[j], join_node.conditions_[j].get());
+
+      if (rc != RC::SUCCESS) {
+        return rc;
+      }
+    }
+
     if (table_oper == nullptr) {
-      table_oper = std::move(table_get_oper);
+      table_oper = oper;
     } else {
       JoinLogicalOperator *join_oper = new JoinLogicalOperator;
-      join_oper->add_child(std::move(table_oper));
-      join_oper->add_child(std::move(table_get_oper));
+      join_oper->add_child(table_oper);
+      join_oper->add_child(oper);
       table_oper = shared_ptr<LogicalOperator>(join_oper);
     }
   }
 
   shared_ptr<LogicalOperator> predicate_oper;
 
-  RC rc = create_plan(select_stmt->filter_stmt(), predicate_oper);
+  rc = create_plan(select_stmt->filter_stmt(), predicate_oper);
   if (OB_FAIL(rc)) {
     LOG_WARN("failed to create predicate logical plan. rc=%s", strrc(rc));
     return rc;
@@ -159,13 +207,14 @@ RC LogicalPlanGenerator::create_plan(SelectStmt *select_stmt, shared_ptr<Logical
 
 RC LogicalPlanGenerator::create_plan(FilterStmt *filter_stmt, shared_ptr<LogicalOperator> &logical_operator)
 {
-  if (filter_stmt==nullptr || filter_stmt->get_conditions()==nullptr) {
+  if (filter_stmt == nullptr || filter_stmt->get_conditions() == nullptr) {
     return RC::SUCCESS;
   }
 
   std::vector<std::shared_ptr<Expression>> comparison_expressions;
   comparison_expressions.push_back(filter_stmt->get_conditions());
-  std::shared_ptr<ConjunctionExpr> conjunction_expr(new ConjunctionExpr(ConjunctionExpr::Type::AND, comparison_expressions));
+  std::shared_ptr<ConjunctionExpr> conjunction_expr(
+      new ConjunctionExpr(ConjunctionExpr::Type::AND, comparison_expressions));
 
   logical_operator.reset(new PredicateLogicalOperator(conjunction_expr));
   return RC::SUCCESS;
@@ -202,7 +251,7 @@ RC LogicalPlanGenerator::create_plan(UpdateStmt *update_stmt, std::shared_ptr<Lo
     return rc;
   }
 
-  shared_ptr<LogicalOperator> update_oper(new UpdateLogicalOperator(table, update_stmt->field(),update_stmt->value()));
+  shared_ptr<LogicalOperator> update_oper(new UpdateLogicalOperator(table, update_stmt->field(), update_stmt->value()));
 
   if (predicate_oper) {
     predicate_oper->add_child(std::move(table_get_oper));

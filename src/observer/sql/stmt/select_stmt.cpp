@@ -232,7 +232,7 @@ RC SelectStmt::create(
   // everything alright
   SelectStmt *select_stmt = new SelectStmt();
 
-  select_stmt->tables_.swap(tables);
+  select_stmt->tables_.swap(join_tables);
   select_stmt->query_expressions_.swap(projects);
   select_stmt->filter_stmt_.reset(filter_stmt);
   // select_stmt->group_by_.swap(group_by_expressions);

@@ -10,7 +10,9 @@ See the Mulan PSL v2 for more details. */
 
 #pragma once
 
+#include "common/type/attr_type.h"
 #include "common/type/data_type.h"
+#include <cstdint>
 
 #define INT_NULL INT32_MIN
 

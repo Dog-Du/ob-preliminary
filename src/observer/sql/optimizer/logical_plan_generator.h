@@ -47,6 +47,7 @@ private:
   RC create_plan(UpdateStmt *update_stmt, std::shared_ptr<LogicalOperator> &logical_operator);
 
   RC create_group_by_plan(SelectStmt *select_stmt, std::shared_ptr<LogicalOperator> &logical_operator);
+  RC join_table_in_tree(std::shared_ptr<LogicalOperator> &oper, Table *table, FilterStmt *filter_stmt);
 
   int implicit_cast_cost(AttrType from, AttrType to);
 };

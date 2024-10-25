@@ -72,13 +72,19 @@ QUOTE            [\'\"]
 /* 2. 写在最前面的优先 */
 
 /* yylval 就可以认为是 yacc 中 %union 定义的结构体(union 结构) */
+/* 删除 [\-] 不主动读取负号 */
+/* [\-]?{DIGIT}+                           yylval->number=atoi(yytext); RETURN_TOKEN(NUMBER); */
+/* [\-]?{DIGIT}+{DOT}{DIGIT}+              yylval->floats=(float)(atof(yytext)); RETURN_TOKEN(FLOAT); */
+
+
 %%
 
 {WHITE_SAPCE}                                        // ignore whitespace
 \n                                                   ;
 
-[\-]?{DIGIT}+                           yylval->number=atoi(yytext); RETURN_TOKEN(NUMBER);
-[\-]?{DIGIT}+{DOT}{DIGIT}+              yylval->floats=(float)(atof(yytext)); RETURN_TOKEN(FLOAT);
+{DIGIT}+                           yylval->number=atoi(yytext); RETURN_TOKEN(NUMBER);
+{DIGIT}+{DOT}{DIGIT}+              yylval->floats=(float)(atof(yytext)); RETURN_TOKEN(FLOAT);
+
 
 ";"                                     RETURN_TOKEN(SEMICOLON);
 {DOT}                                   RETURN_TOKEN(DOT);

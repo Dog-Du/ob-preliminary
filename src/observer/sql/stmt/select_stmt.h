@@ -50,15 +50,15 @@ public:
       Db *db, SelectSqlNode &select_sql, Stmt *&stmt, const std::unordered_map<std::string, Table *> &all_tables = {});
 
 public:
-  const std::vector<Table *> &tables() const { return tables_; }
-  FilterStmt                 *filter_stmt() const { return filter_stmt_.get(); }
+  std::vector<JoinNodes> &join_nodes() { return tables_; }
+  FilterStmt             *filter_stmt() const { return filter_stmt_.get(); }
 
   std::vector<std::shared_ptr<Expression>> &query_expressions() { return query_expressions_; }
   std::vector<std::shared_ptr<Expression>> &group_by() { return group_by_; }
 
 private:
   std::vector<std::shared_ptr<Expression>> query_expressions_;
-  std::vector<Table *>                     tables_;
+  std::vector<JoinNodes>                   tables_;
   std::shared_ptr<FilterStmt>              filter_stmt_ = nullptr;
   std::vector<std::shared_ptr<Expression>> group_by_;
 };

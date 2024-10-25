@@ -96,15 +96,15 @@ RC OptimizeStage::rewrite(shared_ptr<LogicalOperator> &logical_operator)
 {
   RC rc = RC::SUCCESS;
 
-  bool change_made = false;
-  do {
-    change_made = false;
-    rc          = rewriter_.rewrite(logical_operator, change_made);
-    if (rc != RC::SUCCESS) {
-      LOG_WARN("failed to do expression rewrite on logical plan. rc=%s", strrc(rc));
-      return rc;
-    }
-  } while (change_made);
+  // bool change_made = false;
+  // do {
+  //   change_made = false;
+  //   rc          = rewriter_.rewrite(logical_operator, change_made);
+  //   if (rc != RC::SUCCESS) {
+  //     LOG_WARN("failed to do expression rewrite on logical plan. rc=%s", strrc(rc));
+  //     return rc;
+  //   }
+  // } while (change_made);
 
   return rc;
 }

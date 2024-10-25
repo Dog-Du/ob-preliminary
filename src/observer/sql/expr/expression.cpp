@@ -74,8 +74,8 @@ RC FieldExpr::check_field(const std::unordered_map<std::string, Table *> &all_ta
     const std::vector<Table *> &tables, const std::unordered_map<std::string, std::string> &alias_map)
 {
 
-  auto   table_name = field_.table_name();
-  auto   field_name = field_.field_name();
+  auto   table_name = Expression::table_name();
+  auto   field_name = Expression::field_name();
   Table *table      = nullptr;
 
   if (!common::is_blank(table_name)) {

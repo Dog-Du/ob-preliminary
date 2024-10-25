@@ -200,9 +200,9 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
 // 比如 ： select * from t where a=2 and a=3 or a=4;
 // 符合要求的是 4，即： select * from t where (a=2 and a=3) or a=4;
 // 而非： select * from t where a=2 and (a=3 or a=4)
+%left AND OR NE GE LE GT LT EQ
 %left '+' '-'
 %left '*' '/'
-%left AND OR NE GE LE GT LT EQ
 
 %nonassoc UMINUS
 %%

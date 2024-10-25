@@ -33,26 +33,42 @@ RC FilterStmt::create(Db *db, Table *default_table, std::unordered_map<std::stri
   }
 
   bool                              need_continue_check = true;
-  std::function<void(Expression *)> check_condition     = [&rc, &need_continue_check, tables, default_table](
-                                                          Expression *expression) {
-    if (!need_continue_check) {
-      return;
-    }
-
-    switch (expression->type()) {
-      case ExprType::FIELD: {
-        FieldExpr *field_expr = static_cast<FieldExpr *>(expression);
-        rc                    = field_expr->check_field(*tables, default_table, {}, {});
-
-        if (rc != RC::SUCCESS) {
-          need_continue_check = false;
+  std::function<void(Expression *)> check_condition =
+      [&rc, &need_continue_check, tables, default_table, &check_condition](Expression *expression) {
+        if (!need_continue_check) {
+          return;
         }
-      } break;
-      default: {
 
-      } break;
-    }
-  };
+        switch (expression->type()) {
+          case ExprType::FIELD: {
+            auto expr = static_cast<FieldExpr *>(expression);
+            rc        = expr->check_field(*tables, default_table, {}, {});
+
+            if (rc != RC::SUCCESS) {
+              need_continue_check = false;
+            }
+          } break;
+          case ExprType::COMPARISON: {
+            ComparisonExpr *expr = static_cast<ComparisonExpr *>(expression);
+            check_condition(expr->left().get());
+            check_condition(expr->right().get());
+          } break;
+          case ExprType::ARITHMETIC: {
+            auto *expr = static_cast<ArithmeticExpr *>(expression);
+            check_condition(expr->left().get());
+            check_condition(expr->right().get());
+          } break;
+          case ExprType::CONJUNCTION: {
+            auto *expr = static_cast<ConjunctionExpr *>(expression);
+            for (auto &child : expr->children()) {
+              check_condition(child.get());
+            }
+          } break;
+          default: {
+
+          } break;
+        }
+      };
 
   conditions->check_or_get(check_condition);
 
