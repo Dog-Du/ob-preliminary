@@ -290,6 +290,8 @@ int Value::get_int() const
   return 0;
 }
 
+int Value::get_date() const { return get_int(); }
+
 float Value::get_float() const
 {
   switch (attr_type_) {

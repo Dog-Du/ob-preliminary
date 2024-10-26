@@ -115,10 +115,11 @@ public:
    * 获取对应的值
    * 如果当前的类型与期望获取的类型不符，就会执行转换操作
    */
-  int    get_int() const;
-  float  get_float() const;
-  string get_string() const;
-  bool   get_boolean() const;
+  int     get_int() const;
+  float   get_float() const;
+  string  get_string() const;
+  bool    get_boolean() const;
+  int32_t get_date() const;
 
 private:
   void set_int(int val);

@@ -182,6 +182,7 @@ RC SelectStmt::create(
       } break;
       case ExprType::ARITHMETIC: {
         auto *expr = static_cast<ArithmeticExpr *>(expression);
+
         if (expr->left() != nullptr) {
           check_projections(expr->left().get());
         }

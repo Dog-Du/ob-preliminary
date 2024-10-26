@@ -16,12 +16,33 @@ See the Mulan PSL v2 for more details. */
 #include "common/lang/string.h"
 #include "common/log/log.h"
 #include "common/rc.h"
+#include "common/type/attr_type.h"
+#include "common/type/date_type.h"
+#include "common/value.h"
 #include "sql/expr/expression.h"
 #include "storage/db/db.h"
 #include "storage/field/field_meta.h"
 #include "storage/table/table.h"
 
 FilterStmt::~FilterStmt() {}
+
+RC check_comparison_invalid(Expression *left_expr, Expression *right_expr)
+{
+  if (left_expr == nullptr || right_expr == nullptr) {
+    return RC::SUCCESS;
+  }
+
+  if (left_expr->type() == ExprType::FIELD && static_cast<FieldExpr *>(left_expr)->value_type() == AttrType::DATES &&
+      right_expr->type() == ExprType::VALUE) {
+    Value tmp = static_cast<ValueExpr *>(right_expr)->get_value();
+    Value date_tmp;
+    date_tmp.set_type(AttrType::DATES);
+    if (tmp.attr_type() == AttrType::CHARS) {
+      return tmp.cast_to(tmp, AttrType::DATES, date_tmp);
+    }
+  }
+  return RC::SUCCESS;
+}
 
 RC FilterStmt::create(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
     std::shared_ptr<Expression> conditions, FilterStmt *&stmt)
@@ -56,6 +77,13 @@ RC FilterStmt::create(Db *db, Table *default_table, std::unordered_map<std::stri
             if (expr->right() != nullptr) {
               check_condition(expr->right().get());
             }
+
+            rc = check_comparison_invalid(expr->left().get(), expr->right().get());
+            if (rc != RC::SUCCESS) {
+              LOG_WARN("check_comparison_invalid failed.");
+              need_continue_check = false;
+              return;
+            }
           } break;
           case ExprType::ARITHMETIC: {
             auto *expr = static_cast<ArithmeticExpr *>(expression);
@@ -72,6 +100,9 @@ RC FilterStmt::create(Db *db, Table *default_table, std::unordered_map<std::stri
             for (auto &child : expr->children()) {
               check_condition(child.get());
             }
+          } break;
+          case ExprType::VALUE: {
+
           } break;
           default: {
 
