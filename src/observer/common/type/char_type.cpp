@@ -17,7 +17,7 @@ See the Mulan PSL v2 for more details. */
 
 int CharType::compare(const Value &left, const Value &right) const
 {
-  ASSERT(left.attr_type() == AttrType::CHARS && right.attr_type() == AttrType::CHARS, "invalid type");
+  ASSERT(left.attr_type() == AttrType::CHARS, "invalid type");
 
   if (left.is_null(left)) {
     return -1;
@@ -26,7 +26,7 @@ int CharType::compare(const Value &left, const Value &right) const
   if (right.is_null(right)) {
     return 1;
   }
-  
+
   switch (right.attr_type()) {
     case AttrType::CHARS: {
       return common::compare_string(
