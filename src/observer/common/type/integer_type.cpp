@@ -19,7 +19,7 @@ See the Mulan PSL v2 for more details. */
 int IntegerType::compare(const Value &left, const Value &right) const
 {
   ASSERT(left.attr_type() == AttrType::INTS, "left type is not integer");
-  ASSERT(right.attr_type() == AttrType::INTS || right.attr_type() == AttrType::FLOATS, "right type is not numeric");
+  // ASSERT(right.attr_type() == AttrType::INTS || right.attr_type() == AttrType::FLOATS, "right type is not numeric");
 
   if (left.is_null(left)) {
     return -1;
@@ -35,6 +35,10 @@ int IntegerType::compare(const Value &left, const Value &right) const
     float left_val  = left.get_float();
     float right_val = right.get_float();
     return common::compare_float((void *)&left_val, (void *)&right_val);
+  } else if (right.attr_type() == AttrType::CHARS) {
+    int l_int = left.get_int();
+    int r_int = right.get_int();
+    return common::compare_int((void *)&l_int, (void *)&r_int);
   }
   return INT32_MAX;
 }

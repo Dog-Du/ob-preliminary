@@ -20,7 +20,6 @@ See the Mulan PSL v2 for more details. */
 int FloatType::compare(const Value &left, const Value &right) const
 {
   ASSERT(left.attr_type() == AttrType::FLOATS, "left type is not integer");
-  ASSERT(right.attr_type() == AttrType::INTS || right.attr_type() == AttrType::FLOATS, "right type is not numeric");
 
   if (left.is_null(left)) {
     return -1;
@@ -29,7 +28,7 @@ int FloatType::compare(const Value &left, const Value &right) const
   if (right.is_null(right)) {
     return 1;
   }
-  
+
   float left_val  = left.get_float();
   float right_val = right.get_float();
   return common::compare_float((void *)&left_val, (void *)&right_val);
