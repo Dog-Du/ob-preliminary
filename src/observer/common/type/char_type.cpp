@@ -37,6 +37,16 @@ int CharType::compare(const Value &left, const Value &right) const
       left.cast_to(left, AttrType::DATES, date_val);
       return date_val.compare(right);
     } break;
+    case AttrType::INTS: {
+      int l_int = left.get_int();
+      int r_int = right.get_int();
+      return common::compare_int((void *)&l_int, (void *)&r_int);
+    } break;
+    case AttrType::FLOATS: {
+      int l_float = left.get_float();
+      int r_float = right.get_float();
+      return common::compare_float((void *)&l_float, (void *)&r_float);
+    } break;
     default: {
       return INT32_MAX;
     } break;
