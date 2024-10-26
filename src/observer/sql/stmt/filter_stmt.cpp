@@ -66,6 +66,7 @@ RC FilterStmt::create(Db *db, Table *default_table, std::unordered_map<std::stri
             rc        = expr->check_field(*tables, default_table, {}, {});
 
             if (rc != RC::SUCCESS) {
+              LOG_WARN("check_field failed.");
               need_continue_check = false;
             }
           } break;
@@ -74,8 +75,14 @@ RC FilterStmt::create(Db *db, Table *default_table, std::unordered_map<std::stri
             if (expr->left() != nullptr) {
               check_condition(expr->left().get());
             }
+
             if (expr->right() != nullptr) {
               check_condition(expr->right().get());
+            }
+
+            if (!need_continue_check) {
+              LOG_WARN("something wrong before check_comparison_invalid.");
+              return;
             }
 
             rc = check_comparison_invalid(expr->left().get(), expr->right().get());
