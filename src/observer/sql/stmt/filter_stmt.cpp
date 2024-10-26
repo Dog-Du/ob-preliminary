@@ -50,13 +50,22 @@ RC FilterStmt::create(Db *db, Table *default_table, std::unordered_map<std::stri
           } break;
           case ExprType::COMPARISON: {
             ComparisonExpr *expr = static_cast<ComparisonExpr *>(expression);
-            check_condition(expr->left().get());
-            check_condition(expr->right().get());
+            if (expr->left() != nullptr) {
+              check_condition(expr->left().get());
+            }
+            if (expr->right() != nullptr) {
+              check_condition(expr->right().get());
+            }
           } break;
           case ExprType::ARITHMETIC: {
             auto *expr = static_cast<ArithmeticExpr *>(expression);
-            check_condition(expr->left().get());
-            check_condition(expr->right().get());
+            if (expr->left() != nullptr) {
+              check_condition(expr->left().get());
+            }
+
+            if (expr->right() != nullptr) {
+              check_condition(expr->right().get());
+            }
           } break;
           case ExprType::CONJUNCTION: {
             auto *expr = static_cast<ConjunctionExpr *>(expression);

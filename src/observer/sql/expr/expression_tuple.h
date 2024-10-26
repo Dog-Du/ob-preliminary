@@ -16,6 +16,7 @@ See the Mulan PSL v2 for more details. */
 
 #include <vector>
 
+#include "common/log/log.h"
 #include "sql/expr/tuple.h"
 #include "common/value.h"
 #include "common/rc.h"
@@ -81,6 +82,11 @@ private:
       rc = expression->get_value(*child_tuple_, value);
     } else {
       rc = expression->try_get_value(value);
+    }
+
+    LOG_DEBUG("get a value int expression_tuple : %s", value.to_string());
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("something wrong in get_value.");
     }
     return rc;
   }

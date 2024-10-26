@@ -51,6 +51,7 @@ RC check_alias_and_joins(Db *db, std::unordered_map<std::string, std::string> &a
 
     if (!table_name.alias.empty()) {
       if (alias_set.count(table_name.alias) > 0) {
+        LOG_WARN("alias count > 0");
         return RC::INVALID_ARGUMENT;
       }
 
@@ -77,6 +78,7 @@ RC check_alias_and_joins(Db *db, std::unordered_map<std::string, std::string> &a
     if (nullptr != conditions) {
       rc = FilterStmt::create(db, all_tables[table.relation_name], &all_tables, conditions, filter);
       if (rc != RC::SUCCESS) {
+        LOG_WARN("create filter stmt failed.");
         return rc;
       }
     }
@@ -127,6 +129,7 @@ RC SelectStmt::create(
   RC rc = check_alias_and_joins(db, alias_map, table_map, tables, select_sql.relations, join_tables);
 
   if (rc != RC::SUCCESS) {
+    LOG_WARN("check_alias_and_joins failed in select stmt.");
     return rc;
   }
 
@@ -163,13 +166,37 @@ RC SelectStmt::create(
     }
     switch (expression->type()) {
       case ExprType::FIELD: {
-        rc = static_cast<FieldExpr *>(expression)->check_field(all_tables, default_table, tables, alias_map);
+        rc = static_cast<FieldExpr *>(expression)->check_field(table_map, default_table, tables, alias_map);
         if (rc != RC::SUCCESS) {
           need_continue_check = false;
         }
       } break;
-      default: {
+      case ExprType::COMPARISON: {
+        ComparisonExpr *expr = static_cast<ComparisonExpr *>(expression);
+        if (expr->left() != nullptr) {
+          check_projections(expr->left().get());
+        }
+        if (expr->right() != nullptr) {
+          check_projections(expr->right().get());
+        }
+      } break;
+      case ExprType::ARITHMETIC: {
+        auto *expr = static_cast<ArithmeticExpr *>(expression);
+        if (expr->left() != nullptr) {
+          check_projections(expr->left().get());
+        }
 
+        if (expr->right() != nullptr) {
+          check_projections(expr->right().get());
+        }
+      } break;
+      case ExprType::CONJUNCTION: {
+        auto *expr = static_cast<ConjunctionExpr *>(expression);
+        for (auto &child : expr->children()) {
+          check_projections(child.get());
+        }
+      } break;
+      default: {
       } break;
     }
   };
@@ -204,7 +231,7 @@ RC SelectStmt::create(
           fulls_tables(table, std::string());
         }
       } else {
-        rc = field_expression->check_field(all_tables, default_table, tables, alias_map);
+        rc = field_expression->check_field(table_map, default_table, tables, alias_map);
         if (rc != RC::SUCCESS) {
           return rc;
         }

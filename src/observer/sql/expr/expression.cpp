@@ -13,6 +13,8 @@ See the Mulan PSL v2 for more details. */
 //
 
 #include "sql/expr/expression.h"
+#include "common/log/log.h"
+#include "common/value.h"
 #include "sql/expr/tuple.h"
 #include "sql/expr/arithmetic_operator.hpp"
 #include "sql/parser/parse_defs.h"
@@ -74,14 +76,14 @@ RC FieldExpr::check_field(const std::unordered_map<std::string, Table *> &all_ta
     const std::vector<Table *> &tables, const std::unordered_map<std::string, std::string> &alias_map)
 {
 
-  auto   table_name = Expression::table_name();
-  auto   field_name = Expression::field_name();
+  auto   table_name = std::string(Expression::table_name());
+  auto   field_name = std::string(Expression::field_name());
   Table *table      = nullptr;
 
-  if (!common::is_blank(table_name)) {
+  if (!common::is_blank(table_name.c_str())) {
     auto iter = all_tables.find(table_name);
     if (iter == all_tables.end()) {
-
+      LOG_WARN("all tables have not table_name : %s in check_field", table_name.c_str());
       return RC::SCHEMA_TABLE_NOT_EXIST;
     }
     table = iter->second;
@@ -96,7 +98,7 @@ RC FieldExpr::check_field(const std::unordered_map<std::string, Table *> &all_ta
   // 得到了表的名字
   table_name = table->name();
 
-  const FieldMeta *field_meta = table->table_meta().field(field_name);
+  const FieldMeta *field_meta = table->table_meta().field(field_name.c_str());
 
   if (nullptr == field_meta) {
     return RC::SCHEMA_FIELD_NOT_EXIST;
@@ -522,6 +524,19 @@ RC ArithmeticExpr::get_value(const Tuple &tuple, Value &value) const
     LOG_WARN("failed to get value of left expression. rc=%s", strrc(rc));
     return rc;
   }
+
+  ASSERT(right_!=nullptr || arithmetic_type_ == Type::NEGATIVE, "error operation");
+
+  if (arithmetic_type_ == Type::NEGATIVE) {
+    value.set_type(left_value.attr_type());
+    rc = Value::negative(left_value, value);
+
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("failed get value's negative. value : %s", left_value.to_string().c_str());
+    }
+    return rc;
+  }
+
   rc = right_->get_value(tuple, right_value);
   if (rc != RC::SUCCESS) {
     LOG_WARN("failed to get value of right expression. rc=%s", strrc(rc));

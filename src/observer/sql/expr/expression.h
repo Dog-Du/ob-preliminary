@@ -208,7 +208,8 @@ public:
       : Expression(table_name, field_name, alias)
   {}
 
-  FieldExpr(const Table *table, const FieldMeta *field) : field_(table, field) {
+  FieldExpr(const Table *table, const FieldMeta *field) : field_(table, field)
+  {
     set_field_name(field_.field_name());
     set_table_name(field_.table_name());
     // set_alias("");
@@ -334,8 +335,12 @@ public:
 
   void check_or_get(std::function<void(Expression *)> &worker_func) override
   {
-    worker_func(left_.get());
-    worker_func(right_.get());
+    if (left_ != nullptr) {
+      worker_func(left_.get());
+    }
+    if (right_ != nullptr) {
+      worker_func(right_.get());
+    }
     worker_func(this);
   }
   /**
@@ -438,10 +443,15 @@ public:
   RC try_get_value(Value &value) const override;
 
   Type arithmetic_type() const { return arithmetic_type_; }
+
   void check_or_get(std::function<void(Expression *)> &worker_func) override
   {
-    worker_func(left_.get());
-    worker_func(right_.get());
+    if (left_ != nullptr) {
+      worker_func(left_.get());
+    }
+    if (right_ != nullptr) {
+      worker_func(right_.get());
+    }
     worker_func(this);
   }
 
@@ -477,7 +487,9 @@ public:
 
   void check_or_get(std::function<void(Expression *)> &worker_func) override
   {
-    worker_func(child_.get());
+    if (child_ != nullptr) {
+      worker_func(child_.get());
+    }
     worker_func(this);
   }
   RC       get_value(const Tuple &tuple, Value &value) const override { return RC::INTERNAL; }
@@ -524,7 +536,9 @@ public:
   const std::shared_ptr<Expression> &child() const { return child_; }
   void                               check_or_get(std::function<void(Expression *)> &worker_func) override
   {
-    worker_func(child_.get());
+    if (child_ != nullptr) {
+      worker_func(child_.get());
+    }
     worker_func(this);
   }
   std::shared_ptr<Aggregator> create_aggregator() const;

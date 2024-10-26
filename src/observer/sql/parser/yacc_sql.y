@@ -15,6 +15,41 @@
 
 using namespace std;
 
+bool try_expression_to_value(Expression *expression, Value &value)
+{
+  switch (expression->type()) {
+    case ExprType::VALUE: {
+      value = static_cast<ValueExpr *>(expression)->get_value();
+      return true;
+    } break;
+    case ExprType::ARITHMETIC: {
+      auto *expr = static_cast<ArithmeticExpr *>(expression);
+      // value = expr->get_value(); 这里没有tuple，不能这么写。
+      // 可能是单一个expr，
+      if (expr->arithmetic_type() != ArithmeticExpr::Type::NEGATIVE && expr->left()->type() != ExprType::VALUE) {
+        return false;
+      }
+
+      if (static_cast<ValueExpr *>(expr->left().get())->try_get_value(value) != RC::SUCCESS) {
+        LOG_WARN("ArithmeticExpr can not cast to value.");
+        return false;
+      }
+      Value tmp_value;
+      tmp_value.set_type(value.attr_type());
+      if (Value::negative(value, tmp_value) != RC::SUCCESS) {
+        return false;
+      }
+
+      value = tmp_value;
+      return true;
+    } break;
+    default : {
+      return false;
+    } break;
+  }
+  return false;
+}
+
 string token_name(const char *sql_string, YYLTYPE *llocp)
 {
   return string(sql_string + llocp->first_column, llocp->last_column - llocp->first_column + 1);
@@ -414,7 +449,7 @@ type:
     ;
 
 insert_stmt:        /*insert   语句的语法解析树*/
-    INSERT INTO ID VALUES LBRACE value value_list RBRACE
+    INSERT INTO ID VALUES LBRACE expression value_list RBRACE
     {
       $$ = new ParsedSqlNode(SCF_INSERT);
       $$->insertion.relation_name = $3;
@@ -422,7 +457,13 @@ insert_stmt:        /*insert   语句的语法解析树*/
         $$->insertion.values.swap(*$7);
         delete $7;
       }
-      $$->insertion.values.emplace_back(*$6);
+      Value tmp_value;
+
+      if (try_expression_to_value($6, tmp_value) == false) {
+        yyerror (&yylloc, sql_string, sql_result, scanner, "try_expression_to_value failed in insert_stmt");
+      }
+
+      $$->insertion.values.emplace_back(tmp_value);
       std::reverse($$->insertion.values.begin(), $$->insertion.values.end());
       delete $6;
       free($3);
@@ -434,13 +475,19 @@ value_list:
     {
       $$ = nullptr;
     }
-    | COMMA value value_list  {
+    | COMMA expression value_list  {
       if ($3 != nullptr) {
         $$ = $3;
       } else {
         $$ = new std::vector<Value>;
       }
-      $$->emplace_back(*$2);
+      Value tmp_value;
+
+      if (try_expression_to_value($2, tmp_value) == false) {
+        yyerror (&yylloc, sql_string, sql_result, scanner, "try_expression_to_value failed in value_list");
+      }
+
+      $$->emplace_back(tmp_value);
       delete $2;
     }
     ;
@@ -488,15 +535,19 @@ delete_stmt:    /*  delete 语句的语法解析树*/
     ;
 
 update_stmt:      /*  update 语句的语法解析树*/
-    UPDATE ID SET ID EQ value where
+    UPDATE ID SET ID EQ expression where
     {
       $$ = new ParsedSqlNode(SCF_UPDATE);
       $$->update.relation_name = $2;
       $$->update.attribute_name = $4;
-      $$->update.value = *$6;
+      if (try_expression_to_value($6, $$->update.value) == false) {
+        yyerror (&yylloc, sql_string, sql_result, scanner, "try_expression_to_value failed in update_stmt");
+      }
+      // $$->update.value = *$6;
       $$->update.conditions.reset($7);
       free($2);
       free($4);
+      delete $6;
     }
     ;
 
@@ -688,8 +739,6 @@ rel_attr:
     }
     ;
 
-
-
 relation:
     ID {
       $$ = new RelAttrSqlNode;
@@ -803,11 +852,16 @@ explain_stmt:
     ;
 
 set_variable_stmt:
-    SET ID EQ value
+    SET ID EQ expression
     {
       $$ = new ParsedSqlNode(SCF_SET_VARIABLE);
       $$->set_variable.name  = $2;
-      $$->set_variable.value = *$4;
+
+      if (try_expression_to_value($4, $$->set_variable.value) == false) {
+        yyerror (&yylloc, sql_string, sql_result, scanner, "try_expression_to_value failed in set_variable_stmt");
+      }
+
+      // $$->set_variable.value = *$4;
       free($2);
       delete $4;
     }
