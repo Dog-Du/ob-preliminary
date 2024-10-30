@@ -1,7 +1,7 @@
 /* Copyright (c) 2021 OceanBase and/or its affiliates. All rights reserved.
 miniob is licensed under Mulan PSL v2.
-You can use this software according to the terms and conditions of the Mulan PSL v2.
-You may obtain a copy of Mulan PSL v2 at:
+You can use this software according to the terms and conditions of the Mulan PSL
+v2. You may obtain a copy of Mulan PSL v2 at:
          http://license.coscl.org.cn/MulanPSL2
 THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
 EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
@@ -34,19 +34,43 @@ int FloatType::compare(const Value &left, const Value &right) const
   return common::compare_float((void *)&left_val, (void *)&right_val);
 }
 
-bool FloatType::is_null(const Value &val) const { return val.value_.float_value_ == FLOAT_NULL; }
+bool FloatType::is_null(const Value &val) const
+{
+  return val.value_.float_value_ == FLOAT_NULL;
+}
 
 RC FloatType::cast_to(const Value &val, AttrType attr_type, Value &result) const
 {
   RC rc = RC::SUCCESS;
   switch (attr_type) {
     case AttrType::FLOATS: {
-      result.attr_type_          = AttrType::FLOATS;
-      result.value_.float_value_ = val.get_float();
+      result.attr_type_ = AttrType::FLOATS;
+
+      if (!val.is_null(val)) {
+        result.value_.float_value_ = val.get_float();
+      } else {
+        result.value_.float_value_ = FLOAT_NULL;
+      }
     } break;
     case AttrType::INTS: {
-      result.attr_type_        = AttrType::INTS;
-      result.value_.int_value_ = static_cast<int>(val.get_float());
+      result.attr_type_ = AttrType::INTS;
+
+      if (!val.is_null(val)) {
+        result.value_.int_value_ = static_cast<int>(val.get_float());
+      } else {
+        result.value_.int_value_ = INT_NULL;
+      }
+
+    } break;
+    case AttrType::DATES: {
+      ASSERT(val.is_null(val),"");
+      result.attr_type_         = AttrType::DATES;
+      result.value_.date_value_ = DATE_NULL;
+    } break;
+    case AttrType::CHARS: {
+      ASSERT(val.is_null(val),"");
+      result.attr_type_ = AttrType::CHARS;
+      result.set_string(nullptr);
     } break;
     default: {
       rc = RC::VARIABLE_NOT_VALID;
@@ -60,12 +84,14 @@ RC FloatType::add(const Value &left, const Value &right, Value &result) const
   result.set_float(left.get_float() + right.get_float());
   return RC::SUCCESS;
 }
-RC FloatType::subtract(const Value &left, const Value &right, Value &result) const
+RC FloatType::subtract(
+    const Value &left, const Value &right, Value &result) const
 {
   result.set_float(left.get_float() - right.get_float());
   return RC::SUCCESS;
 }
-RC FloatType::multiply(const Value &left, const Value &right, Value &result) const
+RC FloatType::multiply(
+    const Value &left, const Value &right, Value &result) const
 {
   result.set_float(left.get_float() * right.get_float());
   return RC::SUCCESS;
@@ -108,6 +134,10 @@ RC FloatType::set_value_from_str(Value &val, const string &data) const
 
 RC FloatType::to_string(const Value &val, string &result) const
 {
+  if (is_null(val)) {
+    result = NULL_STR;
+    return RC::SUCCESS;
+  }
   stringstream ss;
   ss << common::double_to_str(val.value_.float_value_);
   result = ss.str();

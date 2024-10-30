@@ -1,7 +1,7 @@
 /* Copyright (c) 2021 OceanBase and/or its affiliates. All rights reserved.
 miniob is licensed under Mulan PSL v2.
-You can use this software according to the terms and conditions of the Mulan PSL v2.
-You may obtain a copy of Mulan PSL v2 at:
+You can use this software according to the terms and conditions of the Mulan PSL
+v2. You may obtain a copy of Mulan PSL v2 at:
          http://license.coscl.org.cn/MulanPSL2
 THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
 EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
@@ -32,7 +32,8 @@ RC check_comparison_invalid(Expression *left_expr, Expression *right_expr)
     return RC::SUCCESS;
   }
 
-  if (left_expr->type() == ExprType::FIELD && static_cast<FieldExpr *>(left_expr)->value_type() == AttrType::DATES &&
+  if (left_expr->type() == ExprType::FIELD &&
+      static_cast<FieldExpr *>(left_expr)->value_type() == AttrType::DATES &&
       right_expr->type() == ExprType::VALUE) {
     Value tmp = static_cast<ValueExpr *>(right_expr)->get_value();
     Value date_tmp;
@@ -44,7 +45,8 @@ RC check_comparison_invalid(Expression *left_expr, Expression *right_expr)
   return RC::SUCCESS;
 }
 
-RC FilterStmt::create(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
+RC FilterStmt::create(Db *db, Table *default_table,
+    std::unordered_map<std::string, Table *> *tables,
     std::shared_ptr<Expression> conditions, FilterStmt *&stmt)
 {
   RC rc = RC::SUCCESS;
@@ -55,7 +57,8 @@ RC FilterStmt::create(Db *db, Table *default_table, std::unordered_map<std::stri
 
   bool                              need_continue_check = true;
   std::function<void(Expression *)> check_condition =
-      [&rc, &need_continue_check, tables, default_table, &check_condition](Expression *expression) {
+      [&rc, &need_continue_check, tables, default_table, &check_condition, db](
+          Expression *expression) {
         if (!need_continue_check) {
           return;
         }
@@ -85,7 +88,8 @@ RC FilterStmt::create(Db *db, Table *default_table, std::unordered_map<std::stri
               return;
             }
 
-            rc = check_comparison_invalid(expr->left().get(), expr->right().get());
+            rc = check_comparison_invalid(
+                expr->left().get(), expr->right().get());
             if (rc != RC::SUCCESS) {
               LOG_WARN("check_comparison_invalid failed.");
               need_continue_check = false;
@@ -111,6 +115,17 @@ RC FilterStmt::create(Db *db, Table *default_table, std::unordered_map<std::stri
           case ExprType::VALUE: {
 
           } break;
+          case ExprType::SUBQUERY_OR_VALUELIST: {
+            auto expr =
+                static_cast<SubQuery_ValueList_Expression *>(expression);
+
+            rc = expr->create_stmt(db, *tables);
+            if (rc != RC::SUCCESS) {
+              need_continue_check = false;
+              LOG_WARN("sub_query in filter creat_stmt wrong.");
+              return;
+            }
+          } break;
           default: {
 
           } break;
@@ -128,7 +143,8 @@ RC FilterStmt::create(Db *db, Table *default_table, std::unordered_map<std::stri
   return rc;
 }
 
-RC get_table_and_field(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
+RC get_table_and_field(Db *db, Table *default_table,
+    std::unordered_map<std::string, Table *> *tables,
     const RelAttrSqlNode &attr, Table *&table, const FieldMeta *&field)
 {
   if (common::is_blank(attr.relation_name.c_str())) {
@@ -156,7 +172,8 @@ RC get_table_and_field(Db *db, Table *default_table, std::unordered_map<std::str
   return RC::SUCCESS;
 }
 
-// RC FilterStmt::create_filter_unit(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
+// RC FilterStmt::create_filter_unit(Db *db, Table *default_table,
+// std::unordered_map<std::string, Table *> *tables,
 //     const ConditionSqlNode &condition, FilterUnit *&filter_unit)
 // {
 //   RC rc = RC::SUCCESS;
@@ -172,8 +189,8 @@ RC get_table_and_field(Db *db, Table *default_table, std::unordered_map<std::str
 //   if (condition.left_is_attr) {
 //     Table           *table = nullptr;
 //     const FieldMeta *field = nullptr;
-//     rc                     = get_table_and_field(db, default_table, tables, condition.left_attr, table, field);
-//     if (rc != RC::SUCCESS) {
+//     rc                     = get_table_and_field(db, default_table, tables,
+//     condition.left_attr, table, field); if (rc != RC::SUCCESS) {
 //       LOG_WARN("cannot find attr");
 //       return rc;
 //     }
@@ -189,8 +206,8 @@ RC get_table_and_field(Db *db, Table *default_table, std::unordered_map<std::str
 //   if (condition.right_is_attr) {
 //     Table           *table = nullptr;
 //     const FieldMeta *field = nullptr;
-//     rc                     = get_table_and_field(db, default_table, tables, condition.right_attr, table, field);
-//     if (rc != RC::SUCCESS) {
+//     rc                     = get_table_and_field(db, default_table, tables,
+//     condition.right_attr, table, field); if (rc != RC::SUCCESS) {
 //       LOG_WARN("cannot find attr");
 //       return rc;
 //     }

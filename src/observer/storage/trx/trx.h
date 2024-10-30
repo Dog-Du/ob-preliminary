@@ -1,7 +1,7 @@
 /* Copyright (c) 2021 OceanBase and/or its affiliates. All rights reserved.
 miniob is licensed under Mulan PSL v2.
-You can use this software according to the terms and conditions of the Mulan PSL v2.
-You may obtain a copy of Mulan PSL v2 at:
+You can use this software according to the terms and conditions of the Mulan PSL
+v2. You may obtain a copy of Mulan PSL v2 at:
          http://license.coscl.org.cn/MulanPSL2
 THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
 EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
@@ -21,6 +21,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/lang/mutex.h"
 #include "sql/parser/parse.h"
 #include "storage/field/field_meta.h"
+#include "storage/record/record.h"
 #include "storage/record/record_manager.h"
 #include "storage/table/table.h"
 
@@ -58,7 +59,10 @@ public:
 
 public:
   Operation(Type type, Table *table, const RID &rid)
-      : type_(type), table_(table), page_num_(rid.page_num), slot_num_(rid.slot_num)
+      : type_(type),
+        table_(table),
+        page_num_(rid.page_num),
+        slot_num_(rid.slot_num)
   {}
 
   Type    type() const { return type_; }
@@ -79,7 +83,10 @@ private:
 class OperationHasher
 {
 public:
-  size_t operator()(const Operation &op) const { return (((size_t)op.page_num()) << 32) | (op.slot_num()); }
+  size_t operator()(const Operation &op) const
+  {
+    return (((size_t)op.page_num()) << 32) | (op.slot_num());
+  }
 };
 
 class OperationEqualer
@@ -87,7 +94,8 @@ class OperationEqualer
 public:
   bool operator()(const Operation &op1, const Operation &op2) const
   {
-    return op1.table_id() == op2.table_id() && op1.page_num() == op2.page_num() && op1.slot_num() == op2.slot_num();
+    return op1.table_id() == op2.table_id() &&
+           op1.page_num() == op2.page_num() && op1.slot_num() == op2.slot_num();
   }
 };
 

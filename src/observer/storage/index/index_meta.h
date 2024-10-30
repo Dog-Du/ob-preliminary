@@ -1,7 +1,7 @@
 /* Copyright (c) 2021 OceanBase and/or its affiliates. All rights reserved.
 miniob is licensed under Mulan PSL v2.
-You can use this software according to the terms and conditions of the Mulan PSL v2.
-You may obtain a copy of Mulan PSL v2 at:
+You can use this software according to the terms and conditions of the Mulan PSL
+v2. You may obtain a copy of Mulan PSL v2 at:
          http://license.coscl.org.cn/MulanPSL2
 THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
 EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
@@ -35,19 +35,25 @@ class IndexMeta
 public:
   IndexMeta() = default;
 
-  RC init(const char *name, const FieldMeta &field);
+  // RC init(const char *name, const FieldMeta &field);
+  // RC init(const char *name, const std::vector<const FieldMeta *> &fields_meta);
+  RC init(const char *name, const std::vector<const FieldMeta *> &fields_meta,
+      bool unique);
 
 public:
-  const char *name() const;
-  const char *field() const;
+  const char                     *name() const;
+  const std::vector<std::string> &fields() const;
 
   void desc(ostream &os) const;
+  bool unique() const { return unique_; }
 
 public:
   void      to_json(Json::Value &json_value) const;
-  static RC from_json(const TableMeta &table, const Json::Value &json_value, IndexMeta &index);
+  static RC from_json(
+      const TableMeta &table, const Json::Value &json_value, IndexMeta &index);
 
 protected:
-  string name_;   // index's name
-  string field_;  // field's name
+  string                   name_;  // index's name
+  std::vector<std::string> fields_;
+  bool                     unique_;
 };

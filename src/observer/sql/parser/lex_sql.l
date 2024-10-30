@@ -106,6 +106,8 @@ WHERE                                   RETURN_TOKEN(WHERE);
 AND                                     RETURN_TOKEN(AND);
 OR                                      RETURN_TOKEN(OR);
 INSERT                                  RETURN_TOKEN(INSERT);
+
+UNIQUE                                  RETURN_TOKEN(UNIQUE_T);
 NOT                                     RETURN_TOKEN(NOT_T);
 LIKE                                    RETURN_TOKEN(LIKE_T);
 TEXT                                    RETURN_TOKEN(TEXT_T);
@@ -115,7 +117,10 @@ AS                                      RETURN_TOKEN(AS_T);
 NULL                                    RETURN_TOKEN(NULL_T);
 NULLABLE                                RETURN_TOKEN(NULL_T);
 IS                                      RETURN_TOKEN(IS_T);
+EXISTS                                  RETURN_TOKEN(EXISTS_T);
 
+
+IN                                      RETURN_TOKEN(IN_T);
 INTO                                    RETURN_TOKEN(INTO);
 VALUES                                  RETURN_TOKEN(VALUES);
 DELETE                                  RETURN_TOKEN(DELETE);

@@ -6,8 +6,6 @@
 #include <cstdint>
 #include <string>
 
-#define DATE_NULL INT32_MIN
-
 class DateType : public DataType
 {
 public:

@@ -1,7 +1,7 @@
 /* Copyright (c) 2021 OceanBase and/or its affiliates. All rights reserved.
 miniob is licensed under Mulan PSL v2.
-You can use this software according to the terms and conditions of the Mulan PSL v2.
-You may obtain a copy of Mulan PSL v2 at:
+You can use this software according to the terms and conditions of the Mulan PSL
+v2. You may obtain a copy of Mulan PSL v2 at:
          http://license.coscl.org.cn/MulanPSL2
 THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
 EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
@@ -29,8 +29,10 @@ int CharType::compare(const Value &left, const Value &right) const
 
   switch (right.attr_type()) {
     case AttrType::CHARS: {
-      return common::compare_string(
-          (void *)left.value_.pointer_value_, left.length_, (void *)right.value_.pointer_value_, right.length_);
+      return common::compare_string((void *)left.value_.pointer_value_,
+          left.length_,
+          (void *)right.value_.pointer_value_,
+          right.length_);
     } break;
     case AttrType::DATES: {
       Value date_val;
@@ -62,7 +64,11 @@ RC CharType::set_value_from_str(Value &val, const string &data) const
 
 bool CharType::is_null(const Value &val) const
 {
-  return val.length_ == 0 || val.value_.pointer_value_ == nullptr || val.value_.pointer_value_[0] == '\0';
+  if (val.attr_type() != AttrType::CHARS) {
+    return false;
+  }
+  return val.length_ == 0 || val.value_.pointer_value_ == nullptr ||
+         val.value_.pointer_value_[0] == '\0';
 }
 
 RC CharType::cast_to(const Value &val, AttrType type, Value &result) const
@@ -70,6 +76,11 @@ RC CharType::cast_to(const Value &val, AttrType type, Value &result) const
   switch (type) {
     case AttrType::DATES: {
       result.attr_type_ = AttrType::DATES;
+
+      if (val.is_null(val)) {
+        result.value_.date_value_ = DATE_NULL;
+        break;
+      }
       int y, m, d;
       if (sscanf(val.value_.pointer_value_, "%d-%d-%d", &y, &m, &d) != 3) {
         return RC::INVALID_ARGUMENT;
@@ -81,9 +92,32 @@ RC CharType::cast_to(const Value &val, AttrType type, Value &result) const
       result.set_date(y, m, d);
     } break;
     case AttrType::CHARS: {
+      if (val.is_null(val)) {
+        result.set_string(nullptr);
+        break;
+      }
       result.set_string(val.data(), val.length());
       return RC::SUCCESS;
     };
+    case AttrType::FLOATS: {
+      result.attr_type_ = AttrType::FLOATS;
+
+      if (!val.is_null(val)) {
+        result.value_.float_value_ = val.get_float();
+      } else {
+        result.value_.float_value_ = FLOAT_NULL;
+      }
+    } break;
+    case AttrType::INTS: {
+      result.attr_type_ = AttrType::INTS;
+
+      if (!val.is_null(val)) {
+        result.value_.int_value_ = static_cast<int>(val.get_float());
+      } else {
+        result.value_.int_value_ = INT_NULL;
+      }
+
+    } break;
     default: {
       return RC::UNIMPLEMENTED;
     }
@@ -104,6 +138,10 @@ int CharType::cast_cost(AttrType type)
 
 RC CharType::to_string(const Value &val, string &result) const
 {
+  if (is_null(val)) {
+    result = NULL_STR;
+    return RC::SUCCESS;
+  }
   stringstream ss;
   ss << val.value_.pointer_value_;
   result = ss.str();

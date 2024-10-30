@@ -14,8 +14,6 @@ See the Mulan PSL v2 for more details. */
 #include "common/type/data_type.h"
 #include <cstdint>
 
-#define INT_NULL INT32_MIN
-
 /**
  * @brief 整型类型
  * @ingroup DataType

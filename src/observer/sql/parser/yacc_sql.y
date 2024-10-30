@@ -15,6 +15,11 @@
 
 using namespace std;
 
+struct DoNothingDeleter {
+  template <typename T>
+  void operator() (T*) const {}
+};
+
 bool try_expression_to_value(Expression *expression, Value &value)
 {
   switch (expression->type()) {
@@ -107,6 +112,9 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
         NOT_T
         TEXT_T
         JOIN_T
+        EXISTS_T
+        IN_T
+        UNIQUE_T
         AS_T
         NULL_T
         IS_T
@@ -169,8 +177,10 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
   Expression *                               expression;
   std::vector<std::shared_ptr<Expression>> * expression_list;
   std::vector<Value> *                       value_list;
+  std::vector<std::vector<Value>> *          insert_value_list;
   std::vector<RelAttrSqlNode> *              rel_attr_list;
   std::vector<std::string> *                 relation_list;
+  std::vector<std::string> *                 index_attr_list;
   JoinSqlNode *                              join_node;
   std::vector<JoinSqlNode> *                 join_list;
   char *                                     string;
@@ -192,6 +202,9 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
 %type <join_node>           join_list
 %type <number>              type
 %type <expression>          condition_list
+%type <index_attr_list>     index_attr_list
+%type <insert_value_list>   insert_value_list
+%type <value_list>          insert_value
 %type <value>               value
 %type <number>              number
 %type <rel_attr>            relation
@@ -329,18 +342,62 @@ desc_table_stmt:
     ;
 
 create_index_stmt:    /*create index 语句的语法解析树*/
-    CREATE INDEX ID ON ID LBRACE ID RBRACE
+    CREATE INDEX ID ON ID LBRACE ID index_attr_list RBRACE
     {
       $$ = new ParsedSqlNode(SCF_CREATE_INDEX);
       CreateIndexSqlNode &create_index = $$->create_index;
       create_index.index_name = $3;
       create_index.relation_name = $5;
-      create_index.attribute_name = $7;
+
+      if ($8 != nullptr) {
+        create_index.attr_names = *$8;
+        delete $8;
+      }
+
+      create_index.unique = false;
+      create_index.attr_names.push_back(std::string($7));
+      std::reverse(create_index.attr_names.begin(), create_index.attr_names.end());
       free($3);
       free($5);
       free($7);
     }
+    | CREATE UNIQUE_T INDEX ID ON ID LBRACE ID index_attr_list RBRACE
+    {
+      $$ = new ParsedSqlNode(SCF_CREATE_INDEX);
+      CreateIndexSqlNode &create_index = $$->create_index;
+      create_index.index_name = $4;
+      create_index.relation_name = $6;
+
+      if ($9 != nullptr) {
+        create_index.attr_names = *$9;
+        delete $9;
+      }
+
+      create_index.unique = true;
+      create_index.attr_names.push_back(std::string($8));
+      std::reverse(create_index.attr_names.begin(), create_index.attr_names.end());
+      free($4);
+      free($6);
+      free($8);
+    }
     ;
+
+index_attr_list:
+  /* empty */
+  {
+    $$ = nullptr;
+  }
+  | COMMA ID index_attr_list
+  {
+    if ($3 != nullptr) {
+      $$ = $3;
+    } else {
+      $$ = new std::vector<std::string>();
+    }
+    $$->emplace_back(std::string($2));
+    free($2);
+  }
+  ;
 
 drop_index_stmt:      /*drop index 语句的语法解析树*/
     DROP INDEX ID ON ID
@@ -449,26 +506,57 @@ type:
     ;
 
 insert_stmt:        /*insert   语句的语法解析树*/
-    INSERT INTO ID VALUES LBRACE expression value_list RBRACE
+    INSERT INTO ID VALUES insert_value insert_value_list
     {
       $$ = new ParsedSqlNode(SCF_INSERT);
       $$->insertion.relation_name = $3;
-      if ($7 != nullptr) {
-        $$->insertion.values.swap(*$7);
-        delete $7;
+      if ($6 != nullptr) {
+        $$->insertion.values.swap(*$6);
+        delete $6;
       }
-      Value tmp_value;
-
-      if (try_expression_to_value($6, tmp_value) == false) {
-        yyerror (&yylloc, sql_string, sql_result, scanner, "try_expression_to_value failed in insert_stmt");
-      }
-
-      $$->insertion.values.emplace_back(tmp_value);
+      $$->insertion.values.emplace_back(*$5);
       std::reverse($$->insertion.values.begin(), $$->insertion.values.end());
-      delete $6;
+      delete $5;
       free($3);
     }
     ;
+
+insert_value_list:
+  /* empty */
+  {
+    $$ = nullptr;
+  }
+  | COMMA insert_value insert_value_list
+  {
+    if ($3 != nullptr) {
+      $$ = $3;
+    } else {
+      $$ = new std::vector<std::vector<Value>>;
+    }
+
+    $$->emplace_back(*$2);
+    delete $2;
+  }
+
+insert_value:
+  LBRACE expression value_list RBRACE
+  {
+    if ($3 != nullptr) {
+      $$ = $3;
+    } else {
+      $$ = new std::vector<Value>;
+    }
+    Value tmp_value;
+
+    if (try_expression_to_value($2, tmp_value) == false) {
+      yyerror (&yylloc, sql_string, sql_result, scanner, "try_expression_to_value failed in value_list");
+    }
+
+    $$->emplace_back(tmp_value);
+    std::reverse($$->begin(), $$->end());
+    delete $2;
+  }
+  ;
 
 value_list:
     /* empty */
@@ -491,6 +579,7 @@ value_list:
       delete $2;
     }
     ;
+
 value:
     NUMBER {
       $$ = new Value((int)$1);
@@ -507,11 +596,18 @@ value:
       }
 
       char *tmp = common::substr($1,1,len);
-      $$ = new Value(tmp);
+      $$ = new Value();
+      $$->set_type(AttrType::CHARS);
+      $$->set_data(tmp, len);
       free(tmp);
       free($1);
     }
+    |NULL_T {
+      $$ = new Value(INT_NULL);
+      @$ = @1;
+    }
     ;
+
 storage_format:
     /* empty */
     {
@@ -668,8 +764,18 @@ expression:
     | expression '/' expression {
       $$ = create_arithmetic_expression(ArithmeticExpr::Type::DIV, $1, $3, sql_string, &@$);
     }
-    | LBRACE expression RBRACE {
-      $$ = $2;
+    | LBRACE expression_list RBRACE {
+      if ($2->size() == 1) {
+        std::shared_ptr<Expression> tmp_ptr($2->front().get(), DoNothingDeleter());
+
+        $$ = tmp_ptr.get();
+        delete $2;
+        // TODO: 这里没有delete，会造成内存泄漏，但是懒得整了。
+        // 已解决，构造释放函数。
+      } else {
+        $$ = new SubQuery_ValueList_Expression(*$2);
+        delete $2;
+      }
       $$->set_name(token_name(sql_string, &@$));
     }
     | '-' expression %prec UMINUS {
@@ -688,6 +794,11 @@ expression:
     }
     | '*' {
       $$ = new FieldExpr("*", "*", "");
+    }
+    | LBRACE select_stmt RBRACE
+    {
+      $$ = new SubQuery_ValueList_Expression(std::make_shared<SelectSqlNode>($2->selection));
+      delete $2;
     }
     // your code here
     ;
@@ -810,6 +921,14 @@ condition_list:
       tmp.push_back(std::shared_ptr<Expression>($3));
       $$ = new ConjunctionExpr(ConjunctionExpr::Type::OR, tmp);
     }
+    | EXISTS_T expression
+    {
+      $$ = new ComparisonExpr(EXISTS, std::shared_ptr<Expression>($2), nullptr);
+    }
+    | NOT_T EXISTS_T expression
+    {
+      $$ = new ComparisonExpr(NOT_EXISTS, std::shared_ptr<Expression>($3), nullptr);
+    }
     ;
 
 comp_op:
@@ -821,6 +940,10 @@ comp_op:
     | NE { $$ = NOT_EQUAL; }
     | LIKE_T { $$ = LIKE; }
     | NOT_T LIKE_T { $$ = NOT_LIKE; }
+    | IN_T { $$ = IN; }
+    | NOT_T IN_T { $$ = NOT_IN; }
+    | IS_T { $$ = IS; }
+    | NOT_T IS_T { $$ = NOT_IS; }
     ;
 
 // your code here

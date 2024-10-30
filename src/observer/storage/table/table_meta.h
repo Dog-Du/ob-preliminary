@@ -1,7 +1,7 @@
 /* Copyright (c) 2021 OceanBase and/or its affiliates. All rights reserved.
 miniob is licensed under Mulan PSL v2.
-You can use this software according to the terms and conditions of the Mulan PSL v2.
-You may obtain a copy of Mulan PSL v2 at:
+You can use this software according to the terms and conditions of the Mulan PSL
+v2. You may obtain a copy of Mulan PSL v2 at:
          http://license.coscl.org.cn/MulanPSL2
 THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
 EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
@@ -38,19 +38,24 @@ public:
 
   void swap(TableMeta &other) noexcept;
 
-  RC init(int32_t table_id, const char *name, const std::vector<FieldMeta> *trx_fields,
-      std::span<const AttrInfoSqlNode> attributes, StorageFormat storage_format);
+  RC init(int32_t table_id, const char *name,
+      const std::vector<FieldMeta>    *trx_fields,
+      std::span<const AttrInfoSqlNode> attributes,
+      StorageFormat                    storage_format);
 
   RC add_index(const IndexMeta &index);
 
 public:
-  int32_t             table_id() const { return table_id_; }
-  const char         *name() const;
-  const FieldMeta    *trx_field() const;
-  const FieldMeta    *field(int index) const;
-  const FieldMeta    *field(const char *name) const;
-  const FieldMeta    *find_field_by_offset(int offset) const;
-  auto                field_metas() const -> const std::vector<FieldMeta>                *{ return &fields_; }
+  int32_t          table_id() const { return table_id_; }
+  const char      *name() const;
+  const FieldMeta *trx_field() const;
+  const FieldMeta *field(int index) const;
+  const FieldMeta *field(const char *name) const;
+  const FieldMeta *find_field_by_offset(int offset) const;
+  auto             field_metas() const -> const std::vector<FieldMeta> *
+  {
+    return &fields_;
+  }
   auto                trx_fields() const -> std::span<const FieldMeta>;
   const StorageFormat storage_format() const { return storage_format_; }
 
@@ -58,7 +63,8 @@ public:
   int sys_field_num() const;
 
   const IndexMeta *index(const char *name) const;
-  const IndexMeta *find_index_by_field(const char *field) const;
+  const IndexMeta *find_index_by_field(
+      const std::vector<std::string> &fields_name) const;
   const IndexMeta *index(int i) const;
   int              index_num() const;
 

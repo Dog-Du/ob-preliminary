@@ -742,6 +742,7 @@ RC RecordFileScanner::open_scan(Table *table, DiskBufferPool &buffer_pool, Trx *
   trx_              = trx;
   log_handler_      = &log_handler;
   rw_mode_          = mode;
+  record_page_iterator_ = RecordPageIterator();
 
   RC rc = bp_iterator_.init(buffer_pool, 1);
   if (rc != RC::SUCCESS) {

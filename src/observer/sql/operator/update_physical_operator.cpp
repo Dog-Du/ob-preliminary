@@ -1,7 +1,7 @@
 /* Copyright (c) 2021 OceanBase and/or its affiliates. All rights reserved.
 miniob is licensed under Mulan PSL v2.
-You can use this software according to the terms and conditions of the Mulan PSL v2.
-You may obtain a copy of Mulan PSL v2 at:
+You can use this software according to the terms and conditions of the Mulan PSL
+v2. You may obtain a copy of Mulan PSL v2 at:
          http://license.coscl.org.cn/MulanPSL2
 THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
 EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
@@ -55,8 +55,23 @@ RC UpdatePhysicalOperator::open(Trx *trx)
   }
   child->close();
 
-  for (size_t i = 0; i < old_records.size(); ++i) {
-    table_->update_record(old_records[i].rid(), old_records[i], new_records[i]);
+  for (int i = 0; i < old_records.size(); ++i) {
+    rc = table_->update_record(
+        old_records[i].rid(), old_records[i], new_records[i]);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("update_record failed. maybe duplicate key.");
+      // 回滚。
+      RC rc2 = RC::SUCCESS;
+      for (int j = i - 1; j >= 0; --j) {
+        rc2 = table_->update_record(
+            new_records[j].rid(), new_records[j], old_records[j]);
+        if (rc2 != RC::SUCCESS) {
+          LOG_WARN("rollback failed while update_record.");
+          break;
+        }
+      }
+      break;
+    }
   }
   return RC::SUCCESS;
 }

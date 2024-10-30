@@ -90,6 +90,16 @@ public:
 
   std::vector<std::shared_ptr<PhysicalOperator>> &children() { return children_; }
 
+  void set_prev_tuple(const Tuple *tuple)
+  {
+    prev_tuple_ = tuple;
+    for (auto &child : children_) {
+      child->set_prev_tuple(tuple);
+    }
+  }
+
 protected:
   std::vector<std::shared_ptr<PhysicalOperator>> children_;
+  // prev_tuple 是子查询中上一级得到的tuple。
+  const Tuple *prev_tuple_ = nullptr;
 };

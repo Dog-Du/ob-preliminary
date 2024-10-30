@@ -1,7 +1,7 @@
 /* Copyright (c) 2021 OceanBase and/or its affiliates. All rights reserved.
 miniob is licensed under Mulan PSL v2.
-You can use this software according to the terms and conditions of the Mulan PSL v2.
-You may obtain a copy of Mulan PSL v2 at:
+You can use this software according to the terms and conditions of the Mulan PSL
+v2. You may obtain a copy of Mulan PSL v2 at:
          http://license.coscl.org.cn/MulanPSL2
 THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
 EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
@@ -30,9 +30,11 @@ using namespace common;
 
 SelectStmt::~SelectStmt() {}
 
-RC check_alias_and_joins(Db *db, std::unordered_map<std::string, std::string> &alias_map,
-    std::unordered_map<std::string, Table *> &all_tables, std::vector<Table *> &tables,
-    std::vector<JoinSqlNode> &from_list, std::vector<JoinNodes> &join_tabes)
+RC check_alias_and_joins(Db                      *db,
+    std::unordered_map<std::string, std::string> &alias_map,
+    std::unordered_map<std::string, Table *>     &all_tables,
+    std::vector<Table *> &tables, std::vector<JoinSqlNode> &from_list,
+    std::vector<JoinNodes> &join_tabes)
 {
   std::unordered_set<std::string> alias_set;  // 别名，表名是否重复
 
@@ -56,7 +58,8 @@ RC check_alias_and_joins(Db *db, std::unordered_map<std::string, std::string> &a
       }
 
       alias_set.emplace(table_name.alias);
-      alias_map.emplace(std::make_pair(table_name.relation_name, table_name.alias));
+      alias_map.emplace(
+          std::make_pair(table_name.relation_name, table_name.alias));
       all_tables.emplace(std::make_pair(table_name.alias, table));
     }
 
@@ -65,7 +68,10 @@ RC check_alias_and_joins(Db *db, std::unordered_map<std::string, std::string> &a
     return RC::SUCCESS;
   };
 
-  auto check_table = [&](RelAttrSqlNode &table, std::shared_ptr<Expression> conditions, JoinNodes &join) {
+  auto check_table = [&](RelAttrSqlNode &table,
+                         std::shared_ptr<Expression>
+                                    conditions,
+                         JoinNodes &join) {
     RC rc = RC::SUCCESS;
     rc    = push_and_check_table(table);
 
@@ -76,7 +82,8 @@ RC check_alias_and_joins(Db *db, std::unordered_map<std::string, std::string> &a
     FilterStmt *filter = nullptr;
 
     if (nullptr != conditions) {
-      rc = FilterStmt::create(db, all_tables[table.relation_name], &all_tables, conditions, filter);
+      rc = FilterStmt::create(
+          db, all_tables[table.relation_name], &all_tables, conditions, filter);
       if (rc != RC::SUCCESS) {
         LOG_WARN("create filter stmt failed.");
         return rc;
@@ -97,7 +104,8 @@ RC check_alias_and_joins(Db *db, std::unordered_map<std::string, std::string> &a
     }
 
     for (size_t i = 0; i < from_node.conditions.size(); ++i) {
-      rc = check_table(from_node.join_rel_list[i], from_node.conditions[i], join);
+      rc = check_table(
+          from_node.join_rel_list[i], from_node.conditions[i], join);
 
       if (rc != RC::SUCCESS) {
         return rc;
@@ -110,8 +118,8 @@ RC check_alias_and_joins(Db *db, std::unordered_map<std::string, std::string> &a
 }
 
 // all_tables 是所有的表，包括当前表和复杂子查询中的表
-RC SelectStmt::create(
-    Db *db, SelectSqlNode &select_sql, Stmt *&stmt, const std::unordered_map<std::string, Table *> &all_tables)
+RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt,
+    const std::unordered_map<std::string, Table *> &all_tables)
 {
   if (nullptr == db) {
     LOG_WARN("invalid argument. db is null");
@@ -126,7 +134,8 @@ RC SelectStmt::create(
   std::vector<JoinNodes>                       join_tables;  // 连接表。
 
   // 获取别名和连接表。
-  RC rc = check_alias_and_joins(db, alias_map, table_map, tables, select_sql.relations, join_tables);
+  RC rc = check_alias_and_joins(
+      db, alias_map, table_map, tables, select_sql.relations, join_tables);
 
   if (rc != RC::SUCCESS) {
     LOG_WARN("check_alias_and_joins failed in select stmt.");
@@ -148,9 +157,11 @@ RC SelectStmt::create(
       if (field->visible()) {
         FieldExpr *field_expr = new FieldExpr(table, field);
         if (tables.size() == 1) {
-          field_expr->set_name(field_expr->field_name());  // should same as origin
+          field_expr->set_name(
+              field_expr->field_name());  // should same as origin
         } else if (alias.empty()) {
-          field_expr->set_name(std::string(field_expr->table_name()) + "." + field_expr->field_name());
+          field_expr->set_name(std::string(field_expr->table_name()) + "." +
+                               field_expr->field_name());
         } else {
           field_expr->set_name(alias + "." + field_expr->field_name());
         }
@@ -160,47 +171,55 @@ RC SelectStmt::create(
   };
 
   bool                              need_continue_check = true;
-  std::function<void(Expression *)> check_projections   = [&](Expression *expression) {
-    if (!need_continue_check) {
-      return;
-    }
-    switch (expression->type()) {
-      case ExprType::FIELD: {
-        rc = static_cast<FieldExpr *>(expression)->check_field(table_map, default_table, tables, alias_map);
-        if (rc != RC::SUCCESS) {
-          need_continue_check = false;
+  std::function<void(Expression *)> check_projections =
+      [&](Expression *expression) {
+        if (!need_continue_check) {
+          return;
         }
-      } break;
-      case ExprType::COMPARISON: {
-        ComparisonExpr *expr = static_cast<ComparisonExpr *>(expression);
-        if (expr->left() != nullptr) {
-          check_projections(expr->left().get());
-        }
-        if (expr->right() != nullptr) {
-          check_projections(expr->right().get());
-        }
-      } break;
-      case ExprType::ARITHMETIC: {
-        auto *expr = static_cast<ArithmeticExpr *>(expression);
+        switch (expression->type()) {
+          case ExprType::FIELD: {
+            rc = static_cast<FieldExpr *>(expression)
+                     ->check_field(table_map, default_table, tables, alias_map);
+            if (rc != RC::SUCCESS) {
+              need_continue_check = false;
+            }
+          } break;
+          case ExprType::COMPARISON: {
+            ComparisonExpr *expr = static_cast<ComparisonExpr *>(expression);
+            if (expr->left() != nullptr) {
+              check_projections(expr->left().get());
+            }
+            if (expr->right() != nullptr) {
+              check_projections(expr->right().get());
+            }
+          } break;
+          case ExprType::ARITHMETIC: {
+            auto *expr = static_cast<ArithmeticExpr *>(expression);
 
-        if (expr->left() != nullptr) {
-          check_projections(expr->left().get());
-        }
+            if (expr->left() != nullptr) {
+              check_projections(expr->left().get());
+            }
 
-        if (expr->right() != nullptr) {
-          check_projections(expr->right().get());
+            if (expr->right() != nullptr) {
+              check_projections(expr->right().get());
+            }
+          } break;
+          case ExprType::CONJUNCTION: {
+            auto *expr = static_cast<ConjunctionExpr *>(expression);
+            for (auto &child : expr->children()) {
+              check_projections(child.get());
+            }
+          } break;
+          case ExprType::SUBQUERY_OR_VALUELIST: {
+            need_continue_check = false;
+            rc                  = RC::SQL_SYNTAX;
+            LOG_WARN("sub_query should not in query_expression");
+            return;
+          } break;
+          default: {
+          } break;
         }
-      } break;
-      case ExprType::CONJUNCTION: {
-        auto *expr = static_cast<ConjunctionExpr *>(expression);
-        for (auto &child : expr->children()) {
-          check_projections(child.get());
-        }
-      } break;
-      default: {
-      } break;
-    }
-  };
+      };
 
   for (auto &expression : select_sql.expressions) {
     if (expression->type() == ExprType::FIELD) {
@@ -208,7 +227,8 @@ RC SelectStmt::create(
       const char *table_name       = field_expression->table_name();
       const char *field_name       = field_expression->field_name();
 
-      if ((0 == strcmp(table_name, "*")) && (0 == strcmp(field_name, "*"))) {  // * or *.*
+      if ((0 == strcmp(table_name, "*")) &&
+          (0 == strcmp(field_name, "*"))) {  // * or *.*
         if (tables.empty() || strlen(field_expression->alias()) > 0) {
           return RC::INVALID_ARGUMENT;  // not allow: select *; select * as xxx;
         }
@@ -232,7 +252,8 @@ RC SelectStmt::create(
           fulls_tables(table, std::string());
         }
       } else {
-        rc = field_expression->check_field(table_map, default_table, tables, alias_map);
+        rc = field_expression->check_field(
+            table_map, default_table, tables, alias_map);
         if (rc != RC::SUCCESS) {
           return rc;
         }
@@ -251,7 +272,8 @@ RC SelectStmt::create(
   FilterStmt *filter_stmt = nullptr;
 
   if (select_sql.conditions != nullptr) {
-    rc = FilterStmt::create(db, default_table, &table_map, select_sql.conditions, filter_stmt);
+    rc = FilterStmt::create(
+        db, default_table, &table_map, select_sql.conditions, filter_stmt);
     if (rc != RC::SUCCESS) {
       return rc;
     }

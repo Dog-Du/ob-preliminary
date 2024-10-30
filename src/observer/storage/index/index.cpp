@@ -1,7 +1,7 @@
 /* Copyright (c) 2021 OceanBase and/or its affiliates. All rights reserved.
 miniob is licensed under Mulan PSL v2.
-You can use this software according to the terms and conditions of the Mulan PSL v2.
-You may obtain a copy of Mulan PSL v2 at:
+You can use this software according to the terms and conditions of the Mulan PSL
+v2. You may obtain a copy of Mulan PSL v2 at:
          http://license.coscl.org.cn/MulanPSL2
 THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
 EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
@@ -13,10 +13,15 @@ See the Mulan PSL v2 for more details. */
 //
 
 #include "storage/index/index.h"
+#include "storage/field/field_meta.h"
+#include "storage/index/index_meta.h"
 
-RC Index::init(const IndexMeta &index_meta, const FieldMeta &field_meta)
+RC Index::init(const IndexMeta           &index_meta,
+    const std::vector<const FieldMeta *> &fields_meta, bool unique)
 {
   index_meta_ = index_meta;
-  field_meta_ = field_meta;
+  for (auto field : fields_meta) {
+    fields_meta_.push_back(FieldMeta(*field));
+  }
   return RC::SUCCESS;
 }

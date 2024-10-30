@@ -12,7 +12,7 @@ See the Mulan PSL v2 for more details. */
 
 #include "common/type/data_type.h"
 
-#define FLOAT_NULL -FLT_MAX
+
 
 /**
  * @brief 浮点型数据类型

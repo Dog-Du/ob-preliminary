@@ -1,7 +1,7 @@
 /* Copyright (c) 2021 OceanBase and/or its affiliates. All rights reserved.
 miniob is licensed under Mulan PSL v2.
-You can use this software according to the terms and conditions of the Mulan PSL v2.
-You may obtain a copy of Mulan PSL v2 at:
+You can use this software according to the terms and conditions of the Mulan PSL
+v2. You may obtain a copy of Mulan PSL v2 at:
          http://license.coscl.org.cn/MulanPSL2
 THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
 EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
@@ -19,7 +19,8 @@ See the Mulan PSL v2 for more details. */
 int IntegerType::compare(const Value &left, const Value &right) const
 {
   ASSERT(left.attr_type() == AttrType::INTS, "left type is not integer");
-  // ASSERT(right.attr_type() == AttrType::INTS || right.attr_type() == AttrType::FLOATS, "right type is not numeric");
+  // ASSERT(right.attr_type() == AttrType::INTS || right.attr_type() ==
+  // AttrType::FLOATS, "right type is not numeric");
 
   if (left.is_null(left)) {
     return -1;
@@ -30,7 +31,8 @@ int IntegerType::compare(const Value &left, const Value &right) const
   }
 
   if (right.attr_type() == AttrType::INTS) {
-    return common::compare_int((void *)&left.value_.int_value_, (void *)&right.value_.int_value_);
+    return common::compare_int(
+        (void *)&left.value_.int_value_, (void *)&right.value_.int_value_);
   } else if (right.attr_type() == AttrType::FLOATS) {
     float left_val  = left.get_float();
     float right_val = right.get_float();
@@ -43,19 +45,42 @@ int IntegerType::compare(const Value &left, const Value &right) const
   return INT32_MAX;
 }
 
-bool IntegerType::is_null(const Value &val) const { return val.value_.int_value_ == INT_NULL; }
+bool IntegerType::is_null(const Value &val) const
+{
+  return val.value_.int_value_ == INT_NULL;
+}
 
-RC IntegerType::cast_to(const Value &val, AttrType attr_type, Value &result) const
+RC IntegerType::cast_to(
+    const Value &val, AttrType attr_type, Value &result) const
 {
   RC rc = RC::SUCCESS;
   switch (attr_type) {
     case AttrType::INTS: {
-      result.attr_type_        = AttrType::INTS;
-      result.value_.int_value_ = val.get_int();
+      result.attr_type_ = AttrType::INTS;
+
+      if (!val.is_null(val)) {
+        result.value_.int_value_ = val.get_int();
+      } else {
+        result.value_.int_value_ = INT_NULL;
+      }
     } break;
     case AttrType::FLOATS: {
-      result.attr_type_          = AttrType::FLOATS;
-      result.value_.float_value_ = static_cast<float>(val.value_.int_value_);
+      result.attr_type_ = AttrType::FLOATS;
+      if (!val.is_null(val)) {
+        result.value_.float_value_ = static_cast<float>(val.value_.int_value_);
+      } else {
+        result.value_.float_value_ = FLOAT_NULL;
+      }
+    } break;
+    case AttrType::DATES: {
+      ASSERT(val.is_null(val),"");
+      result.attr_type_         = AttrType::DATES;
+      result.value_.date_value_ = DATE_NULL;
+    } break;
+    case AttrType::CHARS: {
+      ASSERT(val.is_null(val),"");
+      result.attr_type_ = AttrType::CHARS;
+      result.set_string(nullptr);
     } break;
     default: {
       rc = RC::VARIABLE_NOT_VALID;
@@ -70,7 +95,8 @@ RC IntegerType::add(const Value &left, const Value &right, Value &result) const
   return RC::SUCCESS;
 }
 
-RC IntegerType::divide(const Value &left, const Value &right, Value &result) const
+RC IntegerType::divide(
+    const Value &left, const Value &right, Value &result) const
 {
   if (right.get_float() == 0) {
     result.set_int(INT_NULL);
@@ -81,13 +107,15 @@ RC IntegerType::divide(const Value &left, const Value &right, Value &result) con
   return RC::SUCCESS;
 }
 
-RC IntegerType::subtract(const Value &left, const Value &right, Value &result) const
+RC IntegerType::subtract(
+    const Value &left, const Value &right, Value &result) const
 {
   result.set_int(left.get_int() - right.get_int());
   return RC::SUCCESS;
 }
 
-RC IntegerType::multiply(const Value &left, const Value &right, Value &result) const
+RC IntegerType::multiply(
+    const Value &left, const Value &right, Value &result) const
 {
   result.set_int(left.get_int() * right.get_int());
   return RC::SUCCESS;
@@ -117,6 +145,10 @@ RC IntegerType::set_value_from_str(Value &val, const string &data) const
 
 RC IntegerType::to_string(const Value &val, string &result) const
 {
+  if (is_null(val)) {
+    result = NULL_STR;
+    return RC::SUCCESS;
+  }
   stringstream ss;
   ss << val.value_.int_value_;
   result = ss.str();

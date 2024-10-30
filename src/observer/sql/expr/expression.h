@@ -18,13 +18,21 @@ See the Mulan PSL v2 for more details. */
 #include <memory>
 #include <string>
 
+#include "common/type/attr_type.h"
 #include "common/value.h"
+
+#include "sql/parser/parse_defs.h"
+#include "sql/stmt/select_stmt.h"
 #include "storage/field/field.h"
 #include "sql/expr/aggregator.h"
 #include "storage/common/chunk.h"
 #include "storage/field/field_meta.h"
+#include "storage/table/table.h"
 
 class Tuple;
+class LogicalOperator;
+class PhysicalOperator;
+class SelectStmt;
 
 /**
  * @defgroup Expression
@@ -42,13 +50,14 @@ enum class ExprType
   UNBOUND_FIELD,        ///< 未绑定的字段，需要在resolver阶段解析为FieldExpr
   UNBOUND_AGGREGATION,  ///< 未绑定的聚合函数，需要在resolver阶段解析为AggregateExpr
 
-  FIELD,        ///< 字段。在实际执行时，根据行数据内容提取对应字段的值
-  VALUE,        ///< 常量值
-  CAST,         ///< 需要做类型转换的表达式
-  COMPARISON,   ///< 需要做比较的表达式
-  CONJUNCTION,  ///< 多个表达式使用同一种关系(AND或OR)来联结
-  ARITHMETIC,   ///< 算术运算
-  AGGREGATION,  ///< 聚合运算
+  FIELD,                  ///< 字段。在实际执行时，根据行数据内容提取对应字段的值
+  VALUE,                  ///< 常量值
+  CAST,                   ///< 需要做类型转换的表达式
+  COMPARISON,             ///< 需要做比较的表达式
+  CONJUNCTION,            ///< 多个表达式使用同一种关系(AND或OR)来联结
+  ARITHMETIC,             ///< 算术运算
+  SUBQUERY_OR_VALUELIST,  /// <  子查询 or 常量列表
+  AGGREGATION,            ///< 聚合运算
 };
 
 /**
@@ -549,4 +558,68 @@ public:
 private:
   Type                        aggregate_type_;
   std::shared_ptr<Expression> child_;
+};
+
+// 子查询和常量列表用一个算子处理，
+class SubQuery_ValueList_Expression : public Expression
+{
+public:
+  SubQuery_ValueList_Expression(const std::vector<std::shared_ptr<Expression>> &value_list)
+      : is_sub_query(false), is_value_list(true), value_list_(value_list)
+  {
+    ASSERT(is_value_list ^ is_sub_query,"should not both false or both true");
+  }
+
+  SubQuery_ValueList_Expression(std::shared_ptr<SelectSqlNode> sql_node)
+      : is_sub_query(true), is_value_list(false), sub_sql_node_(sql_node)
+  {
+    ASSERT(is_value_list ^ is_sub_query,"should not both false or both true");
+  }
+
+  RC open(Trx *trx);  // 打开，进行简单的处理，并进行一些检查。
+
+  RC close();  // 如果是value_list则不进行任何处理应该。
+
+  // get_value == next();
+  RC get_value(const Tuple &tuple, Value &value) const override;
+  RC next(const Tuple &tuple, Value &value) const;
+
+  RC try_get_value(Value &value) const override;
+
+  ExprType type() const override
+  {
+    ASSERT(is_value_list ^ is_sub_query,"should not both false or both true");
+    return ExprType::SUBQUERY_OR_VALUELIST;
+  }
+
+  AttrType value_type() const override
+  {
+    return AttrType::UNDEFINED;  // 类型是不规则的。
+  }
+
+  void check_or_get(std::function<void(Expression *)> &worker_func) override
+  {
+    if (is_sub_query) {
+      return;
+    }
+
+    for (auto &child : value_list_) {
+      worker_func(child.get());
+    }
+    worker_func(this);
+  }
+
+  RC create_stmt(Db *db, const std::unordered_map<std::string, Table *> &all_tables);
+  RC create_logical();
+  RC create_physical();
+
+private:
+  const bool                                                 is_sub_query  = false;
+  const bool                                                 is_value_list = false;
+  std::vector<std::shared_ptr<Expression>>                   value_list_;
+  mutable std::vector<std::shared_ptr<Expression>>::iterator value_list_iterator_;
+  std::shared_ptr<SelectSqlNode>                             sub_sql_node_;
+  std::shared_ptr<SelectStmt>                                sub_stmt_;
+  std::shared_ptr<LogicalOperator>                           sub_logical_operator_;
+  std::shared_ptr<PhysicalOperator>                          sub_physical_operator_;
 };

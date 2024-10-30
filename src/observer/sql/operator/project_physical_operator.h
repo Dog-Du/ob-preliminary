@@ -25,7 +25,7 @@ See the Mulan PSL v2 for more details. */
 class ProjectPhysicalOperator : public PhysicalOperator
 {
 public:
-  ProjectPhysicalOperator(std::vector<std::shared_ptr<Expression>> &&expressions);
+  ProjectPhysicalOperator(const std::vector<std::shared_ptr<Expression>> &expressions);
 
   virtual ~ProjectPhysicalOperator() = default;
 

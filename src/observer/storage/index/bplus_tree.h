@@ -1,10 +1,9 @@
-/* Copyright (c) 2021 Xie Meiyi(xiemeiyi@hust.edu.cn) and OceanBase and/or its affiliates. All rights reserved.
-miniob is licensed under Mulan PSL v2.
-You can use this software according to the terms and conditions of the Mulan PSL v2.
-You may obtain a copy of Mulan PSL v2 at:
-         http://license.coscl.org.cn/MulanPSL2
-THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
-EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+/* Copyright (c) 2021 Xie Meiyi(xiemeiyi@hust.edu.cn) and OceanBase and/or its
+affiliates. All rights reserved. miniob is licensed under Mulan PSL v2. You can
+use this software according to the terms and conditions of the Mulan PSL v2. You
+may obtain a copy of Mulan PSL v2 at: http://license.coscl.org.cn/MulanPSL2 THIS
+SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
 MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details. */
 
@@ -17,6 +16,7 @@ See the Mulan PSL v2 for more details. */
 
 #pragma once
 
+#include <cstdint>
 #include <string.h>
 
 #include "common/lang/comparator.h"
@@ -24,8 +24,11 @@ See the Mulan PSL v2 for more details. */
 #include "common/lang/sstream.h"
 #include "common/lang/functional.h"
 #include "common/log/log.h"
+#include "common/type/attr_type.h"
 #include "sql/parser/parse_defs.h"
 #include "storage/buffer/disk_buffer_pool.h"
+#include "storage/field/field_meta.h"
+#include "storage/record/record.h"
 #include "storage/record/record_manager.h"
 #include "storage/index/latch_memo.h"
 #include "storage/index/bplus_tree_log.h"
@@ -89,24 +92,61 @@ private:
 class KeyComparator
 {
 public:
-  void init(AttrType type, int length) { attr_comparator_.init(type, length); }
+  void init(bool unique, int len, AttrType types[], int lengths[])
+  {
+    AttrComparator comp;
+    int            attr_length = 0;
+    unique_                    = unique;
+    for (int i = 0; i < len; ++i) {
+      attr_length += lengths[i];
+      comp.init(types[i], lengths[i]);
+      attrs_comparator_.push_back(comp);
+    }
+    key_length_ = attr_length;
+  }
 
-  const AttrComparator &attr_comparator() const { return attr_comparator_; }
+  void init(bool unique, const std::vector<FieldMeta> &fields_meta)
+  {
+    AttrComparator comp;
+    int            attr_length = 0;
+    unique_                    = unique;
+    for (auto &field : fields_meta) {
+      attr_length += field.len();
+      comp.init(field.type(), field.len());
+      attrs_comparator_.push_back(comp);
+    }
+    key_length_ = attr_length;
+  }
+
+  const std::vector<AttrComparator> &attr_comparator() const
+  {
+    return attrs_comparator_;
+  }
 
   int operator()(const char *v1, const char *v2) const
   {
-    int result = attr_comparator_(v1, v2);
-    if (result != 0) {
-      return result;
+    int result = 0;
+    int offset = 0;
+    for (auto &attr_comp : attrs_comparator_) {
+      result = attr_comp(v1 + offset, v2 + offset);
+      if (result != 0) {
+        return result;
+      }
+      offset += attr_comp.attr_length();
     }
 
-    const RID *rid1 = (const RID *)(v1 + attr_comparator_.attr_length());
-    const RID *rid2 = (const RID *)(v2 + attr_comparator_.attr_length());
+    if (unique_) {
+      return 0;
+    }
+    const RID *rid1 = (const RID *)(v1 + key_length_);
+    const RID *rid2 = (const RID *)(v2 + key_length_);
     return RID::compare(rid1, rid2);
   }
 
 private:
-  AttrComparator attr_comparator_;
+  bool                        unique_;
+  int                         key_length_;
+  std::vector<AttrComparator> attrs_comparator_;
 };
 
 /**
@@ -122,6 +162,20 @@ public:
     attr_length_ = length;
   }
 
+  void init(const std::vector<AttrType> &types, const std::vector<int> &lengths)
+  {
+    attrs_type_   = types;
+    attrs_length_ = lengths;
+  }
+
+  void init(const std::vector<FieldMeta> &fields_meta)
+  {
+    for (auto &field : fields_meta) {
+      attrs_length_.push_back(field.len());
+      attrs_type_.push_back(field.type());
+    }
+  }
+
   int attr_length() const { return attr_length_; }
 
   string operator()(const char *v) const
@@ -131,8 +185,10 @@ public:
   }
 
 private:
-  AttrType attr_type_;
-  int      attr_length_;
+  AttrType              attr_type_;
+  int                   attr_length_;
+  std::vector<AttrType> attrs_type_;
+  std::vector<int>      attrs_length_;
 };
 
 /**
@@ -177,18 +233,18 @@ struct IndexFileHeader
   int32_t  internal_max_size;  ///< 内部节点最大的键值对数
   int32_t  leaf_max_size;      ///< 叶子节点最大的键值对数
   int32_t  attr_length;        ///< 键值的长度
-  int32_t  key_length;         ///< attr length + sizeof(RID)
-  AttrType attr_type;          ///< 键值的类型
+  int32_t  attrs_count;
+  int32_t  key_length;  ///< attr length + sizeof(RID)
+  int32_t  unique;
+  int32_t  attrs_length[20];
+  AttrType attrs_type[20];
 
   const string to_string() const
   {
     stringstream ss;
 
-    ss << "attr_length:" << attr_length << ","
-       << "key_length:" << key_length << ","
-       << "attr_type:" << attr_type_to_string(attr_type) << ","
-       << "root_page:" << root_page << ","
-       << "internal_max_size:" << internal_max_size << ","
+    ss << "," << "key_length:" << key_length << "," << "root_page:" << root_page
+       << "," << "internal_max_size:" << internal_max_size << ","
        << "leaf_max_size:" << leaf_max_size << ";";
 
     return ss.str();
@@ -252,7 +308,8 @@ struct InternalIndexNode : public IndexNode
   static constexpr int HEADER_SIZE = IndexNode::HEADER_SIZE;
 
   /**
-   * internal node just store order -1 keys and order rids, the last rid is last right child.
+   * internal node just store order -1 keys and order rids, the last rid is last
+   * right child.
    */
   char array[0];
 };
@@ -266,7 +323,8 @@ struct InternalIndexNode : public IndexNode
 class IndexNodeHandler
 {
 public:
-  IndexNodeHandler(BplusTreeMiniTransaction &mtr, const IndexFileHeader &header, Frame *frame);
+  IndexNodeHandler(BplusTreeMiniTransaction &mtr, const IndexFileHeader &header,
+      Frame *frame);
   virtual ~IndexNodeHandler() = default;
 
   /// @brief 初始化一个新的页面
@@ -278,7 +336,8 @@ public:
 
   /// @brief 存储的键值大小
   virtual int key_size() const;
-  /// @brief 存储的值的大小。内部节点和叶子节点是不一样的，但是这里返回的是叶子节点存储的大小
+  /// @brief
+  /// 存储的值的大小。内部节点和叶子节点是不一样的，但是这里返回的是叶子节点存储的大小
   virtual int value_size() const;
   /// @brief 存储的键值对的大小。值是指叶子节点中存放的数据
   virtual int item_size() const;
@@ -319,7 +378,7 @@ protected:
    */
   virtual char *__item_at(int index) const { return nullptr; }
   char         *__key_at(int index) const { return __item_at(index); }
-  char         *__value_at(int index) const { return __item_at(index) + key_size(); };
+  char *__value_at(int index) const { return __item_at(index) + key_size(); };
 
 protected:
   BplusTreeMiniTransaction &mtr_;
@@ -335,7 +394,8 @@ protected:
 class LeafIndexNodeHandler final : public IndexNodeHandler
 {
 public:
-  LeafIndexNodeHandler(BplusTreeMiniTransaction &mtr, const IndexFileHeader &header, Frame *frame);
+  LeafIndexNodeHandler(BplusTreeMiniTransaction &mtr,
+      const IndexFileHeader &header, Frame *frame);
   virtual ~LeafIndexNodeHandler() = default;
 
   RC      init_empty();
@@ -349,7 +409,8 @@ public:
    * 查找指定key的插入位置(注意不是key本身)
    * 如果key已经存在，会设置found的值。
    */
-  int lookup(const KeyComparator &comparator, const char *key, bool *found = nullptr) const;
+  int lookup(const KeyComparator &comparator, const char *key,
+      bool *found = nullptr) const;
 
   RC  insert(int index, const char *key, const char *value);
   RC  remove(int index);
@@ -364,7 +425,8 @@ public:
 
   bool validate(const KeyComparator &comparator, DiskBufferPool *bp) const;
 
-  friend string to_string(const LeafIndexNodeHandler &handler, const KeyPrinter &printer);
+  friend string to_string(
+      const LeafIndexNodeHandler &handler, const KeyPrinter &printer);
 
 protected:
   char *__item_at(int index) const override;
@@ -384,13 +446,14 @@ private:
 class InternalIndexNodeHandler final : public IndexNodeHandler
 {
 public:
-  InternalIndexNodeHandler(BplusTreeMiniTransaction &mtr, const IndexFileHeader &header, Frame *frame);
+  InternalIndexNodeHandler(BplusTreeMiniTransaction &mtr,
+      const IndexFileHeader &header, Frame *frame);
   virtual ~InternalIndexNodeHandler() = default;
 
   RC init_empty();
   RC create_new_root(PageNum first_page_num, const char *key, PageNum page_num);
 
-  RC      insert(const char *key, PageNum page_num, const KeyComparator &comparator);
+  RC insert(const char *key, PageNum page_num, const KeyComparator &comparator);
   char   *key_at(int index);
   PageNum value_at(int index);
 
@@ -409,8 +472,8 @@ public:
    * @param[out] found 如果是有效指针，将会返回当前是否存在指定的键值
    * @param[out] insert_position 如果是有效指针，将会返回可以插入指定键值的位置
    */
-  int lookup(
-      const KeyComparator &comparator, const char *key, bool *found = nullptr, int *insert_position = nullptr) const;
+  int lookup(const KeyComparator &comparator, const char *key,
+      bool *found = nullptr, int *insert_position = nullptr) const;
 
   /**
    * @brief 把当前节点的所有数据都迁移到另一个节点上
@@ -424,7 +487,8 @@ public:
 
   bool validate(const KeyComparator &comparator, DiskBufferPool *bp) const;
 
-  friend string to_string(const InternalIndexNodeHandler &handler, const KeyPrinter &printer);
+  friend string to_string(
+      const InternalIndexNodeHandler &handler, const KeyPrinter &printer);
 
 private:
   RC insert_items(int index, const char *items, int num);
@@ -459,9 +523,13 @@ public:
    * @param internal_max_size 内部节点最大大小
    * @param leaf_max_size 叶子节点最大大小
    */
-  RC create(LogHandler &log_handler, BufferPoolManager &bpm, const char *file_name, AttrType attr_type, int attr_length,
-      int internal_max_size = -1, int leaf_max_size = -1);
-  RC create(LogHandler &log_handler, DiskBufferPool &buffer_pool, AttrType attr_type, int attr_length,
+
+  RC create(LogHandler &log_handler, BufferPoolManager &bpm,
+      const char *file_name, const std::vector<const FieldMeta *> &fields_meta,
+      bool unique, int internal_max_size = -1, int leaf_max_size = -1);
+
+  RC create(LogHandler &log_handler, DiskBufferPool &buffer_pool,
+      const std::vector<const FieldMeta *> &fields_meta, bool unique,
       int internal_max_size = -1, int leaf_max_size = -1);
 
   /**
@@ -470,7 +538,10 @@ public:
    * @param bpm 缓冲池管理器
    * @param file_name 文件名
    */
-  RC open(LogHandler &log_handler, BufferPoolManager &bpm, const char *file_name);
+  RC open(LogHandler &log_handler, BufferPoolManager &bpm,
+      const char *file_name, const std::vector<const FieldMeta *> &fields_meta,
+      bool unique);
+
   RC open(LogHandler &log_handler, DiskBufferPool &buffer_pool);
 
   /**
@@ -506,7 +577,8 @@ public:
 
   /**
    * Check whether current B+ tree is invalid or not.
-   * @return true means current tree is valid, return false means current tree is invalid.
+   * @return true means current tree is valid, return false means current tree
+   * is invalid.
    * @note thread unsafe
    */
   bool validate_tree();
@@ -515,18 +587,34 @@ public:
   const IndexFileHeader &file_header() const { return file_header_; }
   DiskBufferPool        &buffer_pool() const { return *disk_buffer_pool_; }
   LogHandler            &log_handler() const { return *log_handler_; }
+  const std::vector<FieldMeta> &fields_meta() const { return fields_meta_; }
+
+  // 从tuple中取出key
+  Record get_index_key_from_tuple(const char *rcd) const
+  {
+    Record ret;
+    ret.new_record(file_header_.attr_length);
+    int offset = 0;
+    for (auto &field : fields_meta_) {
+      ret.set_field(offset, field.len(), rcd + field.offset());
+      offset += field.len();
+    }
+    return ret;
+  }
 
 public:
   /**
    * @brief 恢复更新ROOT页面
    * @details 重做日志时调用的接口
    */
-  RC recover_update_root_page(BplusTreeMiniTransaction &mtr, PageNum root_page_num);
+  RC recover_update_root_page(
+      BplusTreeMiniTransaction &mtr, PageNum root_page_num);
   /**
    * @brief 恢复初始化头页面
    * @details 重做日志时调用的接口
    */
-  RC recover_init_header_page(BplusTreeMiniTransaction &mtr, Frame *frame, const IndexFileHeader &header);
+  RC recover_init_header_page(BplusTreeMiniTransaction &mtr, Frame *frame,
+      const IndexFileHeader &header);
 
 public:
   /**
@@ -552,7 +640,8 @@ protected:
    * @param key 查找的键值
    * @param[out] frame 返回找到的叶子节点
    */
-  RC find_leaf(BplusTreeMiniTransaction &mtr, BplusTreeOperationType op, const char *key, Frame *&frame);
+  RC find_leaf(BplusTreeMiniTransaction &mtr, BplusTreeOperationType op,
+      const char *key, Frame *&frame);
 
   /**
    * @brief 找到最左边的叶子节点
@@ -565,19 +654,23 @@ protected:
    * @param child_page_getter 用于获取子节点的函数
    * @param[out] frame 返回找到的叶子节点
    */
-  RC find_leaf_internal(BplusTreeMiniTransaction &mtr, BplusTreeOperationType op,
-      const function<PageNum(InternalIndexNodeHandler &)> &child_page_getter, Frame *&frame);
+  RC find_leaf_internal(BplusTreeMiniTransaction          &mtr,
+      BplusTreeOperationType                               op,
+      const function<PageNum(InternalIndexNodeHandler &)> &child_page_getter,
+      Frame                                              *&frame);
 
   /**
    * @brief 使用crabing protocol 获取页面
    */
-  RC crabing_protocal_fetch_page(
-      BplusTreeMiniTransaction &mtr, BplusTreeOperationType op, PageNum page_num, bool is_root_page, Frame *&frame);
+  RC crabing_protocal_fetch_page(BplusTreeMiniTransaction &mtr,
+      BplusTreeOperationType op, PageNum page_num, bool is_root_page,
+      Frame *&frame);
 
   /**
    * @brief 从叶子节点中删除指定的键值对
    */
-  RC delete_entry_internal(BplusTreeMiniTransaction &mtr, Frame *leaf_frame, const char *key);
+  RC delete_entry_internal(
+      BplusTreeMiniTransaction &mtr, Frame *leaf_frame, const char *key);
 
   /**
    * @brief 拆分节点
@@ -595,37 +688,45 @@ protected:
 
   /**
    * @brief 合并两个相邻节点
-   * @details 当节点中的键值对小于最小值并且相邻两个节点总和不超过最大节点个数时，需要合并两个相邻节点
+   * @details
+   * 当节点中的键值对小于最小值并且相邻两个节点总和不超过最大节点个数时，需要合并两个相邻节点
    */
   template <typename IndexNodeHandlerType>
-  RC coalesce(BplusTreeMiniTransaction &mtr, Frame *neighbor_frame, Frame *frame, Frame *parent_frame, int index);
+  RC coalesce(BplusTreeMiniTransaction &mtr, Frame *neighbor_frame,
+      Frame *frame, Frame *parent_frame, int index);
 
   /**
    * @brief 重新分配两个相邻节点
-   * @details 删除某个元素后，对应节点的元素个数比较少，并且与相邻节点不能合并，就将邻居节点的元素移动一些过来
+   * @details
+   * 删除某个元素后，对应节点的元素个数比较少，并且与相邻节点不能合并，就将邻居节点的元素移动一些过来
    */
   template <typename IndexNodeHandlerType>
-  RC redistribute(BplusTreeMiniTransaction &mtr, Frame *neighbor_frame, Frame *frame, Frame *parent_frame, int index);
+  RC redistribute(BplusTreeMiniTransaction &mtr, Frame *neighbor_frame,
+      Frame *frame, Frame *parent_frame, int index);
 
   /**
    * @brief 在父节点插入一个元素
    */
-  RC insert_entry_into_parent(BplusTreeMiniTransaction &mtr, Frame *frame, Frame *new_frame, const char *key);
+  RC insert_entry_into_parent(BplusTreeMiniTransaction &mtr, Frame *frame,
+      Frame *new_frame, const char *key);
 
   /**
    * @brief 在叶子节点插入一个元素
    */
-  RC insert_entry_into_leaf_node(BplusTreeMiniTransaction &mtr, Frame *frame, const char *pkey, const RID *rid);
+  RC insert_entry_into_leaf_node(BplusTreeMiniTransaction &mtr, Frame *frame,
+      const char *pkey, const RID *rid);
 
   /**
    * @brief 创建一个新的B+树
    */
-  RC create_new_tree(BplusTreeMiniTransaction &mtr, const char *key, const RID *rid);
+  RC create_new_tree(
+      BplusTreeMiniTransaction &mtr, const char *key, const RID *rid);
 
   /**
    * @brief 更新根节点的页号
    */
-  void update_root_page_num_locked(BplusTreeMiniTransaction &mtr, PageNum root_page_num);
+  void update_root_page_num_locked(
+      BplusTreeMiniTransaction &mtr, PageNum root_page_num);
 
   /**
    * @brief 调整根节点
@@ -633,7 +734,8 @@ protected:
   RC adjust_root(BplusTreeMiniTransaction &mtr, Frame *root_frame);
 
 private:
-  common::MemPoolItem::item_unique_ptr make_key(const char *user_key, const RID &rid);
+  common::MemPoolItem::item_unique_ptr make_key(
+      const char *user_key, const RID &rid);
 
 protected:
   LogHandler     *log_handler_      = nullptr;  /// 日志处理器
@@ -649,6 +751,7 @@ protected:
   KeyPrinter    key_printer_;
 
   unique_ptr<common::MemPoolItem> mem_pool_item_;
+  std::vector<FieldMeta>          fields_meta_;
 
 private:
   friend class BplusTreeScanner;
@@ -675,8 +778,8 @@ public:
    * @param right_inclusive 右边界的值是否包含在内
    * TODO 重构参数表示方法
    */
-  RC open(const char *left_user_key, int left_len, bool left_inclusive, const char *right_user_key, int right_len,
-      bool right_inclusive);
+  RC open(const char *left_user_key, int left_len, bool left_inclusive,
+      const char *right_user_key, int right_len, bool right_inclusive);
 
   /**
    * @brief 获取下一条记录
@@ -699,7 +802,8 @@ private:
   /**
    * 如果key的类型是CHARS, 扩展或缩减user_key的大小刚好是schema中定义的大小
    */
-  RC fix_user_key(const char *user_key, int key_len, bool want_greater, char **fixed_key, bool *should_inclusive);
+  RC fix_user_key(const char *user_key, int key_len, bool want_greater,
+      char **fixed_key, bool *should_inclusive);
 
   void fetch_item(RID &rid);
 

@@ -1,7 +1,7 @@
 /* Copyright (c) 2021 OceanBase and/or its affiliates. All rights reserved.
 miniob is licensed under Mulan PSL v2.
-You can use this software according to the terms and conditions of the Mulan PSL v2.
-You may obtain a copy of Mulan PSL v2 at:
+You can use this software according to the terms and conditions of the Mulan PSL
+v2. You may obtain a copy of Mulan PSL v2 at:
          http://license.coscl.org.cn/MulanPSL2
 THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
 EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
@@ -15,6 +15,8 @@ See the Mulan PSL v2 for more details. */
 #pragma once
 
 #include "common/lang/vector.h"
+#include "storage/record/record.h"
+#include "storage/table/table.h"
 #include "storage/trx/trx.h"
 #include "storage/trx/mvcc_trx_log.h"
 
@@ -51,7 +53,8 @@ public:
   int32_t max_trx_id() const;
 
 private:
-  vector<FieldMeta> fields_;  // 存储事务数据需要用到的字段元数据，所有表结构都需要带的
+  vector<FieldMeta>
+      fields_;  // 存储事务数据需要用到的字段元数据，所有表结构都需要带的
 
   atomic<int32_t> current_trx_id_{0};
 
@@ -69,11 +72,13 @@ class MvccTrx : public Trx
 public:
   /**
    * @brief 构造函数
-   * @note 外部不应该直接调用该构造函数，而应该使用TrxKit::create_trx()来创建事务，
+   * @note
+   * 外部不应该直接调用该构造函数，而应该使用TrxKit::create_trx()来创建事务，
    * 创建事务时，TrxKit会有一些内部信息需要记录
    */
   MvccTrx(MvccTrxKit &trx_kit, LogHandler &log_handler);
-  MvccTrx(MvccTrxKit &trx_kit, LogHandler &log_handler, int32_t trx_id);  // used for recover
+  MvccTrx(MvccTrxKit &trx_kit, LogHandler &log_handler,
+      int32_t trx_id);  // used for recover
   virtual ~MvccTrx();
 
   RC insert_record(Table *table, Record &record) override;
@@ -101,13 +106,15 @@ public:
 
 private:
   RC   commit_with_trx_id(int32_t commit_id);
-  void trx_fields(Table *table, Field &begin_xid_field, Field &end_xid_field) const;
+  void trx_fields(
+      Table *table, Field &begin_xid_field, Field &end_xid_field) const;
 
 private:
   static const int32_t MAX_TRX_ID = numeric_limits<int32_t>::max();
 
 private:
-  // using OperationSet = unordered_set<Operation, OperationHasher, OperationEqualer>;
+  // using OperationSet = unordered_set<Operation, OperationHasher,
+  // OperationEqualer>;
   using OperationSet = vector<Operation>;
 
   MvccTrxKit       &trx_kit_;

@@ -1,7 +1,7 @@
 /* Copyright (c) 2021 OceanBase and/or its affiliates. All rights reserved.
 miniob is licensed under Mulan PSL v2.
-You can use this software according to the terms and conditions of the Mulan PSL v2.
-You may obtain a copy of Mulan PSL v2 at:
+You can use this software according to the terms and conditions of the Mulan PSL
+v2. You may obtain a copy of Mulan PSL v2 at:
          http://license.coscl.org.cn/MulanPSL2
 THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
 EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
@@ -115,9 +115,18 @@ void Value::resize(int len)
     return;
   }
 
+  if (is_null(*this)) {
+    reset();
+    attr_type_            = AttrType::CHARS;
+    value_.pointer_value_ = new char[len + 1];
+    memset(value_.pointer_value_, 0, len + 1);
+    length_ = 0;
+    return;
+  }
   string s(value_.pointer_value_);
   s.resize(len + 1);
   reset();
+  own_data_             = true;
   attr_type_            = AttrType::CHARS;
   value_.pointer_value_ = new char[len + 1];
   memcpy(value_.pointer_value_, s.c_str(), len + 1);
@@ -180,7 +189,7 @@ void Value::set_string(const char *s, int len /*= 0*/)
   reset();
   attr_type_ = AttrType::CHARS;
   if (s == nullptr) {
-    value_.pointer_value_ = nullptr;
+    value_.pointer_value_ = nullptr;  // NULL
     length_               = 0;
   } else {
     own_data_ = true;
@@ -229,7 +238,9 @@ void Value::set_string_from_other(const Value &other)
   ASSERT(attr_type_ == AttrType::CHARS, "attr type is not CHARS");
   if (own_data_ && other.value_.pointer_value_ != nullptr && length_ != 0) {
     this->value_.pointer_value_ = new char[this->length_ + 1];
-    memcpy(this->value_.pointer_value_, other.value_.pointer_value_, this->length_);
+    memcpy(this->value_.pointer_value_,
+        other.value_.pointer_value_,
+        this->length_);
     this->value_.pointer_value_[this->length_] = '\0';
   }
 }
