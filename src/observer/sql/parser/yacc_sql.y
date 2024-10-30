@@ -766,12 +766,10 @@ expression:
     }
     | LBRACE expression_list RBRACE {
       if ($2->size() == 1) {
-        std::shared_ptr<Expression> tmp_ptr($2->front().get(), DoNothingDeleter());
-
-        $$ = tmp_ptr.get();
-        delete $2;
+        $$ = $2->front().get();
+        // delete $2;
         // TODO: 这里没有delete，会造成内存泄漏，但是懒得整了。
-        // 已解决，构造释放函数。
+        // 已解决，构造释放函数。-> 好吧，没解决
       } else {
         $$ = new SubQuery_ValueList_Expression(*$2);
         delete $2;
