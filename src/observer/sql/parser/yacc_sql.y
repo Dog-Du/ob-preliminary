@@ -943,7 +943,7 @@ comp_op:
     | IN_T { $$ = IN; }
     | NOT_T IN_T { $$ = NOT_IN; }
     | IS_T { $$ = IS; }
-    | NOT_T IS_T { $$ = NOT_IS; }
+    | IS_T NOT_T { $$ = NOT_IS; }
     ;
 
 // your code here

@@ -226,24 +226,26 @@ RC ComparisonExpr::compare_value(
   RC  rc         = RC::SUCCESS;
   int cmp_result = left.compare(right);
   result         = false;
+  bool has_null = left.is_null(left) || right.is_null(right);
+
   switch (comp_) {
     case EQUAL_TO: {
-      result = (0 == cmp_result);
+      result = (0 == cmp_result) && !has_null;
     } break;
     case LESS_EQUAL: {
-      result = (cmp_result <= 0);
+      result = (cmp_result <= 0) && !has_null;
     } break;
     case NOT_EQUAL: {
-      result = (cmp_result != 0);
+      result = (cmp_result != 0) && !has_null;
     } break;
     case LESS_THAN: {
-      result = (cmp_result < 0);
+      result = (cmp_result < 0) && !has_null;
     } break;
     case GREAT_EQUAL: {
-      result = (cmp_result >= 0);
+      result = (cmp_result >= 0) && !has_null;
     } break;
     case GREAT_THAN: {
-      result = (cmp_result > 0);
+      result = (cmp_result > 0) && !has_null;
     } break;
     case IS: {
       result = (left.is_null(left) && right.is_null(right));
@@ -252,10 +254,10 @@ RC ComparisonExpr::compare_value(
       result = !(left.is_null(left) && right.is_null(right));
     } break;
     case LIKE: {
-      result = match_str(right.get_string(), left.get_string());
+      result = match_str(right.get_string(), left.get_string()) && !has_null;
     } break;
     case NOT_LIKE: {
-      result = !match_str(right.get_string(), left.get_string());
+      result = !match_str(right.get_string(), left.get_string()) && !has_null;
     } break;
     default: {
       LOG_WARN("unsupported comparison. %d", comp_);
