@@ -387,6 +387,57 @@ private:
   std::vector<TupleCellSpec> specs_;
 };
 
+// 空壳
+class ShellTuple : public Tuple
+{
+public:
+  ShellTuple()          = default;
+  virtual ~ShellTuple() = default;
+
+  void set_names(const std::vector<TupleCellSpec> *specs) { specs_ = specs; }
+  void set_cells(const std::vector<Value> *cells) { cells_ = cells; }
+
+  virtual int cell_num() const override { return static_cast<int>(cells_->size()); }
+
+  virtual RC cell_at(int index, Value &cell) const override
+  {
+    if (index < 0 || index >= cell_num()) {
+      return RC::NOTFOUND;
+    }
+
+    cell = cells_->at(index);
+    return RC::SUCCESS;
+  }
+
+  RC spec_at(int index, TupleCellSpec &spec) const override
+  {
+    if (index < 0 || index >= cell_num()) {
+      return RC::NOTFOUND;
+    }
+
+    spec = specs_->at(index);
+    return RC::SUCCESS;
+  }
+
+  virtual RC find_cell(const TupleCellSpec &spec, Value &cell) const override
+  {
+    ASSERT(cells_->size() == specs_->size(), "cells_.size()=%d, specs_.size()=%d", cells_->size(), specs_->size());
+
+    const int size = static_cast<int>(specs_->size());
+    for (int i = 0; i < size; i++) {
+      if (specs_->at(i).equals(spec)) {
+        cell = cells_->at(i);
+        return RC::SUCCESS;
+      }
+    }
+    return RC::NOTFOUND;
+  }
+
+private:
+  const std::vector<Value>         *cells_;
+  const std::vector<TupleCellSpec> *specs_;
+};
+
 /**
  * @brief 将两个tuple合并为一个tuple
  * @ingroup Tuple

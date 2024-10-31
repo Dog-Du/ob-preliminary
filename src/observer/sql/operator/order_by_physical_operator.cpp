@@ -44,24 +44,48 @@ RC OrderByPhysicalOperator::open(Trx *trx)
     return rc;
   }
 
-  ValueListTuple tuple;
+  std::vector<Value> values;
+  rc = child->next();
 
-  std::vector<Value>         values;
-  std::vector<TupleCellSpec> tuple_cells;
+  if (rc != RC::SUCCESS) {
+    if (rc != RC::RECORD_EOF) {
+      LOG_WARN("next failed.");
+      return rc;
+    }
+    rc = RC::SUCCESS;
+    return rc;
+  }
+
+  Tuple *current_tuple = child->current_tuple();
+
+  values.resize(current_tuple->cell_num());
+  tuple_cells_.resize(current_tuple->cell_num());
+
+  for (int i = 0; i < current_tuple->cell_num(); ++i) {
+    current_tuple->cell_at(i, values[i]);
+    current_tuple->spec_at(i, tuple_cells_[i]);
+  }
+
+  tuples_.emplace_back(std::move(values));
+
+  std::vector<int> field_index;
+  for (auto &field : field_expressions_) {
+    TupleCellSpec tmp_cell(field->table_name(), field->field_name());
+    for (int i = 0; i < tuple_cells_.size(); ++i) {
+      if (tuple_cells_[i].equals(tmp_cell)) {
+        field_index.push_back(i);
+      }
+    }
+  }
 
   while ((rc = child->next()) == RC::SUCCESS) {
-    Tuple *current_tuple = children_[0]->current_tuple();
-
+    current_tuple = child->current_tuple();
     values.resize(current_tuple->cell_num());
-    tuple_cells.resize(current_tuple->cell_num());
     for (int i = 0; i < current_tuple->cell_num(); ++i) {
       current_tuple->cell_at(i, values[i]);
-      current_tuple->spec_at(i, tuple_cells[i]);
     }
 
-    tuple.set_names(tuple_cells);
-    tuple.set_cells(values);
-    tuples_.push_back(tuple);
+    tuples_.emplace_back(std::move(values));
   }
 
   if (rc != RC::SUCCESS) {
@@ -78,15 +102,11 @@ RC OrderByPhysicalOperator::open(Trx *trx)
     tuples_index_[i] = i;
   }
 
-  Value left;
-  Value right;
-  auto  cmp = [this, &left, &right](int lhs, int rhs) {
+  auto cmp = [this, &field_index](int lhs, int rhs) {
     int result = 0;
-    for (size_t i = 0; i < field_expressions_.size(); ++i) {
-      auto       &field = field_expressions_[i];
-      OrderByType type  = order_by_type_[i];
-      field->get_value(tuples_[lhs], left);
-      field->get_value(tuples_[rhs], right);
+    for (size_t i = 0; i < field_index.size(); ++i) {
+      auto       &left  = tuples_[lhs][field_index[i]];
+      auto       &right = tuples_[rhs][field_index[i]];
 
       result = left.compare(right);
 
@@ -94,7 +114,7 @@ RC OrderByPhysicalOperator::open(Trx *trx)
         continue;
       }
 
-      return type == OrderByType::ASC ? result < 0 : result > 0;
+      return order_by_type_[i] == OrderByType::ASC ? result < 0 : result > 0;
     }
     return false;
   };
@@ -112,4 +132,9 @@ RC OrderByPhysicalOperator::close()
   return RC::SUCCESS;
 }
 
-Tuple *OrderByPhysicalOperator::current_tuple() { return &tuples_[tuples_index_[i_]]; }
+Tuple *OrderByPhysicalOperator::current_tuple()
+{
+  tuple_.set_cells(&tuples_[tuples_index_[i_]]);
+  tuple_.set_names(&tuple_cells_);
+  return &tuple_;
+}

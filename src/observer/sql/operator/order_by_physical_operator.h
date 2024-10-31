@@ -16,6 +16,7 @@ See the Mulan PSL v2 for more details. */
 
 #include "sql/expr/expression.h"
 #include "sql/expr/tuple.h"
+#include "sql/expr/tuple_cell.h"
 #include "sql/operator/physical_operator.h"
 #include "sql/expr/composite_tuple.h"
 #include "storage/trx/trx.h"
@@ -42,8 +43,10 @@ public:
 private:
   std::vector<std::shared_ptr<FieldExpr>> field_expressions_;
   std::vector<OrderByType>                order_by_type_;
-  std::vector<ValueListTuple>             tuples_;
+  std::vector<std::vector<Value>>         tuples_;
+  std::vector<TupleCellSpec>              tuple_cells_;
   std::vector<int>                        tuples_index_;
   int                                     i_ = -1;
+  ShellTuple                              tuple_;
   // std::vector<Expression *>                   value_expressions_;  /// 计算聚合时的表达式
 };

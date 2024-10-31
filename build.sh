@@ -157,8 +157,8 @@ function build
     xdebug)
       do_build "$@" -DCMAKE_BUILD_TYPE=RelWithDebInfo -DDEBUG=OFF
       ;;
-    xdebugg)
-      do_build "$@" -DCMAKE_BUILD_TYPE=Debug -DDEBUG=ON
+    xdebu)
+      do_build "debug" "$2" "$3" -DCMAKE_BUILD_TYPE=Debug -DDEBUG=ON
       ;;
     *)
       BUILD_ARGS=(release "${BUILD_ARGS[@]}")

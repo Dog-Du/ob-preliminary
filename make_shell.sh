@@ -1,1 +1,1 @@
-bash build.sh debugg --make -j12
+bash build.sh debu --make -j12
