@@ -155,10 +155,13 @@ function build
       do_build "$@" -DCMAKE_BUILD_TYPE=RelWithDebInfo -DDEBUG=OFF
       ;;
     xdebug)
+      do_build "$@" -DCMAKE_BUILD_TYPE=RelWithDebInfo -DDEBUG=OFF
+      ;;
+    xdebugg)
       do_build "$@" -DCMAKE_BUILD_TYPE=Debug -DDEBUG=ON
       ;;
     *)
-      BUILD_ARGS=(debug "${BUILD_ARGS[@]}")
+      BUILD_ARGS=(release "${BUILD_ARGS[@]}")
       build
       ;;
   esac

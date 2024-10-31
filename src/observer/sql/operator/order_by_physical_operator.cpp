@@ -72,15 +72,21 @@ RC OrderByPhysicalOperator::open(Trx *trx)
     rc = RC::SUCCESS;
   }
 
-  auto cmp = [this](ValueListTuple &lhs, ValueListTuple &rhs) {
-    Value left;
-    Value right;
-    int   result = 0;
+  tuples_index_.resize(tuples_.size());
+
+  for (int i = 0; i < tuples_index_.size(); ++i) {
+    tuples_index_[i] = i;
+  }
+
+  Value left;
+  Value right;
+  auto  cmp = [this, &left, &right](int lhs, int rhs) {
+    int result = 0;
     for (size_t i = 0; i < field_expressions_.size(); ++i) {
       auto       &field = field_expressions_[i];
       OrderByType type  = order_by_type_[i];
-      field->get_value(lhs, left);
-      field->get_value(rhs, right);
+      field->get_value(tuples_[lhs], left);
+      field->get_value(tuples_[rhs], right);
 
       result = left.compare(right);
 
@@ -93,11 +99,12 @@ RC OrderByPhysicalOperator::open(Trx *trx)
     return false;
   };
 
-  std::sort(tuples_.begin(), tuples_.end(), cmp);
+  std::sort(tuples_index_.begin(), tuples_index_.end(), cmp);
+  ++i_ = -1;
   return RC::SUCCESS;
 }
 
-RC OrderByPhysicalOperator::next() { return ++i_ == tuples_.size() ? RC::RECORD_EOF : RC::SUCCESS; }
+RC OrderByPhysicalOperator::next() { return ++i_ == tuples_index_.size() ? RC::RECORD_EOF : RC::SUCCESS; }
 
 RC OrderByPhysicalOperator::close()
 {
@@ -105,4 +112,4 @@ RC OrderByPhysicalOperator::close()
   return RC::SUCCESS;
 }
 
-Tuple *OrderByPhysicalOperator::current_tuple() { return &tuples_[i_]; }
+Tuple *OrderByPhysicalOperator::current_tuple() { return &tuples_[tuples_index_[i_]]; }

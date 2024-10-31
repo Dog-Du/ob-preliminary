@@ -43,6 +43,7 @@ private:
   std::vector<std::shared_ptr<FieldExpr>> field_expressions_;
   std::vector<OrderByType>                order_by_type_;
   std::vector<ValueListTuple>             tuples_;
+  std::vector<int>                        tuples_index_;
   int                                     i_ = -1;
   // std::vector<Expression *>                   value_expressions_;  /// 计算聚合时的表达式
 };
