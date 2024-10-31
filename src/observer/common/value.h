@@ -23,9 +23,9 @@ See the Mulan PSL v2 for more details. */
 #include <cstdint>
 #include <ctype.h>
 
-#define INT_NULL INT32_MIN
-#define FLOAT_NULL -FLT_MAX
-#define DATE_NULL INT32_MIN
+static const int32_t INT_NULL   = INT32_MIN;
+static const float   FLOAT_NULL = -FLT_MAX;
+static const int32_t DATE_NULL  = INT32_MIN;
 
 /**
  * @brief 属性的值

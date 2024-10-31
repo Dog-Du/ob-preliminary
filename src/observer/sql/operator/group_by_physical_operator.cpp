@@ -17,21 +17,15 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/group_by_physical_operator.h"
 #include "sql/expr/expression_tuple.h"
 #include "sql/expr/composite_tuple.h"
+#include "sql/expr/tuple.h"
+#include "storage/trx/trx.h"
 
 using namespace std;
 using namespace common;
 
-GroupByPhysicalOperator::GroupByPhysicalOperator(vector<Expression *> &&expressions)
-{
-  aggregate_expressions_ = std::move(expressions);
-  value_expressions_.reserve(aggregate_expressions_.size());
-  ranges::for_each(aggregate_expressions_, [this](Expression *expr) {
-    auto       *aggregate_expr = static_cast<AggregateExpr *>(expr);
-    Expression *child_expr     = aggregate_expr->child().get();
-    ASSERT(child_expr != nullptr, "aggregate expression must have a child expression");
-    value_expressions_.emplace_back(child_expr);
-  });
-}
+GroupByPhysicalOperator::GroupByPhysicalOperator(std::vector<std::shared_ptr<AggregateExpr>> &aggregation_expression,
+    std::vector<std::shared_ptr<FieldExpr>>                                                  &field_expression)
+{}
 
 void GroupByPhysicalOperator::create_aggregator_list(AggregatorList &aggregator_list)
 {
@@ -71,12 +65,16 @@ RC GroupByPhysicalOperator::aggregate(AggregatorList &aggregator_list, const Tup
   return rc;
 }
 
-RC GroupByPhysicalOperator::evaluate(GroupValueType &group_value)
+RC     GroupByPhysicalOperator::open(Trx *trx) { return RC::SUCCESS; }
+RC     GroupByPhysicalOperator::close() { return RC::SUCCESS; }
+RC     GroupByPhysicalOperator::next() { return RC::SUCCESS; }
+Tuple *GroupByPhysicalOperator::current_tuple() { return nullptr; }
+RC     GroupByPhysicalOperator::evaluate(GroupValueType &group_value)
 {
   RC rc = RC::SUCCESS;
 
   vector<TupleCellSpec> aggregator_names;
-  for (Expression *expr : aggregate_expressions_) {
+  for (auto &expr : aggregate_expressions_) {
     aggregator_names.emplace_back(expr->name());
   }
 

@@ -14,8 +14,10 @@ See the Mulan PSL v2 for more details. */
 
 #pragma once
 
+#include "sql/expr/expression.h"
 #include "sql/operator/physical_operator.h"
 #include "sql/expr/composite_tuple.h"
+#include "storage/trx/trx.h"
 
 /**
  * @brief Group By 物理算子基类
@@ -24,8 +26,16 @@ See the Mulan PSL v2 for more details. */
 class GroupByPhysicalOperator : public PhysicalOperator
 {
 public:
-  GroupByPhysicalOperator(std::vector<Expression *> &&expressions);
+  GroupByPhysicalOperator(std::vector<std::shared_ptr<AggregateExpr>> &aggregation_expression,
+      std::vector<std::shared_ptr<FieldExpr>>                         &field_expression);
+
   virtual ~GroupByPhysicalOperator() = default;
+
+  virtual RC                   open(Trx *trx) override;
+  virtual RC                   next() override;
+  virtual RC                   close() override;
+  virtual Tuple               *current_tuple() override;
+  virtual PhysicalOperatorType type() const override { return PhysicalOperatorType::GROUP_BY; }
 
 protected:
   using AggregatorList = std::vector<std::unique_ptr<Aggregator>>;
@@ -52,6 +62,7 @@ protected:
   RC evaluate(GroupValueType &group_value);
 
 protected:
-  std::vector<Expression *> aggregate_expressions_;  /// 聚合表达式
-  std::vector<Expression *> value_expressions_;      /// 计算聚合时的表达式
+  std::vector<std::shared_ptr<AggregateExpr>> aggregate_expressions_;  /// 聚合表达式
+  std::vector<std::shared_ptr<FieldExpr>>     field_expressions_;
+  // std::vector<Expression *>                   value_expressions_;  /// 计算聚合时的表达式
 };

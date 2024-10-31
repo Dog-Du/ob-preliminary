@@ -1,7 +1,7 @@
 /* Copyright (c) 2021 OceanBase and/or its affiliates. All rights reserved.
 miniob is licensed under Mulan PSL v2.
-You can use this software according to the terms and conditions of the Mulan PSL v2.
-You may obtain a copy of Mulan PSL v2 at:
+You can use this software according to the terms and conditions of the Mulan PSL
+v2. You may obtain a copy of Mulan PSL v2 at:
          http://license.coscl.org.cn/MulanPSL2
 THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
 EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
@@ -34,4 +34,40 @@ class SumAggregator : public Aggregator
 public:
   RC accumulate(const Value &value) override;
   RC evaluate(Value &result) override;
+};
+
+class MinAggregator : public Aggregator
+{
+public:
+  RC accumulate(const Value &value) override;
+  RC evaluate(Value &result) override;
+};
+
+class MaxAggregator : public Aggregator
+{
+public:
+  RC accumulate(const Value &value) override;
+  RC evaluate(Value &result) override;
+};
+
+class CountAggregator : public Aggregator
+{
+public:
+  RC accumulate(const Value &value) override;
+  RC evaluate(Value &result) override;
+};
+
+class CountStarAggregator : public Aggregator
+{
+public:
+  RC accumulate(const Value &value) override;
+  RC evaluate(Value &result) override;
+};
+
+class AvgAggregator : public Aggregator
+{
+public:
+  RC      accumulate(const Value &value) override;
+  RC      evaluate(Value &result) override;
+  int32_t count_ = 0;
 };

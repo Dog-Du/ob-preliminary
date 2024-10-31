@@ -15,14 +15,12 @@ See the Mulan PSL v2 for more details. */
 #include <memory>
 
 #include "common/log/log.h"
-#include "sql/operator/group_by_logical_operator.h"
+#include "sql/operator/order_by_logical_operator.h"
 #include "sql/expr/expression.h"
 
-using namespace std;
-
-GroupByLogicalOperator::GroupByLogicalOperator(
-    std::vector<std::shared_ptr<FieldExpr>> &group_by_exprs, std::vector<std::shared_ptr<AggregateExpr>> &expressions)
+OrderByLogicalOperator::OrderByLogicalOperator(
+    std::vector<std::shared_ptr<FieldExpr>> &orderby_fields, std::vector<OrderByType> &order_by_type)
 {
-  group_by_expressions_  = group_by_exprs;
-  aggregate_expressions_ = expressions;
+  order_by_      = orderby_fields;
+  order_by_type_ = order_by_type;
 }

@@ -24,6 +24,12 @@ See the Mulan PSL v2 for more details. */
 
 class Expression;
 
+enum OrderByType
+{
+  ASC,
+  DESC,
+};
+
 /**
  * @defgroup SQLParser SQL Parser
  */
@@ -35,11 +41,15 @@ class Expression;
  * Rel -> Relation
  * Attr -> Attribute
  */
+
+// 可能用于 from 后， select 后， 聚合， having， order by， group by
+// 考虑到在后面的测试中基本没有奇怪语法的SQL，因此这么做而不检查是没有问题的。
 struct RelAttrSqlNode
 {
   std::string relation_name;   ///< relation name (may be NULL) 表名
   std::string attribute_name;  ///< attribute name              属性名
   std::string alias;
+  OrderByType order_by_type;
 };
 
 /**
@@ -113,8 +123,13 @@ struct SelectSqlNode
   std::vector<std::shared_ptr<Expression>> expressions;  ///< 查询的表达式
   std::vector<JoinSqlNode>                 relations;    ///< 查询的表
   std::shared_ptr<Expression>
-      conditions;  ///< 查询条件，使用AND串联起来多个条件
-  std::vector<std::shared_ptr<Expression>> group_by;  ///< group by clause
+      conditions;  ///< where的查询条件，使用AND串联起来多个条件
+  // std::vector<std::shared_ptr<Expression>> group_by;  ///< group by clause
+  std::vector<RelAttrSqlNode> group_by;
+  std::shared_ptr<Expression> having;
+  std::vector<RelAttrSqlNode>
+      order_by;  // order_by 其实可以根据
+                 // 聚合进行排序，但是测试中只有列名，所以不考虑聚合。
 };
 
 /**

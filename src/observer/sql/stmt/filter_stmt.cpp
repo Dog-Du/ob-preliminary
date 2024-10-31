@@ -126,6 +126,10 @@ RC FilterStmt::create(Db *db, Table *default_table,
               return;
             }
           } break;
+          case ExprType::AGGREGATION: {
+            auto expr = static_cast<AggregateExpr *>(expression);
+            check_condition(expr->child().get());
+          } break;
           default: {
 
           } break;

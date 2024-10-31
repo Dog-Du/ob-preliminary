@@ -14,13 +14,14 @@ See the Mulan PSL v2 for more details. */
 
 #pragma once
 
+#include "sql/expr/expression.h"
 #include "sql/operator/logical_operator.h"
 
 class GroupByLogicalOperator : public LogicalOperator
 {
 public:
   GroupByLogicalOperator(
-      std::vector<std::shared_ptr<Expression>> &&group_by_exprs, std::vector<Expression *> &&expressions);
+      std::vector<std::shared_ptr<FieldExpr>> &group_by_exprs, std::vector<std::shared_ptr<AggregateExpr>> &agg_exprs);
 
   virtual ~GroupByLogicalOperator() = default;
 
@@ -30,6 +31,6 @@ public:
   auto &aggregate_expressions() { return aggregate_expressions_; }
 
 private:
-  std::vector<std::shared_ptr<Expression>> group_by_expressions_;
-  std::vector<Expression *>                aggregate_expressions_;  ///< 输出的表达式，可能包含聚合函数
+  std::vector<std::shared_ptr<FieldExpr>> group_by_expressions_;
+  std::vector<std::shared_ptr<AggregateExpr>> aggregate_expressions_;  ///< 输出的表达式，可能包含聚合函数
 };

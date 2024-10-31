@@ -18,8 +18,8 @@ See the Mulan PSL v2 for more details. */
 enum class AttrType : int8_t
 {
   UNDEFINED,
-  DATES,     ///< 日期类型
-  NULLS,     ///< null
+  DATES,  ///< 日期类型
+  NULLS,  ///< null， 实际上没有这种类型，不会出现 NULLS 类型 的 Value
   CHARS,     ///< 字符串类型
   INTS,      ///< 整数类型(4字节)
   FLOATS,    ///< 浮点数类型(4字节)

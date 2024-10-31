@@ -21,7 +21,6 @@ do {                                                         \
   yycolumn += yyleng;                                        \
 }                                                            \
 while (0);
-
 }
 
 %{
@@ -90,7 +89,6 @@ QUOTE            [\'\"]
 {DOT}                                   RETURN_TOKEN(DOT);
 EXIT                                    RETURN_TOKEN(EXIT);
 HELP                                    RETURN_TOKEN(HELP);
-DESC                                    RETURN_TOKEN(DESC);
 CREATE                                  RETURN_TOKEN(CREATE);
 DROP                                    RETURN_TOKEN(DROP);
 TABLE                                   RETURN_TOKEN(TABLE);
@@ -104,23 +102,7 @@ CALC                                    RETURN_TOKEN(CALC);
 FROM                                    RETURN_TOKEN(FROM);
 WHERE                                   RETURN_TOKEN(WHERE);
 AND                                     RETURN_TOKEN(AND);
-OR                                      RETURN_TOKEN(OR);
 INSERT                                  RETURN_TOKEN(INSERT);
-
-UNIQUE                                  RETURN_TOKEN(UNIQUE_T);
-NOT                                     RETURN_TOKEN(NOT_T);
-LIKE                                    RETURN_TOKEN(LIKE_T);
-TEXT                                    RETURN_TOKEN(TEXT_T);
-INNER                                   RETURN_TOKEN(INNER_T);
-JOIN                                    RETURN_TOKEN(JOIN_T);
-AS                                      RETURN_TOKEN(AS_T);
-NULL                                    RETURN_TOKEN(NULL_T);
-NULLABLE                                RETURN_TOKEN(NULL_T);
-IS                                      RETURN_TOKEN(IS_T);
-EXISTS                                  RETURN_TOKEN(EXISTS_T);
-
-
-IN                                      RETURN_TOKEN(IN_T);
 INTO                                    RETURN_TOKEN(INTO);
 VALUES                                  RETURN_TOKEN(VALUES);
 DELETE                                  RETURN_TOKEN(DELETE);
@@ -142,6 +124,30 @@ GROUP                                   RETURN_TOKEN(GROUP);
 BY                                      RETURN_TOKEN(BY);
 STORAGE                                 RETURN_TOKEN(STORAGE);
 FORMAT                                  RETURN_TOKEN(FORMAT);
+
+
+ASC                                     RETURN_TOKEN(ASC_T);
+DESC                                    RETURN_TOKEN(DESC_T);
+OR                                      RETURN_TOKEN(OR);
+COUNT                                   RETURN_TOKEN(COUNT_T);
+SUM                                     RETURN_TOKEN(SUM_T);
+MIN                                     RETURN_TOKEN(MIN_T);
+MAX                                     RETURN_TOKEN(MAX_T);
+AVG                                     RETURN_TOKEN(AVG_T);
+UNIQUE                                  RETURN_TOKEN(UNIQUE_T);
+NOT                                     RETURN_TOKEN(NOT_T);
+LIKE                                    RETURN_TOKEN(LIKE_T);
+TEXT                                    RETURN_TOKEN(TEXT_T);
+INNER                                   RETURN_TOKEN(INNER_T);
+JOIN                                    RETURN_TOKEN(JOIN_T);
+AS                                      RETURN_TOKEN(AS_T);
+NULL                                    RETURN_TOKEN(NULL_T);
+NULLABLE                                RETURN_TOKEN(NULL_T);
+IS                                      RETURN_TOKEN(IS_T);
+EXISTS                                  RETURN_TOKEN(EXISTS_T);
+HAVING                                  RETURN_TOKEN(HAVING_T);
+ORDER                                   RETURN_TOKEN(ORDER_T);
+IN                                      RETURN_TOKEN(IN_T);
 {ID}                                    yylval->string=strdup(yytext); RETURN_TOKEN(ID);
 "("                                     RETURN_TOKEN(LBRACE);
 ")"                                     RETURN_TOKEN(RBRACE);

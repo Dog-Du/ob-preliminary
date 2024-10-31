@@ -16,6 +16,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/log/log.h"
 #include "common/type/attr_type.h"
 #include "common/value.h"
+#include "sql/expr/aggregator.h"
 #include "sql/expr/tuple.h"
 #include "sql/expr/arithmetic_operator.hpp"
 #include "sql/parser/parse_defs.h"
@@ -93,6 +94,10 @@ RC FieldExpr::check_field(
   auto   field_name = std::string(Expression::field_name());
   Table *table      = nullptr;
 
+  if (table_name == "*") {
+    return RC::SUCCESS;
+  }
+
   if (!common::is_blank(table_name.c_str())) {
     auto iter = all_tables.find(table_name);
     if (iter == all_tables.end()) {
@@ -105,9 +110,10 @@ RC FieldExpr::check_field(
       return RC::SCHEMA_FIELD_MISSING;
     }
 
-    table = default_table;
+    table = default_table == nullptr ? tables.front() : default_table;
   }
 
+  ASSERT(table != nullptr, "something wrong");
   // 得到了表的名字
   table_name = table->name();
 
@@ -226,7 +232,7 @@ RC ComparisonExpr::compare_value(
   RC  rc         = RC::SUCCESS;
   int cmp_result = left.compare(right);
   result         = false;
-  bool has_null = left.is_null(left) || right.is_null(right);
+  bool has_null  = left.is_null(left) || right.is_null(right);
 
   switch (comp_) {
     case EQUAL_TO: {
@@ -746,11 +752,23 @@ UnboundAggregateExpr::UnboundAggregateExpr(
 ////////////////////////////////////////////////////////////////////////////////
 AggregateExpr::AggregateExpr(Type type, Expression *child)
     : aggregate_type_(type), child_(child)
-{}
+{
+  if (aggregate_type_ == Type::COUNT && child_->type() == ExprType::FIELD &&
+      strcmp(child_->alias(), "*") == 0) {
+    aggregate_type_ = Type::COUNT_STAR;
+  }
+  aggregator_ = create_aggregator();
+}
 
 AggregateExpr::AggregateExpr(Type type, shared_ptr<Expression> child)
     : aggregate_type_(type), child_(std::move(child))
-{}
+{
+  if (aggregate_type_ == Type::COUNT && child_->type() == ExprType::FIELD &&
+      strcmp(child_->alias(), "*") == 0) {
+    aggregate_type_ = Type::COUNT_STAR;
+  }
+  aggregator_ = create_aggregator();
+}
 
 RC AggregateExpr::get_column(Chunk &chunk, Column &column)
 {
@@ -782,15 +800,51 @@ shared_ptr<Aggregator> AggregateExpr::create_aggregator() const
   shared_ptr<Aggregator> aggregator;
   switch (aggregate_type_) {
     case Type::SUM: {
-      aggregator = make_unique<SumAggregator>();
+      aggregator = make_shared<SumAggregator>();
       break;
     }
+    case Type::COUNT: {
+      aggregator = make_shared<CountAggregator>();
+    } break;
+    case Type::COUNT_STAR: {
+      aggregator = make_shared<CountStarAggregator>();
+    } break;
+    case Type::AVG: {
+      aggregator = make_shared<AvgAggregator>();
+    } break;
+    case Type::MAX: {
+      aggregator = make_shared<MaxAggregator>();
+    } break;
+    case Type::MIN: {
+      aggregator = make_shared<MinAggregator>();
+    } break;
     default: {
       ASSERT(false, "unsupported aggregate type");
       break;
     }
   }
   return aggregator;
+}
+
+RC AggregateExpr::accumulate(const Tuple &tuple)
+{
+  RC    rc = RC::SUCCESS;
+  Value tmp;
+  rc = child_->get_value(tuple, tmp);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("get_value failed.");
+    return rc;
+  }
+  rc = aggregator_->accumulate(tmp);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("aggregator_->accumulate failed.");
+  }
+  return rc;
+}
+
+RC AggregateExpr::evaluate(Value &value)
+{
+  return aggregator_->evaluate(value);
 }
 
 RC AggregateExpr::get_value(const Tuple &tuple, Value &value) const

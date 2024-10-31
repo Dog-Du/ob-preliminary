@@ -15,10 +15,34 @@
 
 using namespace std;
 
+// 没有用。
 struct DoNothingDeleter {
   template <typename T>
   void operator() (T*) const {}
 };
+
+string token_name(const char *sql_string, YYLTYPE *llocp)
+{
+  return string(sql_string + llocp->first_column, llocp->last_column - llocp->first_column + 1);
+}
+
+int yyerror(YYLTYPE *llocp, const char *sql_string, ParsedSqlResult *sql_result, yyscan_t scanner, const char *msg)
+{
+  LOG_WARN("parse error, msg : %s",msg);
+  std::shared_ptr<ParsedSqlNode> error_sql_node = std::make_shared<ParsedSqlNode>(SCF_ERROR);
+  error_sql_node->error.error_msg = msg;
+  error_sql_node->error.line = llocp->first_line;
+  error_sql_node->error.column = llocp->first_column;
+  sql_result->add_sql_node(std::move(error_sql_node));
+  return 0;
+}
+
+// 检查聚合的位置是否合法，不合法则出错。
+#define assert_is_not_aggregate(expression)                                              \
+  if (expression->type() == ExprType::AGGREGATION) {                                     \
+    yyerror (&yylloc, sql_string, sql_result, scanner, "here should not be aggregate."); \
+  }                                                                                      \
+
 
 bool try_expression_to_value(Expression *expression, Value &value)
 {
@@ -53,21 +77,6 @@ bool try_expression_to_value(Expression *expression, Value &value)
     } break;
   }
   return false;
-}
-
-string token_name(const char *sql_string, YYLTYPE *llocp)
-{
-  return string(sql_string + llocp->first_column, llocp->last_column - llocp->first_column + 1);
-}
-
-int yyerror(YYLTYPE *llocp, const char *sql_string, ParsedSqlResult *sql_result, yyscan_t scanner, const char *msg)
-{
-  std::shared_ptr<ParsedSqlNode> error_sql_node = std::make_shared<ParsedSqlNode>(SCF_ERROR);
-  error_sql_node->error.error_msg = msg;
-  error_sql_node->error.line = llocp->first_line;
-  error_sql_node->error.column = llocp->first_column;
-  sql_result->add_sql_node(std::move(error_sql_node));
-  return 0;
 }
 
 ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
@@ -108,7 +117,16 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
 %token  SEMICOLON
         BY
         CREATE
+        ORDER_T
+        HAVING_T
         LIKE_T
+        COUNT_T
+        ASC_T
+        DESC_T
+        SUM_T
+        MIN_T
+        MAX_T
+        AVG_T
         NOT_T
         TEXT_T
         JOIN_T
@@ -126,7 +144,6 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
         INDEX
         CALC
         SELECT
-        DESC
         SHOW
         SYNC
         INSERT
@@ -184,9 +201,11 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
   JoinSqlNode *                              join_node;
   std::vector<JoinSqlNode> *                 join_list;
   char *                                     string;
+
   int                                        number;
   float                                      floats;
   bool                                       boolean;
+  OrderByType                                order_by_type;
 }
 
 %token <number> NUMBER
@@ -207,6 +226,8 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
 %type <value_list>          insert_value
 %type <value>               value
 %type <number>              number
+/* %type <string>              alias */
+/* %type <order_by_type>       order_by_type */
 %type <rel_attr>            relation
 %type <comp>                comp_op
 %type <rel_attr>            rel_attr
@@ -219,7 +240,10 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
 /* %type <rel_attr_list>       rel_list */
 %type <expression>          expression
 %type <expression_list>     expression_list
-%type <expression_list>     group_by
+%type <rel_attr_list>       group_by
+%type <rel_attr_list>       order_by
+%type <rel_attr_list>       rel_attr_list
+%type <expression>          having
 %type <sql_node>            calc_stmt
 %type <sql_node>            select_stmt
 %type <sql_node>            insert_stmt
@@ -334,7 +358,7 @@ show_tables_stmt:
     ;
 
 desc_table_stmt:
-    DESC ID  {
+    DESC_T ID  {
       $$ = new ParsedSqlNode(SCF_DESC_TABLE);
       $$->desc_table.relation_name = $2;
       free($2);
@@ -648,7 +672,7 @@ update_stmt:      /*  update 语句的语法解析树*/
     ;
 
 select_stmt:        /*  select 语句的语法解析树*/
-    SELECT expression_list FROM from_node from_node_list where group_by
+    SELECT expression_list FROM from_node from_node_list where group_by having order_by
     {
       $$ = new ParsedSqlNode(SCF_SELECT);
       if ($2 != nullptr) {
@@ -660,6 +684,7 @@ select_stmt:        /*  select 语句的语法解析树*/
         $$->selection.relations.swap(*$5);
         delete $5;
       }
+
       $$->selection.relations.emplace_back(*$4);
       std::reverse($$->selection.relations.begin(), $$->selection.relations.end());
       delete $4;
@@ -670,8 +695,82 @@ select_stmt:        /*  select 语句的语法解析树*/
         $$->selection.group_by.swap(*$7);
         delete $7;
       }
+
+      if ($8 != nullptr) {
+        $$->selection.having = std::shared_ptr<Expression>($8);
+        delete $8;
+      }
+
+      if ($9 != nullptr) {
+        $$->selection.order_by = *$9;
+        delete $9;
+      }
     }
     ;
+
+order_by:
+  /* empty */
+  {
+    $$ = nullptr;
+  }
+  | ORDER_T BY rel_attr rel_attr_list
+  {
+    if ($4 != nullptr) {
+      $$ = $4;
+    } else {
+      $$ = new std::vector<RelAttrSqlNode>();
+    }
+    $$->push_back(*$3);
+    delete $3;
+    std::reverse($$->begin(), $$->end());
+  }
+  ;
+
+having:
+  /* empty */
+  {
+    $$ = nullptr;
+  }
+  | HAVING_T condition_list
+  {
+    $$ = $2;
+  }
+  ;
+
+group_by:
+    /* empty */
+    {
+      $$ = nullptr;
+    }
+    | GROUP BY rel_attr rel_attr_list {
+      if ($4 != nullptr) {
+        $$ = $4;
+      } else {
+        $$ = new std::vector<RelAttrSqlNode>();
+      }
+
+      $$->push_back(*$3);
+      delete $3;
+      std::reverse($$->begin(), $$->end());
+    }
+    ;
+
+rel_attr_list:
+  /* empty */
+  {
+    $$ = nullptr;
+  }
+  | COMMA rel_attr rel_attr_list
+  {
+    if ($3 == nullptr) {
+      $$ = new std::vector<RelAttrSqlNode>();
+    } else {
+      $$ = $3;
+    }
+    $$->push_back(*$2);
+    delete $2;
+  }
+  ;
 
 from_node:
   join_node {
@@ -753,18 +852,30 @@ expression_list:
 
 expression:
     expression '+' expression {
+      assert_is_not_aggregate($1);
+      assert_is_not_aggregate($3);
       $$ = create_arithmetic_expression(ArithmeticExpr::Type::ADD, $1, $3, sql_string, &@$);
     }
     | expression '-' expression {
+      assert_is_not_aggregate($1);
+      assert_is_not_aggregate($3);
       $$ = create_arithmetic_expression(ArithmeticExpr::Type::SUB, $1, $3, sql_string, &@$);
     }
     | expression '*' expression {
+      assert_is_not_aggregate($1);
+      assert_is_not_aggregate($3);
       $$ = create_arithmetic_expression(ArithmeticExpr::Type::MUL, $1, $3, sql_string, &@$);
     }
     | expression '/' expression {
+      assert_is_not_aggregate($1);
+      assert_is_not_aggregate($3);
       $$ = create_arithmetic_expression(ArithmeticExpr::Type::DIV, $1, $3, sql_string, &@$);
     }
     | LBRACE expression_list RBRACE {
+      for (auto &x : *$2) {
+        assert_is_not_aggregate(x.get());
+      }
+
       if ($2->size() == 1) {
         $$ = $2->front().get();
         // delete $2;
@@ -777,6 +888,7 @@ expression:
       $$->set_name(token_name(sql_string, &@$));
     }
     | '-' expression %prec UMINUS {
+      assert_is_not_aggregate($2);
       $$ = create_arithmetic_expression(ArithmeticExpr::Type::NEGATIVE, $2, nullptr, sql_string, &@$);
     }
     | value {
@@ -784,19 +896,50 @@ expression:
       $$->set_name(token_name(sql_string, &@$));
       delete $1;
     }
+    | '*' {
+      $$ = new FieldExpr("*", "*", "*");
+    }
     | rel_attr {
       RelAttrSqlNode *node = $1;
       $$ = new FieldExpr(node->relation_name, node->attribute_name, node->alias);
-      // $$->set_name(token_name(sql_string, &@$));
+      $$->set_name(token_name(sql_string, &@$));
       delete $1;
-    }
-    | '*' {
-      $$ = new FieldExpr("*", "*", "");
     }
     | LBRACE select_stmt RBRACE
     {
       $$ = new SubQuery_ValueList_Expression(std::make_shared<SelectSqlNode>($2->selection));
+      $$->set_name(token_name(sql_string, &@$));
       delete $2;
+    }
+    | SUM_T LBRACE expression RBRACE
+    {
+      assert_is_not_aggregate($3);
+      $$ = new AggregateExpr(AggregateExpr::Type::SUM, $3);
+      $$->set_name(token_name(sql_string, &@$));
+    }
+    | AVG_T LBRACE expression RBRACE
+    {
+      assert_is_not_aggregate($3);
+      $$ = new AggregateExpr(AggregateExpr::Type::AVG, $3);
+      $$->set_name(token_name(sql_string, &@$));
+    }
+    | MIN_T LBRACE expression RBRACE
+    {
+      assert_is_not_aggregate($3);
+      $$ = new AggregateExpr(AggregateExpr::Type::MIN, $3);
+      $$->set_name(token_name(sql_string, &@$));
+    }
+    | MAX_T LBRACE expression RBRACE
+    {
+      assert_is_not_aggregate($3);
+      $$ = new AggregateExpr(AggregateExpr::Type::MAX, $3);
+      $$->set_name(token_name(sql_string, &@$));
+    }
+    | COUNT_T LBRACE expression RBRACE
+    {
+      assert_is_not_aggregate($3);
+      $$ = new AggregateExpr(AggregateExpr::Type::COUNT, $3);
+      $$->set_name(token_name(sql_string, &@$));
     }
     // your code here
     ;
@@ -805,48 +948,155 @@ rel_attr:
     ID {
       $$ = new RelAttrSqlNode;
       $$->attribute_name = $1;
+      $$->order_by_type = OrderByType::ASC;
       free($1);
+    }
+    | ID ASC_T {
+      $$ = new RelAttrSqlNode;
+      $$->attribute_name = $1;
+      $$->order_by_type = OrderByType::ASC;
+      free($1);
+    }
+    | ID DESC_T {
+      $$ = new RelAttrSqlNode;
+      $$->attribute_name = $1;
+      $$->order_by_type = OrderByType::DESC;
+      free($1);
+    }
+    | ID ID {
+      $$ = new RelAttrSqlNode;
+      $$->attribute_name = $1;
+      $$->order_by_type = OrderByType::ASC;
+      $$->alias = $2;
+      free($2);
+      free($1);
+    }
+    | ID ID ASC_T {
+      $$ = new RelAttrSqlNode;
+      $$->attribute_name = $1;
+      $$->order_by_type = OrderByType::ASC;
+      $$->alias = $2;
+      free($2);
+      free($1);
+    }
+    | ID ID DESC_T {
+      $$ = new RelAttrSqlNode;
+      $$->attribute_name = $1;
+      $$->order_by_type = OrderByType::DESC;
+      $$->alias = $2;
+      free($2);
+      free($1);
+    }
+    | ID AS_T ID {
+      $$ = new RelAttrSqlNode;
+      $$->attribute_name = $1;
+      $$->order_by_type = OrderByType::ASC;
+      $$->alias = $3;
+      free($1);
+      free($3);
+    }
+    | ID AS_T ID ASC_T {
+      $$ = new RelAttrSqlNode;
+      $$->attribute_name = $1;
+      $$->order_by_type = OrderByType::ASC;
+      $$->alias = $3;
+      free($1);
+      free($3);
+    }
+    | ID AS_T ID DESC_T {
+      $$ = new RelAttrSqlNode;
+      $$->attribute_name = $1;
+      $$->order_by_type = OrderByType::DESC;
+      $$->alias = $3;
+      free($1);
+      free($3);
     }
     | ID DOT ID {
       $$ = new RelAttrSqlNode;
       $$->relation_name  = $1;
       $$->attribute_name = $3;
+      $$->order_by_type = OrderByType::ASC;
       free($1);
       free($3);
     }
-    | ID ID {
+    | ID DOT ID ASC_T {
       $$ = new RelAttrSqlNode;
-      $$->attribute_name = $1;
-      $$->alias = $2;
+      $$->relation_name  = $1;
+      $$->attribute_name = $3;
+      $$->order_by_type = OrderByType::ASC;
       free($1);
-      free($2);
+      free($3);
+    }
+    | ID DOT ID DESC_T {
+      $$ = new RelAttrSqlNode;
+      $$->relation_name  = $1;
+      $$->attribute_name = $3;
+      $$->order_by_type = OrderByType::DESC;
+      free($1);
+      free($3);
     }
     | ID DOT ID ID {
       $$ = new RelAttrSqlNode;
+      $$->relation_name  = $1;
       $$->attribute_name = $3;
-      $$->relation_name = $1;
       $$->alias = $4;
+      $$->order_by_type = OrderByType::ASC;
       free($1);
       free($3);
       free($4);
     }
-    | ID AS_T ID {
+    | ID DOT ID ID ASC_T {
       $$ = new RelAttrSqlNode;
-      $$->attribute_name = $1;
-      $$->alias = $3;
+      $$->relation_name  = $1;
+      $$->attribute_name = $3;
+      $$->alias = $4;
+      $$->order_by_type = OrderByType::ASC;
       free($1);
       free($3);
+      free($4);
+    }
+    | ID DOT ID ID DESC_T {
+      $$ = new RelAttrSqlNode;
+      $$->relation_name  = $1;
+      $$->attribute_name = $3;
+      $$->alias = $4;
+      $$->order_by_type = OrderByType::DESC;
+      free($1);
+      free($3);
+      free($4);
     }
     | ID DOT ID AS_T ID {
       $$ = new RelAttrSqlNode;
+      $$->relation_name  = $1;
       $$->attribute_name = $3;
-      $$->relation_name = $1;
       $$->alias = $5;
+      $$->order_by_type = OrderByType::ASC;
+      free($1);
+      free($3);
+      free($5);
+    }
+    | ID DOT ID AS_T ID ASC_T {
+      $$ = new RelAttrSqlNode;
+      $$->relation_name  = $1;
+      $$->attribute_name = $3;
+      $$->alias = $5;
+      $$->order_by_type = OrderByType::ASC;
+      free($1);
+      free($3);
+      free($5);
+    }
+    | ID DOT ID AS_T ID DESC_T {
+      $$ = new RelAttrSqlNode;
+      $$->relation_name  = $1;
+      $$->attribute_name = $3;
+      $$->alias = $5;
+      $$->order_by_type = OrderByType::DESC;
       free($1);
       free($3);
       free($5);
     }
     ;
+
 
 relation:
     ID {
@@ -944,13 +1194,10 @@ comp_op:
     | IS_T NOT_T { $$ = NOT_IS; }
     ;
 
-// your code here
-group_by:
-    /* empty */
-    {
-      $$ = nullptr;
-    }
-    ;
+
+
+
+
 load_data_stmt:
     LOAD DATA INFILE SSS INTO TABLE ID
     {
