@@ -17,6 +17,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/type/attr_type.h"
 #include "common/value.h"
 #include "sql/expr/expression.h"
+#include <cstdint>
 
 RC SumAggregator::accumulate(const Value &value)
 {
@@ -44,6 +45,10 @@ RC SumAggregator::accumulate(const Value &value)
 
 RC SumAggregator::evaluate(Value &result)
 {
+  if (value_.attr_type() == AttrType::UNDEFINED) {
+    value_.set_type(AttrType::INTS);
+    value_.set_data((const char *)&INT_NULL, sizeof(INT_NULL));
+  }
   result = value_;
   return RC::SUCCESS;
 }
@@ -75,6 +80,10 @@ RC MinAggregator::accumulate(const Value &value)
 
 RC MinAggregator::evaluate(Value &result)
 {
+  if (value_.attr_type() == AttrType::UNDEFINED) {
+    value_.set_type(AttrType::INTS);
+    value_.set_data((const char *)&INT_NULL, sizeof(INT_NULL));
+  }
   result = value_;
   return RC::SUCCESS;
 }
@@ -106,6 +115,10 @@ RC MaxAggregator::accumulate(const Value &value)
 
 RC MaxAggregator::evaluate(Value &result)
 {
+  if (value_.attr_type() == AttrType::UNDEFINED) {
+    value_.set_type(AttrType::INTS);
+    value_.set_data((const char *)&INT_NULL, sizeof(INT_NULL));
+  }
   result = value_;
   return RC::SUCCESS;
 }
@@ -137,6 +150,11 @@ RC CountAggregator::accumulate(const Value &value)
 
 RC CountAggregator::evaluate(Value &result)
 {
+  if (value_.attr_type() == AttrType::UNDEFINED) {
+    value_.set_type(AttrType::INTS);
+    int32_t x = 0;
+    value_.set_data((const char *)&x, sizeof(x));
+  }
   result = value_;
   return RC::SUCCESS;
 }
@@ -166,6 +184,11 @@ RC CountStarAggregator::accumulate(const Value &value)
 
 RC CountStarAggregator::evaluate(Value &result)
 {
+  if (value_.attr_type() == AttrType::UNDEFINED) {
+    value_.set_type(AttrType::INTS);
+    int32_t x = 0;
+    value_.set_data((const char *)&x, sizeof(INT_NULL));
+  }
   result = value_;
   return RC::SUCCESS;
 }
@@ -199,6 +222,7 @@ RC AvgAggregator::accumulate(const Value &value)
 RC AvgAggregator::evaluate(Value &result)
 {
   Value tmp;
+  result.set_type(AttrType::FLOATS);
   tmp.set_type(AttrType::INTS);
   tmp.set_data((const char *)&count_, sizeof(count_));
   return Value::divide(value_, tmp, result);

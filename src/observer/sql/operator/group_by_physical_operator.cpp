@@ -76,7 +76,7 @@ RC GroupByPhysicalOperator::group_by(PhysicalOperator *child, Trx *trx)
   values.resize(current_tuple->cell_num());
   for (int i = 0; i < current_tuple->cell_num(); ++i) {
     TupleCellSpec tuple_cell;
-    current_tuple->cell_at(i, values[0]);
+    current_tuple->cell_at(i, values[i]);
     current_tuple->spec_at(i, tuple_cell);
     tuple_schema_.push_back(tuple_cell);
   }

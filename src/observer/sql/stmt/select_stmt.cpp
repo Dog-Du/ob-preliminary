@@ -244,6 +244,7 @@ RC SelectStmt::create(
       const char *table_name       = field_expression->table_name();
       const char *field_name       = field_expression->field_name();
 
+      field_exprs.push_back(field_expression);
       if ((0 == strcmp(table_name, "*")) && (0 == strcmp(field_name, "*"))) {  // * or *.*
         if (tables.empty() || (strlen(field_expression->alias()) > 0 && strcmp(field_expression->alias(), "*") != 0)) {
           return RC::INVALID_ARGUMENT;  // not allow: select *; select * as xxx;
