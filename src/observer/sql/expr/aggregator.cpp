@@ -127,7 +127,8 @@ RC CountAggregator::accumulate(const Value &value)
 {
   if (value_.attr_type() == AttrType::UNDEFINED) {
     value_.set_type(AttrType::INTS);
-    value_.set_data((const char *)&INT_NULL, sizeof(INT_NULL));
+    int32_t x=0;
+    value_.set_data((const char *)&x, sizeof(x));
   }
 
   if (value.is_null(value)) {  // NULL 不计。
