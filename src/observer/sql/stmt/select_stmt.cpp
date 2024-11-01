@@ -282,6 +282,7 @@ RC SelectStmt::create(
       if (expression->type() == ExprType::AGGREGATION) {
         auto expr  = static_cast<AggregateExpr *>(expression.get());
         now_is_agg = true;
+        have_agg   = true;
         if (expr->child() != nullptr) {
           expr->child()->check_or_get(check_projections);
         }
