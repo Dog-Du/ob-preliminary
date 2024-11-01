@@ -104,6 +104,8 @@ protected:
   // 用having_filter进行分组筛选。
   RC group_filter();
 
+  RC deal_with_empty_table();
+
 protected:
   std::vector<AggregateExpr *>            aggregate_expressions_;  /// 聚合表达式
   std::vector<std::shared_ptr<FieldExpr>> groupby_field_expressions_;

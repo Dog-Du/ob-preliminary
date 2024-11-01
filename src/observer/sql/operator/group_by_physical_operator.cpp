@@ -126,34 +126,34 @@ RC GroupByPhysicalOperator::group_filter()
       case ExprType::AGGREGATION: {
         auto expr = static_cast<AggregateExpr *>(expression);
         expr->reset();
-        if (expr->child() != nullptr) {
-          expr_reset(expr->child().get());
-        }
+        // if (expr->child() != nullptr) {
+        //   expr_reset(expr->child().get());
+        // }
       } break;
-      case ExprType::ARITHMETIC: {
-        auto expr = static_cast<ArithmeticExpr *>(expression);
-        if (expr->left() != nullptr) {
-          expr_reset(expr->left().get());
-        }
-        if (expr->right() != nullptr) {
-          expr_reset(expr->right().get());
-        }
-      } break;
-      case ExprType::COMPARISON: {
-        auto expr = static_cast<ComparisonExpr *>(expression);
-        if (expr->left() != nullptr) {
-          expr_reset(expr->left().get());
-        }
-        if (expr->right() != nullptr) {
-          expr_reset(expr->right().get());
-        }
-      } break;
-      case ExprType::CONJUNCTION: {
-        auto expr = static_cast<ConjunctionExpr *>(expression);
-        for (auto &c : expr->children()) {
-          expr_reset(c.get());
-        }
-      } break;
+      // case ExprType::ARITHMETIC: {
+      //   auto expr = static_cast<ArithmeticExpr *>(expression);
+      //   if (expr->left() != nullptr) {
+      //     expr_reset(expr->left().get());
+      //   }
+      //   if (expr->right() != nullptr) {
+      //     expr_reset(expr->right().get());
+      //   }
+      // } break;
+      // case ExprType::COMPARISON: {
+      //   auto expr = static_cast<ComparisonExpr *>(expression);
+      //   if (expr->left() != nullptr) {
+      //     expr_reset(expr->left().get());
+      //   }
+      //   if (expr->right() != nullptr) {
+      //     expr_reset(expr->right().get());
+      //   }
+      // } break;
+      // case ExprType::CONJUNCTION: {
+      //   auto expr = static_cast<ConjunctionExpr *>(expression);
+      //   for (auto &c : expr->children()) {
+      //     expr_reset(c.get());
+      //   }
+      // } break;
       default: {
       } break;
     }
@@ -163,35 +163,35 @@ RC GroupByPhysicalOperator::group_filter()
     switch (expression->type()) {
       case ExprType::AGGREGATION: {
         auto expr = static_cast<AggregateExpr *>(expression);
-        if (expr->child() != nullptr) {
-          expr_accumulate(expr->child().get());
-        }
+        // if (expr->child() != nullptr) {
+        //   expr_accumulate(expr->child().get());
+        // }
         expr->accumulate(*tuple);
       } break;
-      case ExprType::ARITHMETIC: {
-        auto expr = static_cast<ArithmeticExpr *>(expression);
-        if (expr->left() != nullptr) {
-          expr_accumulate(expr->left().get());
-        }
-        if (expr->right() != nullptr) {
-          expr_accumulate(expr->right().get());
-        }
-      } break;
-      case ExprType::COMPARISON: {
-        auto expr = static_cast<ComparisonExpr *>(expression);
-        if (expr->left() != nullptr) {
-          expr_accumulate(expr->left().get());
-        }
-        if (expr->right() != nullptr) {
-          expr_accumulate(expr->right().get());
-        }
-      } break;
-      case ExprType::CONJUNCTION: {
-        auto expr = static_cast<ConjunctionExpr *>(expression);
-        for (auto &c : expr->children()) {
-          expr_accumulate(c.get());
-        }
-      } break;
+      // case ExprType::ARITHMETIC: {
+      //   auto expr = static_cast<ArithmeticExpr *>(expression);
+      //   if (expr->left() != nullptr) {
+      //     expr_accumulate(expr->left().get());
+      //   }
+      //   if (expr->right() != nullptr) {
+      //     expr_accumulate(expr->right().get());
+      //   }
+      // } break;
+      // case ExprType::COMPARISON: {
+      //   auto expr = static_cast<ComparisonExpr *>(expression);
+      //   if (expr->left() != nullptr) {
+      //     expr_accumulate(expr->left().get());
+      //   }
+      //   if (expr->right() != nullptr) {
+      //     expr_accumulate(expr->right().get());
+      //   }
+      // } break;
+      // case ExprType::CONJUNCTION: {
+      //   auto expr = static_cast<ConjunctionExpr *>(expression);
+      //   for (auto &c : expr->children()) {
+      //     expr_accumulate(c.get());
+      //   }
+      // } break;
       default: {
       } break;
     }
@@ -222,6 +222,8 @@ RC GroupByPhysicalOperator::group_filter()
   return RC::SUCCESS;
 }
 
+RC GroupByPhysicalOperator::deal_with_empty_table() { return RC::RECORD_EOF; }
+
 RC GroupByPhysicalOperator::open(Trx *trx)
 {
   RC rc = group_by(children_[0].get(), trx);
@@ -245,8 +247,13 @@ RC GroupByPhysicalOperator::close() { return children_[0]->close(); }
 
 RC GroupByPhysicalOperator::next()
 {
-  if (first_) {
+  if (first_ && group_tuples_.empty() && !aggregate_expressions_.empty()) {
     first_ = false;
+    return deal_with_empty_table();
+  } else if (first_) {
+    first_ = false;
+  } else if (group_iter_ == group_tuples_.end()) {
+    return RC::RECORD_EOF;
   } else {
     ++group_iter_;
   }

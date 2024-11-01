@@ -279,7 +279,16 @@ RC SelectStmt::create(
         projects.push_back(expression);
       }
     } else {
-      expression->check_or_get(check_projections);
+      if (expression->type() == ExprType::AGGREGATION) {
+        auto expr  = static_cast<AggregateExpr *>(expression.get());
+        now_is_agg = true;
+        if (expr->child() != nullptr) {
+          expr->child()->check_or_get(check_projections);
+        }
+        agg_exprs.push_back(expr);
+      } else {
+        expression->check_or_get(check_projections);
+      }
 
       if (rc != RC::SUCCESS) {
         LOG_WARN("check_projections failed.");

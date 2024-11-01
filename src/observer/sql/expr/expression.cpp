@@ -712,9 +712,8 @@ RC AggregateExpr::create_aggregator()
     aggregate_type_ = Type::COUNT_STAR;
 
     child_ = nullptr;
-    return RC::SUCCESS;
   }
-  
+
   shared_ptr<Aggregator> aggregator;
   switch (aggregate_type_) {
     case Type::SUM: {
@@ -798,7 +797,8 @@ RC AggregateExpr::evaluate(Value &value) { return aggregator_->evaluate(value); 
 
 RC AggregateExpr::get_value(const Tuple &tuple, Value &value) const
 {
-  return tuple.find_cell(TupleCellSpec(name()), value);
+  return aggregator_->evaluate(value);
+  // return tuple.find_cell(TupleCellSpec(name()), value);
 }
 
 RC AggregateExpr::type_from_string(const char *type_str, AggregateExpr::Type &type)

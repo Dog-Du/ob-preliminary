@@ -697,8 +697,9 @@ select_stmt:        /*  select 语句的语法解析树*/
       }
 
       if ($8 != nullptr) {
+        // 这里不能delete，而是把所有权交给了having
         $$->selection.having = std::shared_ptr<Expression>($8);
-        delete $8;
+        // delete $8;
       }
 
       if ($9 != nullptr) {
