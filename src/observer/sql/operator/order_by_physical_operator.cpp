@@ -68,7 +68,7 @@ RC OrderByPhysicalOperator::open(Trx *trx)
 
   tuples_.emplace_back(std::move(values));
 
-  std::vector<int> field_index;
+  std::vector<int> field_index;  // 这些个field都在tuple的第几列，直接得到，减少查找开销。
   for (auto &field : field_expressions_) {
     TupleCellSpec tmp_cell(field->table_name(), field->field_name());
     for (int i = 0; i < tuple_cells_.size(); ++i) {
@@ -105,8 +105,8 @@ RC OrderByPhysicalOperator::open(Trx *trx)
   auto cmp = [this, &field_index](int lhs, int rhs) {
     int result = 0;
     for (size_t i = 0; i < field_index.size(); ++i) {
-      auto       &left  = tuples_[lhs][field_index[i]];
-      auto       &right = tuples_[rhs][field_index[i]];
+      auto &left  = tuples_[lhs][field_index[i]];
+      auto &right = tuples_[rhs][field_index[i]];
 
       result = left.compare(right);
 
@@ -120,7 +120,7 @@ RC OrderByPhysicalOperator::open(Trx *trx)
   };
 
   std::sort(tuples_index_.begin(), tuples_index_.end(), cmp);
-  ++i_ = -1;
+  i_ = -1;
   return RC::SUCCESS;
 }
 

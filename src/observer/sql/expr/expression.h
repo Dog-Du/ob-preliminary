@@ -45,16 +45,16 @@ class SelectStmt;
 enum class ExprType
 {
   NONE,
-  STAR,           ///< 星号，表示所有字段
-  UNBOUND_FIELD,  ///< 未绑定的字段，需要在resolver阶段解析为FieldExpr
+  STAR,                 ///< 星号，表示所有字段
+  UNBOUND_FIELD,        ///< 未绑定的字段，需要在resolver阶段解析为FieldExpr
   UNBOUND_AGGREGATION,  ///< 未绑定的聚合函数，需要在resolver阶段解析为AggregateExpr
 
-  FIELD,  ///< 字段。在实际执行时，根据行数据内容提取对应字段的值
-  VALUE,        ///< 常量值
-  CAST,         ///< 需要做类型转换的表达式
-  COMPARISON,   ///< 需要做比较的表达式
-  CONJUNCTION,  ///< 多个表达式使用同一种关系(AND或OR)来联结
-  ARITHMETIC,   ///< 算术运算
+  FIELD,                  ///< 字段。在实际执行时，根据行数据内容提取对应字段的值
+  VALUE,                  ///< 常量值
+  CAST,                   ///< 需要做类型转换的表达式
+  COMPARISON,             ///< 需要做比较的表达式
+  CONJUNCTION,            ///< 多个表达式使用同一种关系(AND或OR)来联结
+  ARITHMETIC,             ///< 算术运算
   SUBQUERY_OR_VALUELIST,  /// <  子查询 or 常量列表
   AGGREGATION,            ///< 聚合运算
 };
@@ -76,8 +76,7 @@ class Expression
 {
 public:
   Expression() = default;
-  Expression(const std::string &table_name, const std::string &field_name,
-      const std::string &alias)
+  Expression(const std::string &table_name, const std::string &field_name, const std::string &alias)
       : name_(), table_name_(table_name), field_name_(field_name), alias_(alias)
   {}
   virtual ~Expression() = default;
@@ -102,10 +101,7 @@ public:
   /**
    * @brief 从 `chunk` 中获取表达式的计算结果 `column`
    */
-  virtual RC get_column(Chunk &chunk, Column &column)
-  {
-    return RC::UNIMPLEMENTED;
-  }
+  virtual RC get_column(Chunk &chunk, Column &column) { return RC::UNIMPLEMENTED; }
 
   // 使用匿名函数，传递进入作为参数，然后进行检查，或者获取某些信息的接口，提供遍历的操作。
   virtual void check_or_get(std::function<void(Expression *)> &worker_func) = 0;
@@ -137,14 +133,8 @@ public:
 
   virtual void set_name(std::string name) { name_ = name; }
   virtual void set_alias(std::string alias) { alias_ = alias; }
-  virtual void set_field_name(std::string field_name)
-  {
-    field_name_ = field_name;
-  }
-  virtual void set_table_name(std::string table_name)
-  {
-    table_name_ = table_name;
-  }
+  virtual void set_field_name(std::string field_name) { field_name_ = field_name; }
+  virtual void set_table_name(std::string table_name) { table_name_ = table_name; }
 
   /**
    * @brief 表达式在下层算子返回的 chunk 中的位置
@@ -155,10 +145,7 @@ public:
   /**
    * @brief 用于 ComparisonExpr 获得比较结果 `select`。
    */
-  virtual RC eval(Chunk &chunk, std::vector<uint8_t> &select)
-  {
-    return RC::UNIMPLEMENTED;
-  }
+  virtual RC eval(Chunk &chunk, std::vector<uint8_t> &select) { return RC::UNIMPLEMENTED; }
 
 protected:
   /**
@@ -187,16 +174,10 @@ public:
   ExprType type() const override { return ExprType::STAR; }
   AttrType value_type() const override { return AttrType::UNDEFINED; }
 
-  RC get_value(const Tuple &tuple, Value &value) const override
-  {
-    return RC::UNIMPLEMENTED;
-  }  // 不需要实现
+  RC get_value(const Tuple &tuple, Value &value) const override { return RC::UNIMPLEMENTED; }  // 不需要实现
 
   const char *table_name() const override { return table_name_.c_str(); }
-  void check_or_get(std::function<void(Expression *)> &worker_func) override
-  {
-    worker_func(this);
-  }
+  void        check_or_get(std::function<void(Expression *)> &worker_func) override { worker_func(this); }
 
 private:
   std::string table_name_;
@@ -205,8 +186,7 @@ private:
 class UnboundFieldExpr : public Expression
 {
 public:
-  UnboundFieldExpr(const std::string &table_name, const std::string &field_name,
-      const std::string &alias)
+  UnboundFieldExpr(const std::string &table_name, const std::string &field_name, const std::string &alias)
       : table_name_(table_name), field_name_(field_name), alias_(alias)
   {}
 
@@ -215,17 +195,11 @@ public:
   ExprType type() const override { return ExprType::UNBOUND_FIELD; }
   AttrType value_type() const override { return AttrType::UNDEFINED; }
 
-  RC get_value(const Tuple &tuple, Value &value) const override
-  {
-    return RC::INTERNAL;
-  }
+  RC get_value(const Tuple &tuple, Value &value) const override { return RC::INTERNAL; }
 
   const char *table_name() const override { return table_name_.c_str(); }
   const char *field_name() const override { return field_name_.c_str(); }
-  void check_or_get(std::function<void(Expression *)> &worker_func) override
-  {
-    worker_func(this);
-  }
+  void        check_or_get(std::function<void(Expression *)> &worker_func) override { worker_func(this); }
 
 private:
   std::string table_name_;
@@ -266,21 +240,17 @@ public:
 
   const Field &field() const { return field_; }
 
-  const char *alias() const override { return Expression::alias(); }
-  const char *table_name() const override { return Expression::table_name(); }
-  const char *field_name() const override { return Expression::field_name(); }
+  const char      *alias() const override { return Expression::alias(); }
+  const char      *table_name() const override { return Expression::table_name(); }
+  const char      *field_name() const override { return Expression::field_name(); }
   const FieldMeta *get_field_meta() const { return field_.meta(); }
   RC               get_column(Chunk &chunk, Column &column) override;
 
-  RC check_field(const std::unordered_map<std::string, Table *> &all_tables,
-      Table *default_table, const std::vector<Table *> &tables,
-      const std::unordered_map<std::string, std::string> &alias_map);
+  RC check_field(const std::unordered_map<std::string, Table *> &all_tables, Table *default_table,
+      const std::vector<Table *> &tables, const std::unordered_map<std::string, std::string> &alias_map);
 
   RC   get_value(const Tuple &tuple, Value &value) const override;
-  void check_or_get(std::function<void(Expression *)> &worker_func) override
-  {
-    worker_func(this);
-  }
+  void check_or_get(std::function<void(Expression *)> &worker_func) override { worker_func(this); }
 
 private:
   Field field_;
@@ -314,10 +284,7 @@ public:
 
   void         get_value(Value &value) const { value = value_; }
   const Value &get_value() const { return value_; }
-  void check_or_get(std::function<void(Expression *)> &worker_func) override
-  {
-    worker_func(this);
-  }
+  void         check_or_get(std::function<void(Expression *)> &worker_func) override { worker_func(this); }
 
 private:
   Value value_;
@@ -343,10 +310,7 @@ public:
 
   std::shared_ptr<Expression> &child() { return child_; }
 
-  void check_or_get(std::function<void(Expression *)> &worker_func) override
-  {
-    worker_func(this);
-  }
+  void check_or_get(std::function<void(Expression *)> &worker_func) override { worker_func(this); }
 
 private:
   RC cast(const Value &value, Value &cast_value) const;
@@ -363,8 +327,7 @@ private:
 class ComparisonExpr : public Expression
 {
 public:
-  ComparisonExpr(CompOp comp, std::shared_ptr<Expression> left,
-      std::shared_ptr<Expression> right);
+  ComparisonExpr(CompOp comp, std::shared_ptr<Expression> left, std::shared_ptr<Expression> right);
   virtual ~ComparisonExpr();
 
   ExprType type() const override { return ExprType::COMPARISON; }
@@ -405,8 +368,7 @@ public:
   RC compare_value(const Value &left, const Value &right, bool &value) const;
 
   template <typename T>
-  RC compare_column(const Column &left, const Column &right,
-      std::vector<uint8_t> &result) const;
+  RC compare_column(const Column &left, const Column &right, std::vector<uint8_t> &result) const;
 
 private:
   CompOp                      comp_;
@@ -430,8 +392,7 @@ public:
   };
 
 public:
-  ConjunctionExpr(
-      Type type, std::vector<std::shared_ptr<Expression>> &children);
+  ConjunctionExpr(Type type, std::vector<std::shared_ptr<Expression>> &children);
   virtual ~ConjunctionExpr() = default;
 
   ExprType type() const override { return ExprType::CONJUNCTION; }
@@ -472,8 +433,7 @@ public:
 
 public:
   ArithmeticExpr(Type type, Expression *left, Expression *right);
-  ArithmeticExpr(Type type, std::shared_ptr<Expression> left,
-      std::shared_ptr<Expression> right);
+  ArithmeticExpr(Type type, std::shared_ptr<Expression> left, std::shared_ptr<Expression> right);
   virtual ~ArithmeticExpr() = default;
 
   bool     equal(const Expression &other) const override;
@@ -511,15 +471,12 @@ public:
   std::shared_ptr<Expression> &right() { return right_; }
 
 private:
-  RC calc_value(
-      const Value &left_value, const Value &right_value, Value &value) const;
+  RC calc_value(const Value &left_value, const Value &right_value, Value &value) const;
 
-  RC calc_column(const Column &left_column, const Column &right_column,
-      Column &column) const;
+  RC calc_column(const Column &left_column, const Column &right_column, Column &column) const;
 
   template <bool LEFT_CONSTANT, bool RIGHT_CONSTANT>
-  RC execute_calc(const Column &left, const Column &right, Column &result,
-      Type type, AttrType attr_type) const;
+  RC execute_calc(const Column &left, const Column &right, Column &result, Type type, AttrType attr_type) const;
 
 private:
   Type                        arithmetic_type_;
@@ -531,8 +488,7 @@ private:
 class UnboundAggregateExpr : public Expression
 {
 public:
-  UnboundAggregateExpr(
-      const char *aggregate_name, Expression *child, const char *alias);
+  UnboundAggregateExpr(const char *aggregate_name, Expression *child, const char *alias);
   virtual ~UnboundAggregateExpr() = default;
 
   ExprType type() const override { return ExprType::UNBOUND_AGGREGATION; }
@@ -548,10 +504,7 @@ public:
     }
     worker_func(this);
   }
-  RC get_value(const Tuple &tuple, Value &value) const override
-  {
-    return RC::INTERNAL;
-  }
+  RC       get_value(const Tuple &tuple, Value &value) const override { return RC::INTERNAL; }
   AttrType value_type() const override { return child_->value_type(); }
 
 private:
@@ -595,12 +548,14 @@ public:
 
   RC get_column(Chunk &chunk, Column &column) override;
 
+  void reset() { aggregator_->reset(); }
+
   Type aggregate_type() const { return aggregate_type_; }
 
   std::shared_ptr<Expression> &child() { return child_; }
 
   const std::shared_ptr<Expression> &child() const { return child_; }
-  void check_or_get(std::function<void(Expression *)> &worker_func) override
+  void                               check_or_get(std::function<void(Expression *)> &worker_func) override
   {
     if (child_ != nullptr) {
       worker_func(child_.get());
@@ -623,8 +578,7 @@ private:
 class SubQuery_ValueList_Expression : public Expression
 {
 public:
-  SubQuery_ValueList_Expression(
-      const std::vector<std::shared_ptr<Expression>> &value_list)
+  SubQuery_ValueList_Expression(const std::vector<std::shared_ptr<Expression>> &value_list)
       : is_sub_query(false), is_value_list(true), value_list_(value_list)
   {
     ASSERT(is_value_list ^ is_sub_query,"should not both false or both true");
@@ -669,19 +623,17 @@ public:
     worker_func(this);
   }
 
-  RC create_stmt(
-      Db *db, const std::unordered_map<std::string, Table *> &all_tables);
+  RC create_stmt(Db *db, const std::unordered_map<std::string, Table *> &all_tables);
   RC create_logical();
   RC create_physical();
 
 private:
-  const bool                               is_sub_query  = false;
-  const bool                               is_value_list = false;
-  std::vector<std::shared_ptr<Expression>> value_list_;
-  mutable std::vector<std::shared_ptr<Expression>>::iterator
-                                    value_list_iterator_;
-  std::shared_ptr<SelectSqlNode>    sub_sql_node_;
-  std::shared_ptr<SelectStmt>       sub_stmt_;
-  std::shared_ptr<LogicalOperator>  sub_logical_operator_;
-  std::shared_ptr<PhysicalOperator> sub_physical_operator_;
+  const bool                                                 is_sub_query  = false;
+  const bool                                                 is_value_list = false;
+  std::vector<std::shared_ptr<Expression>>                   value_list_;
+  mutable std::vector<std::shared_ptr<Expression>>::iterator value_list_iterator_;
+  std::shared_ptr<SelectSqlNode>                             sub_sql_node_;
+  std::shared_ptr<SelectStmt>                                sub_stmt_;
+  std::shared_ptr<LogicalOperator>                           sub_logical_operator_;
+  std::shared_ptr<PhysicalOperator>                          sub_physical_operator_;
 };

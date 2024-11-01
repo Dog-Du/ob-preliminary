@@ -19,6 +19,7 @@ See the Mulan PSL v2 for more details. */
 
 #include "common/rc.h"
 #include "sql/expr/expression.h"
+#include "sql/stmt/filter_stmt.h"
 #include "sql/stmt/stmt.h"
 #include "storage/field/field.h"
 
@@ -39,9 +40,15 @@ public:
 public:
   std::vector<std::shared_ptr<FieldExpr>>     &group_by() { return group_by_; }
   std::vector<std::shared_ptr<AggregateExpr>> &agg_exprs() { return agg_exprs_; }
+  std::vector<FieldExpr *>                    &field_exprs() { return field_exprs_; }
+  std::shared_ptr<Expression>                 &having() { return having_filter_; }
+  bool                                         have_agg() { return have_aggregate; }
 
 private:
   friend SelectStmt;
   std::vector<std::shared_ptr<FieldExpr>>     group_by_;
   std::vector<std::shared_ptr<AggregateExpr>> agg_exprs_;
+  std::vector<FieldExpr *>                    field_exprs_;
+  std::shared_ptr<Expression>                 having_filter_;
+  bool                                        have_aggregate;
 };

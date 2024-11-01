@@ -20,8 +20,9 @@ See the Mulan PSL v2 for more details. */
 class GroupByLogicalOperator : public LogicalOperator
 {
 public:
-  GroupByLogicalOperator(
-      std::vector<std::shared_ptr<FieldExpr>> &group_by_exprs, std::vector<std::shared_ptr<AggregateExpr>> &agg_exprs);
+  GroupByLogicalOperator(std::vector<std::shared_ptr<FieldExpr>> &group_by_exprs,
+      std::vector<std::shared_ptr<AggregateExpr>> &agg_exprs, std::vector<FieldExpr *> &field_exprs,
+      std::shared_ptr<Expression> &having_filter);
 
   virtual ~GroupByLogicalOperator() = default;
 
@@ -29,8 +30,12 @@ public:
 
   auto &group_by_expressions() { return group_by_expressions_; }
   auto &aggregate_expressions() { return aggregate_expressions_; }
+  auto &field_expressions() { return field_exprs_; }
+  auto &having_expression() { return having_filter_; }
 
 private:
   std::vector<std::shared_ptr<FieldExpr>> group_by_expressions_;
   std::vector<std::shared_ptr<AggregateExpr>> aggregate_expressions_;  ///< 输出的表达式，可能包含聚合函数
+  std::vector<FieldExpr *>    field_exprs_;                            //
+  std::shared_ptr<Expression> having_filter_;
 };

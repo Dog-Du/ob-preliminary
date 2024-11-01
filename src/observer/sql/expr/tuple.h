@@ -14,6 +14,7 @@ See the Mulan PSL v2 for more details. */
 
 #pragma once
 
+#include <cstddef>
 #include <memory>
 #include <string>
 #include <vector>
@@ -358,6 +359,19 @@ public:
       }
     }
     return RC::NOTFOUND;
+  }
+
+  virtual RC set_cell(int index, const Value &cell)
+  {
+    cells_[index] = cell;
+    return RC::SUCCESS;
+  }
+
+  virtual RC resize(size_t size)
+  {
+    cells_.resize(size);
+    specs_.resize(size);
+    return RC::SUCCESS;
   }
 
   static RC make(const Tuple &tuple, ValueListTuple &value_list)

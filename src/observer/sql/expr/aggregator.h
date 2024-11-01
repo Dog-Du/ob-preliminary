@@ -14,6 +14,7 @@ See the Mulan PSL v2 for more details. */
 
 #pragma once
 
+#include "common/type/attr_type.h"
 #include "common/value.h"
 #include "common/rc.h"
 
@@ -22,8 +23,9 @@ class Aggregator
 public:
   virtual ~Aggregator() = default;
 
-  virtual RC accumulate(const Value &value) = 0;
-  virtual RC evaluate(Value &result)        = 0;
+  virtual RC   accumulate(const Value &value) = 0;
+  virtual RC   evaluate(Value &result)        = 0;
+  virtual void reset() { value_.set_type(AttrType::UNDEFINED); }
 
 protected:
   Value value_;
@@ -53,8 +55,8 @@ public:
 class CountAggregator : public Aggregator
 {
 public:
-  RC accumulate(const Value &value) override;
-  RC evaluate(Value &result) override;
+  RC   accumulate(const Value &value) override;
+  RC   evaluate(Value &result) override;
 };
 
 class CountStarAggregator : public Aggregator
@@ -69,5 +71,5 @@ class AvgAggregator : public Aggregator
 public:
   RC      accumulate(const Value &value) override;
   RC      evaluate(Value &result) override;
-  int32_t count_ = 0;
+  int32_t count_;
 };

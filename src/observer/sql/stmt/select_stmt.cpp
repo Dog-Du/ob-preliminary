@@ -122,11 +122,11 @@ RC SelectStmt::create(
     return RC::INVALID_ARGUMENT;
   }
 
-  // 阿哲，即使没有group by也可以having，就是吧所有结果当作一个分组。
-  // if (select_sql.group_by.empty() && select_sql.having != nullptr) {
-  //   LOG_DEBUG("having while no group_by.");
-  //   return RC::SQL_SYNTAX;
-  // }
+  // 阿哲，在mysql里，即使没有group by也可以having，就是吧所有结果当作一个分组。但是这里应该可以不实现。
+  if (select_sql.group_by.empty() && select_sql.having != nullptr) {
+    LOG_DEBUG("having while no group_by.");
+    return RC::SQL_SYNTAX;
+  }
 
   std::vector<Table *> tables;
 
@@ -146,6 +146,7 @@ RC SelectStmt::create(
   Table                                      *default_table = nullptr;
   std::vector<std::shared_ptr<Expression>>    projects;
   std::vector<std::shared_ptr<AggregateExpr>> agg_exprs;
+  std::vector<FieldExpr *>                    field_exprs;
 
   if (tables.size() == 1) {
     default_table = tables[0];
@@ -174,28 +175,25 @@ RC SelectStmt::create(
   bool need_continue_check = true;
   bool have_agg            = false;
   bool have_not_agg        = false;
-  int  height              = 1;
+  bool now_is_agg          = false;
 
   std::function<void(Expression *)> check_projections = [&](Expression *expression) {
     if (!need_continue_check) {
       return;
     }
 
-    ++height;
     switch (expression->type()) {
       case ExprType::FIELD: {
-        if (height == 1) {
+        if (!now_is_agg) {
           have_not_agg = true;
         }
         rc = static_cast<FieldExpr *>(expression)->check_field(table_map, default_table, tables, alias_map);
+        field_exprs.push_back(static_cast<FieldExpr *>(expression));
         if (rc != RC::SUCCESS) {
           need_continue_check = false;
         }
       } break;
       case ExprType::COMPARISON: {
-        if (height == 1) {
-          have_not_agg = true;
-        }
         ComparisonExpr *expr = static_cast<ComparisonExpr *>(expression);
         if (expr->left() != nullptr) {
           check_projections(expr->left().get());
@@ -205,9 +203,6 @@ RC SelectStmt::create(
         }
       } break;
       case ExprType::ARITHMETIC: {
-        if (height == 1) {
-          have_not_agg = true;
-        }
         auto *expr = static_cast<ArithmeticExpr *>(expression);
 
         if (expr->left() != nullptr) {
@@ -219,18 +214,12 @@ RC SelectStmt::create(
         }
       } break;
       case ExprType::CONJUNCTION: {
-        if (height == 1) {
-          have_not_agg = true;
-        }
         auto *expr = static_cast<ConjunctionExpr *>(expression);
         for (auto &child : expr->children()) {
           check_projections(child.get());
         }
       } break;
       case ExprType::SUBQUERY_OR_VALUELIST: {
-        if (height == 1) {
-          have_not_agg = true;
-        }
         need_continue_check = false;
         rc                  = RC::SQL_SYNTAX;
         LOG_WARN("sub_query should not in query_expression");
@@ -238,15 +227,17 @@ RC SelectStmt::create(
       case ExprType::AGGREGATION: {
         have_agg   = true;
         auto *expr = static_cast<AggregateExpr *>(expression);
-        check_projections(expr->child().get());
+        if (expr->child() != nullptr) {
+          check_projections(expr->child().get());
+        }
       } break;
       default: {
       } break;
     }
-    --height;
   };
 
   for (auto &expression : select_sql.expressions) {
+    now_is_agg = false;
     if (expression->type() == ExprType::FIELD) {
       have_not_agg                 = true;
       FieldExpr  *field_expression = static_cast<FieldExpr *>(expression.get());
@@ -286,10 +277,18 @@ RC SelectStmt::create(
     } else {
       if (expression->type() == ExprType::AGGREGATION) {
         agg_exprs.push_back(std::static_pointer_cast<AggregateExpr>(expression));
+        auto *expr = static_cast<AggregateExpr *>(expression.get());
+        now_is_agg = true;
+        have_agg   = true;
+        if (expr->child() != nullptr) {
+          expr->child()->check_or_get(check_projections);
+        }
+      } else {
+        expression->check_or_get(check_projections);
       }
 
-      expression->check_or_get(check_projections);
       if (rc != RC::SUCCESS) {
+        LOG_WARN("check_projections failed.");
         return rc;
       }
       projects.push_back(expression);
@@ -336,6 +335,7 @@ RC SelectStmt::create(
 
   FilterStmt *having_filter = nullptr;
 
+  // 让having走一遍FilterStmt进行一定的检查和FieldExpr的初始化，但是只需要其中的expression。
   if (select_sql.having != nullptr) {
     rc = FilterStmt::create(db, default_table, &table_map, select_sql.having, having_filter);
     if (rc != RC::SUCCESS) {
@@ -351,6 +351,13 @@ RC SelectStmt::create(
 
   groupby_stmt->group_by_.swap(group_by);
   groupby_stmt->agg_exprs_.swap(agg_exprs);
+  groupby_stmt->field_exprs_.swap(field_exprs);
+  groupby_stmt->have_aggregate = have_agg;
+  if (having_filter != nullptr) {
+    groupby_stmt->having_filter_ = having_filter->get_conditions();
+    delete having_filter;
+  }
+
   orderby_stmt->order_by_.swap(order_by);
   orderby_stmt->order_by_type_.swap(order_by_type_);
 
@@ -359,7 +366,6 @@ RC SelectStmt::create(
   select_stmt->filter_stmt_.reset(filter_stmt);
   select_stmt->group_by_.reset(groupby_stmt);
   select_stmt->order_by_.reset(orderby_stmt);
-  select_stmt->having_.reset(having_filter);
 
   // select_stmt->group_by_.swap(group_by_expressions);
   stmt = select_stmt;

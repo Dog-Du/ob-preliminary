@@ -43,10 +43,10 @@ public:
 private:
   std::vector<std::shared_ptr<FieldExpr>> field_expressions_;
   std::vector<OrderByType>                order_by_type_;
-  std::vector<std::vector<Value>>         tuples_;
-  std::vector<TupleCellSpec>              tuple_cells_;
-  std::vector<int>                        tuples_index_;
+  std::vector<std::vector<Value>>         tuples_;        // 用于提高效率
+  std::vector<TupleCellSpec>              tuple_cells_;   // 用于提高效率
+  std::vector<int>                        tuples_index_;  // 用于提高效率
   int                                     i_ = -1;
-  ShellTuple                              tuple_;
+  ShellTuple                              tuple_;  // 用于提高效率
   // std::vector<Expression *>                   value_expressions_;  /// 计算聚合时的表达式
 };

@@ -509,8 +509,10 @@ RC PhysicalPlanGenerator::create_plan(GroupByLogicalOperator &logical_oper, std:
 {
   RC rc = RC::SUCCESS;
 
-  shared_ptr<GroupByPhysicalOperator> group_by_oper(
-      new GroupByPhysicalOperator(logical_oper.aggregate_expressions(), logical_oper.group_by_expressions()));
+  shared_ptr<GroupByPhysicalOperator> group_by_oper(new GroupByPhysicalOperator(logical_oper.aggregate_expressions(),
+      logical_oper.group_by_expressions(),
+      logical_oper.field_expressions(),
+      logical_oper.having_expression()));
 
   ASSERT(logical_oper.children().size() == 1, "group by operator should have 1 child");
 

@@ -140,12 +140,12 @@ RC LogicalPlanGenerator::join_table_in_tree(
 
 RC LogicalPlanGenerator::create_plan(GroupByStmt *groupby_stmt, std::shared_ptr<LogicalOperator> &logical_operator)
 {
-  if (groupby_stmt->group_by().empty()) {
+  if (groupby_stmt->group_by().empty() && !groupby_stmt->have_agg()) {
     logical_operator = nullptr;
     return RC::SUCCESS;
   }
-  std::shared_ptr<LogicalOperator> groupby_oper(
-      new GroupByLogicalOperator(groupby_stmt->group_by(), groupby_stmt->agg_exprs()));
+  std::shared_ptr<LogicalOperator> groupby_oper(new GroupByLogicalOperator(
+      groupby_stmt->group_by(), groupby_stmt->agg_exprs(), groupby_stmt->field_exprs(), groupby_stmt->having()));
   logical_operator = groupby_oper;
   return RC::SUCCESS;
 }
@@ -225,21 +225,18 @@ RC LogicalPlanGenerator::create_plan(SelectStmt *select_stmt, shared_ptr<Logical
     last_oper = &groupby_oper;
   }
 
-  std::shared_ptr<LogicalOperator> having_oper;
-
-  rc = create_plan(select_stmt->having().get(), having_oper);
-  if (rc != RC::SUCCESS) {
-    LOG_WARN("failed to create having oper.");
-    return rc;
-  }
-
-  if (having_oper != nullptr) {
-    if (*last_oper) {
-      having_oper->add_child(*last_oper);
-    }
-
-    last_oper = &having_oper;
-  }
+  // std::shared_ptr<LogicalOperator> having_oper;
+  // rc = create_plan(select_stmt->having().get(), having_oper);
+  // if (rc != RC::SUCCESS) {
+  //   LOG_WARN("failed to create having oper.");
+  //   return rc;
+  // }
+  // if (having_oper != nullptr) {
+  //   if (*last_oper) {
+  //     having_oper->add_child(*last_oper);
+  //   }
+  //   last_oper = &having_oper;
+  // }
 
   std::shared_ptr<LogicalOperator> orderby_oper;
 

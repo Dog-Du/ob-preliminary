@@ -135,7 +135,8 @@ RC CountAggregator::accumulate(const Value &value)
   return RC::SUCCESS;
 }
 
-RC CountAggregator::evaluate(Value &result) {
+RC CountAggregator::evaluate(Value &result)
+{
   result = value_;
   return RC::SUCCESS;
 }
@@ -146,6 +147,7 @@ RC CountStarAggregator::accumulate(const Value &value)
     value_.set_type(AttrType::INTS);
     int32_t x = 1;
     value_.set_data((const char *)&x, sizeof(x));
+    return RC::SUCCESS;
   }
 
   if (value_.is_null(value_)) {
@@ -162,7 +164,8 @@ RC CountStarAggregator::accumulate(const Value &value)
   return RC::SUCCESS;
 }
 
-RC CountStarAggregator::evaluate(Value &result) {
+RC CountStarAggregator::evaluate(Value &result)
+{
   result = value_;
   return RC::SUCCESS;
 }
@@ -171,6 +174,7 @@ RC AvgAggregator::accumulate(const Value &value)
 {
   // 初始化。
   if (value_.attr_type() == AttrType::UNDEFINED) {
+    count_ = 0;
     value_.set_type(AttrType::INTS);
     value_.set_data((const char *)&INT_NULL, sizeof(INT_NULL));
   }

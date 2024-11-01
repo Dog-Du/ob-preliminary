@@ -32,8 +32,7 @@ RC check_comparison_invalid(Expression *left_expr, Expression *right_expr)
     return RC::SUCCESS;
   }
 
-  if (left_expr->type() == ExprType::FIELD &&
-      static_cast<FieldExpr *>(left_expr)->value_type() == AttrType::DATES &&
+  if (left_expr->type() == ExprType::FIELD && static_cast<FieldExpr *>(left_expr)->value_type() == AttrType::DATES &&
       right_expr->type() == ExprType::VALUE) {
     Value tmp = static_cast<ValueExpr *>(right_expr)->get_value();
     Value date_tmp;
@@ -45,8 +44,7 @@ RC check_comparison_invalid(Expression *left_expr, Expression *right_expr)
   return RC::SUCCESS;
 }
 
-RC FilterStmt::create(Db *db, Table *default_table,
-    std::unordered_map<std::string, Table *> *tables,
+RC FilterStmt::create(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
     std::shared_ptr<Expression> conditions, FilterStmt *&stmt)
 {
   RC rc = RC::SUCCESS;
@@ -57,8 +55,7 @@ RC FilterStmt::create(Db *db, Table *default_table,
 
   bool                              need_continue_check = true;
   std::function<void(Expression *)> check_condition =
-      [&rc, &need_continue_check, tables, default_table, &check_condition, db](
-          Expression *expression) {
+      [&rc, &need_continue_check, tables, default_table, &check_condition, db](Expression *expression) {
         if (!need_continue_check) {
           return;
         }
@@ -88,8 +85,7 @@ RC FilterStmt::create(Db *db, Table *default_table,
               return;
             }
 
-            rc = check_comparison_invalid(
-                expr->left().get(), expr->right().get());
+            rc = check_comparison_invalid(expr->left().get(), expr->right().get());
             if (rc != RC::SUCCESS) {
               LOG_WARN("check_comparison_invalid failed.");
               need_continue_check = false;
@@ -116,8 +112,7 @@ RC FilterStmt::create(Db *db, Table *default_table,
 
           } break;
           case ExprType::SUBQUERY_OR_VALUELIST: {
-            auto expr =
-                static_cast<SubQuery_ValueList_Expression *>(expression);
+            auto expr = static_cast<SubQuery_ValueList_Expression *>(expression);
 
             rc = expr->create_stmt(db, *tables);
             if (rc != RC::SUCCESS) {
@@ -128,7 +123,10 @@ RC FilterStmt::create(Db *db, Table *default_table,
           } break;
           case ExprType::AGGREGATION: {
             auto expr = static_cast<AggregateExpr *>(expression);
-            check_condition(expr->child().get());
+
+            if (expr->child() != nullptr) {
+              check_condition(expr->child().get());
+            }
           } break;
           default: {
 
@@ -143,12 +141,11 @@ RC FilterStmt::create(Db *db, Table *default_table,
   }
 
   stmt              = new FilterStmt();
-  stmt->conditions_ = conditions;
+  stmt->conditions_ = conditions;  // 拷贝复制
   return rc;
 }
 
-RC get_table_and_field(Db *db, Table *default_table,
-    std::unordered_map<std::string, Table *> *tables,
+RC get_table_and_field(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
     const RelAttrSqlNode &attr, Table *&table, const FieldMeta *&field)
 {
   if (common::is_blank(attr.relation_name.c_str())) {

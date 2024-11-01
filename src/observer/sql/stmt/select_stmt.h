@@ -63,7 +63,6 @@ public:
 
   std::shared_ptr<GroupByStmt> &group_by() { return group_by_; }
   std::shared_ptr<OrderByStmt> &order_by() { return order_by_; }
-  std::shared_ptr<FilterStmt>  &having() { return having_; }
 
 private:
   std::vector<std::shared_ptr<Expression>> query_expressions_;
@@ -71,5 +70,4 @@ private:
   std::shared_ptr<FilterStmt>              filter_stmt_ = nullptr;
   std::shared_ptr<GroupByStmt>             group_by_;
   std::shared_ptr<OrderByStmt>             order_by_;
-  std::shared_ptr<FilterStmt>              having_;
 };
