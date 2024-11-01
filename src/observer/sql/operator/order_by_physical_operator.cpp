@@ -109,7 +109,7 @@ RC OrderByPhysicalOperator::open(Trx *trx)
       auto &right = tuples_[rhs][field_index[i]];
 
       result = left.compare(right);
-
+      result = (left.is_null(left) && right.is_null(right)) ? 0 : result;
       if (result == 0) {
         continue;
       }

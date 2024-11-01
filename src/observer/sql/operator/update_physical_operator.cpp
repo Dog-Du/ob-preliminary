@@ -26,6 +26,11 @@ RC UpdatePhysicalOperator::open(Trx *trx)
     return RC::SUCCESS;
   }
 
+  if (!field_->nullable() && value_.is_null(value_)) {
+    LOG_WARN("update a attr not nullable.");
+    return RC::VARIABLE_NOT_VALID;
+  }
+
   auto &child = children_[0];
 
   RC rc = child->open(trx);
@@ -56,15 +61,13 @@ RC UpdatePhysicalOperator::open(Trx *trx)
   child->close();
 
   for (int i = 0; i < old_records.size(); ++i) {
-    rc = table_->update_record(
-        old_records[i].rid(), old_records[i], new_records[i]);
+    rc = table_->update_record(old_records[i].rid(), old_records[i], new_records[i]);
     if (rc != RC::SUCCESS) {
       LOG_WARN("update_record failed. maybe duplicate key.");
       // 回滚。
       RC rc2 = RC::SUCCESS;
       for (int j = i - 1; j >= 0; --j) {
-        rc2 = table_->update_record(
-            new_records[j].rid(), new_records[j], old_records[j]);
+        rc2 = table_->update_record(new_records[j].rid(), new_records[j], old_records[j]);
         if (rc2 != RC::SUCCESS) {
           LOG_WARN("rollback failed while update_record.");
           break;
