@@ -852,29 +852,29 @@ expression_list:
 
 expression:
     expression '+' expression {
-      assert_is_not_aggregate($1);
-      assert_is_not_aggregate($3);
+      // assert_is_not_aggregate($1);
+      // assert_is_not_aggregate($3);
       $$ = create_arithmetic_expression(ArithmeticExpr::Type::ADD, $1, $3, sql_string, &@$);
     }
     | expression '-' expression {
-      assert_is_not_aggregate($1);
-      assert_is_not_aggregate($3);
+      // assert_is_not_aggregate($1);
+      // assert_is_not_aggregate($3);
       $$ = create_arithmetic_expression(ArithmeticExpr::Type::SUB, $1, $3, sql_string, &@$);
     }
     | expression '*' expression {
-      assert_is_not_aggregate($1);
-      assert_is_not_aggregate($3);
+      // // assert_is_not_aggregate($1);
+      // // assert_is_not_aggregate($3);
       $$ = create_arithmetic_expression(ArithmeticExpr::Type::MUL, $1, $3, sql_string, &@$);
     }
     | expression '/' expression {
-      assert_is_not_aggregate($1);
-      assert_is_not_aggregate($3);
+      // // assert_is_not_aggregate($1);
+      // // assert_is_not_aggregate($3);
       $$ = create_arithmetic_expression(ArithmeticExpr::Type::DIV, $1, $3, sql_string, &@$);
     }
     | LBRACE expression_list RBRACE {
-      for (auto &x : *$2) {
-        assert_is_not_aggregate(x.get());
-      }
+      // for (auto &x : *$2) {
+      //  // assert_is_not_aggregate(x.get());
+      // }
 
       if ($2->size() == 1) {
         $$ = $2->front().get();
@@ -888,7 +888,7 @@ expression:
       $$->set_name(token_name(sql_string, &@$));
     }
     | '-' expression %prec UMINUS {
-      assert_is_not_aggregate($2);
+      // // assert_is_not_aggregate($2);
       $$ = create_arithmetic_expression(ArithmeticExpr::Type::NEGATIVE, $2, nullptr, sql_string, &@$);
     }
     | value {
@@ -913,32 +913,57 @@ expression:
     }
     | SUM_T LBRACE expression RBRACE
     {
-      assert_is_not_aggregate($3);
+      // assert_is_not_aggregate($3);
       $$ = new AggregateExpr(AggregateExpr::Type::SUM, $3);
+      RC rc = static_cast<AggregateExpr *>($$)->create_aggregator();
+
+      if (rc != RC::SUCCESS) {
+        yyerror (&yylloc, sql_string, sql_result, scanner, "create_aggregator failed.");
+      }
       $$->set_name(token_name(sql_string, &@$));
     }
     | AVG_T LBRACE expression RBRACE
     {
-      assert_is_not_aggregate($3);
+      // assert_is_not_aggregate($3);
       $$ = new AggregateExpr(AggregateExpr::Type::AVG, $3);
+      RC rc = static_cast<AggregateExpr *>($$)->create_aggregator();
+
+      if (rc != RC::SUCCESS) {
+        yyerror (&yylloc, sql_string, sql_result, scanner, "create_aggregator failed.");
+      }
       $$->set_name(token_name(sql_string, &@$));
     }
     | MIN_T LBRACE expression RBRACE
     {
-      assert_is_not_aggregate($3);
+      // assert_is_not_aggregate($3);
       $$ = new AggregateExpr(AggregateExpr::Type::MIN, $3);
+      RC rc = static_cast<AggregateExpr *>($$)->create_aggregator();
+
+      if (rc != RC::SUCCESS) {
+        yyerror (&yylloc, sql_string, sql_result, scanner, "create_aggregator failed.");
+      }
       $$->set_name(token_name(sql_string, &@$));
     }
     | MAX_T LBRACE expression RBRACE
     {
-      assert_is_not_aggregate($3);
+      // assert_is_not_aggregate($3);
       $$ = new AggregateExpr(AggregateExpr::Type::MAX, $3);
+      RC rc = static_cast<AggregateExpr *>($$)->create_aggregator();
+
+      if (rc != RC::SUCCESS) {
+        yyerror (&yylloc, sql_string, sql_result, scanner, "create_aggregator failed.");
+      }
       $$->set_name(token_name(sql_string, &@$));
     }
     | COUNT_T LBRACE expression RBRACE
     {
-      assert_is_not_aggregate($3);
+      // assert_is_not_aggregate($3);
       $$ = new AggregateExpr(AggregateExpr::Type::COUNT, $3);
+      RC rc = static_cast<AggregateExpr *>($$)->create_aggregator();
+
+      if (rc != RC::SUCCESS) {
+        yyerror (&yylloc, sql_string, sql_result, scanner, "create_aggregator failed.");
+      }
       $$->set_name(token_name(sql_string, &@$));
     }
     // your code here

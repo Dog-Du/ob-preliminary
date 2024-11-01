@@ -63,7 +63,7 @@ struct GroupByKey
 class GroupByPhysicalOperator : public PhysicalOperator
 {
 public:
-  GroupByPhysicalOperator(std::vector<std::shared_ptr<AggregateExpr>> &aggregation_expression,
+  GroupByPhysicalOperator(std::vector<AggregateExpr *> &aggregation_expression,
       std::vector<std::shared_ptr<FieldExpr>> &groupby_expressions, std::vector<FieldExpr *> &field_exprs,
       std::shared_ptr<Expression> &having_filter);
 
@@ -105,9 +105,9 @@ protected:
   RC group_filter();
 
 protected:
-  std::vector<std::shared_ptr<AggregateExpr>> aggregate_expressions_;  /// 聚合表达式
-  std::vector<std::shared_ptr<FieldExpr>>     groupby_field_expressions_;
-  std::vector<FieldExpr *>                    field_expressions_;  /// 非聚合的
+  std::vector<AggregateExpr *>            aggregate_expressions_;  /// 聚合表达式
+  std::vector<std::shared_ptr<FieldExpr>> groupby_field_expressions_;
+  std::vector<FieldExpr *>                field_expressions_;  /// 非聚合的
 
   std::vector<TupleCellSpec>                              tuple_schema_;
   std::vector<std::vector<Value>>                         tuples_;

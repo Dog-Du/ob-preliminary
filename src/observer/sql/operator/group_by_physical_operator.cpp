@@ -26,7 +26,7 @@ See the Mulan PSL v2 for more details. */
 using namespace std;
 using namespace common;
 
-GroupByPhysicalOperator::GroupByPhysicalOperator(std::vector<std::shared_ptr<AggregateExpr>> &aggregation_expression,
+GroupByPhysicalOperator::GroupByPhysicalOperator(std::vector<AggregateExpr *> &aggregation_expression,
     std::vector<std::shared_ptr<FieldExpr>> &groupby_expressions, std::vector<FieldExpr *> &field_exprs,
     std::shared_ptr<Expression> &having_filter)
 {

@@ -143,10 +143,10 @@ RC SelectStmt::create(
     return rc;
   }
 
-  Table                                      *default_table = nullptr;
-  std::vector<std::shared_ptr<Expression>>    projects;
-  std::vector<std::shared_ptr<AggregateExpr>> agg_exprs;
-  std::vector<FieldExpr *>                    field_exprs;
+  Table                                   *default_table = nullptr;
+  std::vector<std::shared_ptr<Expression>> projects;
+  std::vector<AggregateExpr *>             agg_exprs;
+  std::vector<FieldExpr *>                 field_exprs;
 
   if (tables.size() == 1) {
     default_table = tables[0];
@@ -226,10 +226,13 @@ RC SelectStmt::create(
       } break;
       case ExprType::AGGREGATION: {
         have_agg   = true;
+        now_is_agg = true;
         auto *expr = static_cast<AggregateExpr *>(expression);
+        agg_exprs.push_back(expr);
         if (expr->child() != nullptr) {
           check_projections(expr->child().get());
         }
+        now_is_agg = false;
       } break;
       default: {
       } break;
@@ -276,17 +279,7 @@ RC SelectStmt::create(
         projects.push_back(expression);
       }
     } else {
-      if (expression->type() == ExprType::AGGREGATION) {
-        agg_exprs.push_back(std::static_pointer_cast<AggregateExpr>(expression));
-        auto *expr = static_cast<AggregateExpr *>(expression.get());
-        now_is_agg = true;
-        have_agg   = true;
-        if (expr->child() != nullptr) {
-          expr->child()->check_or_get(check_projections);
-        }
-      } else {
-        expression->check_or_get(check_projections);
-      }
+      expression->check_or_get(check_projections);
 
       if (rc != RC::SUCCESS) {
         LOG_WARN("check_projections failed.");

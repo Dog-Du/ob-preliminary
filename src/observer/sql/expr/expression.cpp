@@ -697,49 +697,24 @@ UnboundAggregateExpr::UnboundAggregateExpr(const char *aggregate_name, Expressio
 {}
 
 ////////////////////////////////////////////////////////////////////////////////
-AggregateExpr::AggregateExpr(Type type, Expression *child) : aggregate_type_(type), child_(child)
-{
-  if (aggregate_type_ == Type::COUNT && child_->type() == ExprType::FIELD && strcmp(child_->alias(), "*") == 0) {
-    aggregate_type_ = Type::COUNT_STAR;
-    child_          = nullptr;
-  }
-  aggregator_ = create_aggregator();
-}
+AggregateExpr::AggregateExpr(Type type, Expression *child) : aggregate_type_(type), child_(child) {}
 
 AggregateExpr::AggregateExpr(Type type, shared_ptr<Expression> child) : aggregate_type_(type), child_(std::move(child))
+{}
+
+RC AggregateExpr::create_aggregator()
 {
-  if (aggregate_type_ == Type::COUNT && child_->type() == ExprType::FIELD && strcmp(child_->alias(), "*") == 0) {
+  if (child_->type() == ExprType::FIELD && strcmp(child_->alias(), "*") == 0) {
+    if (aggregate_type_ != Type::COUNT) {
+      return RC::SQL_SYNTAX;
+    }
+
     aggregate_type_ = Type::COUNT_STAR;
-    child_          = nullptr;
-  }
-  aggregator_ = create_aggregator();
-}
 
-RC AggregateExpr::get_column(Chunk &chunk, Column &column)
-{
-  RC rc = RC::SUCCESS;
-  if (pos_ != -1) {
-    column.reference(chunk.column(pos_));
-  } else {
-    rc = RC::INTERNAL;
+    child_ = nullptr;
+    return RC::SUCCESS;
   }
-  return rc;
-}
-
-bool AggregateExpr::equal(const Expression &other) const
-{
-  if (this == &other) {
-    return true;
-  }
-  if (other.type() != type()) {
-    return false;
-  }
-  const AggregateExpr &other_aggr_expr = static_cast<const AggregateExpr &>(other);
-  return aggregate_type_ == other_aggr_expr.aggregate_type() && child_->equal(*other_aggr_expr.child());
-}
-
-shared_ptr<Aggregator> AggregateExpr::create_aggregator() const
-{
+  
   shared_ptr<Aggregator> aggregator;
   switch (aggregate_type_) {
     case Type::SUM: {
@@ -766,7 +741,31 @@ shared_ptr<Aggregator> AggregateExpr::create_aggregator() const
       break;
     }
   }
-  return aggregator;
+  aggregator_ = aggregator;
+  return RC::SUCCESS;
+}
+
+RC AggregateExpr::get_column(Chunk &chunk, Column &column)
+{
+  RC rc = RC::SUCCESS;
+  if (pos_ != -1) {
+    column.reference(chunk.column(pos_));
+  } else {
+    rc = RC::INTERNAL;
+  }
+  return rc;
+}
+
+bool AggregateExpr::equal(const Expression &other) const
+{
+  if (this == &other) {
+    return true;
+  }
+  if (other.type() != type()) {
+    return false;
+  }
+  const AggregateExpr &other_aggr_expr = static_cast<const AggregateExpr &>(other);
+  return aggregate_type_ == other_aggr_expr.aggregate_type() && child_->equal(*other_aggr_expr.child());
 }
 
 RC AggregateExpr::accumulate(const Tuple &tuple)

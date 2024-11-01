@@ -21,7 +21,7 @@ See the Mulan PSL v2 for more details. */
 using namespace std;
 
 GroupByLogicalOperator::GroupByLogicalOperator(std::vector<std::shared_ptr<FieldExpr>> &group_by_exprs,
-    std::vector<std::shared_ptr<AggregateExpr>> &expressions, std::vector<FieldExpr *> &field_exprs,
+    std::vector<AggregateExpr *> &expressions, std::vector<FieldExpr *> &field_exprs,
     std::shared_ptr<Expression> &having_filter)
 {
   group_by_expressions_  = group_by_exprs;

@@ -563,7 +563,7 @@ public:
     worker_func(this);
   }
 
-  std::shared_ptr<Aggregator> create_aggregator() const;
+  RC                          create_aggregator();
 
 public:
   static RC type_from_string(const char *type_str, Type &type);

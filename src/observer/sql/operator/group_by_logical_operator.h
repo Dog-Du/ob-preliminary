@@ -21,7 +21,7 @@ class GroupByLogicalOperator : public LogicalOperator
 {
 public:
   GroupByLogicalOperator(std::vector<std::shared_ptr<FieldExpr>> &group_by_exprs,
-      std::vector<std::shared_ptr<AggregateExpr>> &agg_exprs, std::vector<FieldExpr *> &field_exprs,
+      std::vector<AggregateExpr *> &agg_exprs, std::vector<FieldExpr *> &field_exprs,
       std::shared_ptr<Expression> &having_filter);
 
   virtual ~GroupByLogicalOperator() = default;
@@ -35,7 +35,7 @@ public:
 
 private:
   std::vector<std::shared_ptr<FieldExpr>> group_by_expressions_;
-  std::vector<std::shared_ptr<AggregateExpr>> aggregate_expressions_;  ///< 输出的表达式，可能包含聚合函数
-  std::vector<FieldExpr *>    field_exprs_;                            //
-  std::shared_ptr<Expression> having_filter_;
+  std::vector<AggregateExpr *>            aggregate_expressions_;  ///< 输出的表达式，可能包含聚合函数
+  std::vector<FieldExpr *>                field_exprs_;            //
+  std::shared_ptr<Expression>             having_filter_;
 };
