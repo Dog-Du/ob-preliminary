@@ -186,9 +186,9 @@ RC SelectStmt::create(
       case ExprType::FIELD: {
         if (!now_is_agg) {
           have_not_agg = true;
+          field_exprs.push_back(static_cast<FieldExpr *>(expression));
         }
         rc = static_cast<FieldExpr *>(expression)->check_field(table_map, default_table, tables, alias_map);
-        field_exprs.push_back(static_cast<FieldExpr *>(expression));
         if (rc != RC::SUCCESS) {
           need_continue_check = false;
         }

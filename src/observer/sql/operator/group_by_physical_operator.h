@@ -47,6 +47,7 @@ struct GroupByKey
       field->get_value(this->tuple, left);
       field->get_value(rhs.tuple, right);
       result = left.compare(right);
+      result = (left.is_null(left) && right.is_null(right)) ? 0 : result;
 
       if (result != 0) {
         return result < 0;

@@ -15,6 +15,7 @@ See the Mulan PSL v2 for more details. */
 
 #include "common/log/log.h"
 #include "sql/operator/group_by_physical_operator.h"
+#include "common/rc.h"
 #include "sql/expr/expression.h"
 #include "sql/expr/expression_tuple.h"
 #include "sql/expr/composite_tuple.h"
@@ -222,7 +223,20 @@ RC GroupByPhysicalOperator::group_filter()
   return RC::SUCCESS;
 }
 
-RC GroupByPhysicalOperator::deal_with_empty_table() { return RC::RECORD_EOF; }
+RC GroupByPhysicalOperator::deal_with_empty_table()
+{
+  if (!field_expressions_.empty()) {
+    return RC::RECORD_EOF;
+  }
+
+  for (int i = field_expressions_.size(); i < field_expressions_.size() + aggregate_expressions_.size(); ++i) {
+    Value tmp;
+    aggregate_expressions_[i - field_expressions_.size()]->evaluate(tmp);
+    tuple_.set_cell(i, tmp);
+  }
+
+  return RC::SUCCESS;
+}
 
 RC GroupByPhysicalOperator::open(Trx *trx)
 {
