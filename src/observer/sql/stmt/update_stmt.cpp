@@ -15,21 +15,22 @@ See the Mulan PSL v2 for more details. */
 #include "sql/stmt/update_stmt.h"
 #include "common/log/log.h"
 #include "common/value.h"
+#include "sql/expr/expression.h"
 #include "storage/db/db.h"
 #include "storage/field/field_meta.h"
 #include "storage/table/table.h"
 #include "sql/stmt/filter_stmt.h"
 
-UpdateStmt::UpdateStmt(Table *table, const FieldMeta *field, const Value &value, FilterStmt *filter_stmt)
-    : table_(table), field_(field), value_(value), filter_stmt_(filter_stmt)
+UpdateStmt::UpdateStmt(Table *table, std::vector<const FieldMeta *> &fields,
+    std::vector<std::shared_ptr<Expression>> &value, FilterStmt *filter_stmt)
+    : table_(table), fields_meta_(fields), expressions_(value), filter_stmt_(filter_stmt)
 {}
 
 RC UpdateStmt::create(Db *db, const UpdateSqlNode &update_sql, Stmt *&stmt)
 {
-  const char *table_name = update_sql.relation_name.c_str();
-  const char *attr_name  = update_sql.attribute_name.c_str();
+  const char *table_name = update_sql.rel_name.c_str();
 
-  if (nullptr == db || nullptr == table_name || nullptr == attr_name) {
+  if (nullptr == db || nullptr == table_name) {
     return RC::INVALID_ARGUMENT;
   }
 
@@ -38,22 +39,62 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update_sql, Stmt *&stmt)
     LOG_WARN("no such table. db=%s, table_name=%s", db->name(), table_name);
     return RC::SCHEMA_TABLE_NOT_EXIST;
   }
-  const FieldMeta *field = table->table_meta().field(update_sql.attribute_name.c_str());
 
-  if (nullptr == field) {
-    return RC::SCHEMA_FIELD_NOT_EXIST;
-  }
-
-  Value val = update_sql.value;
-  if (update_sql.value.attr_type() != field->type() &&
-      update_sql.value.cast_to(update_sql.value, field->type(), val) != RC::SUCCESS) {
-    return RC::VARIABLE_NOT_VALID;
-  }
-
+  std::vector<const FieldMeta *>           fields_meta;
+  std::vector<std::shared_ptr<Expression>> expressions;
   std::unordered_map<std::string, Table *> table_map;
   table_map.insert(std::pair<std::string, Table *>(std::string(table_name), table));
 
-  RC          rc          = RC::SUCCESS;
+  bool                              need_continue_check = true;
+  RC                                rc                  = RC::SUCCESS;
+  std::function<void(Expression *)> check_field         = [&](Expression *expression) {
+    if (!need_continue_check) {
+      return;
+    }
+    switch (expression->type()) {
+      case ExprType::SUBQUERY_OR_VALUELIST: {
+        auto expr = static_cast<SubQuery_ValueList_Expression *>(expression);
+        rc        = expr->create_stmt(db, {});
+        if (rc != RC::SUCCESS) {
+          LOG_WARN("create_stmt failed.");
+          need_continue_check = false;
+        }
+      } break;
+      default: {
+      } break;
+    }
+  };
+
+  for (auto &update_node : update_sql.update_list) {
+    if (!update_node.rel_attr.relation_name.empty() && update_node.rel_attr.relation_name != table_name) {
+      LOG_WARN("update rel_attr != table_name.");
+      return RC::VARIABLE_NOT_VALID;
+    }
+    auto field = table->table_meta().field(update_node.rel_attr.attribute_name.c_str());
+    if (field == nullptr) {
+      LOG_WARN("update attr not exists.");
+      return RC::SCHEMA_FIELD_NOT_EXIST;
+    }
+
+    for (auto f : fields_meta) {
+      if (f == field) {
+        LOG_WARN("update_attr have two same.");
+        return RC::SQL_SYNTAX;
+      }
+    }
+
+    fields_meta.push_back(field);
+
+    update_node.expression->check_or_get(check_field);
+
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("check_or_get failed.");
+      return rc;
+    }
+    expressions.push_back(update_node.expression);
+  }
+
+  rc                      = RC::SUCCESS;
   FilterStmt *filter_stmt = nullptr;
 
   if (update_sql.conditions != nullptr) {
@@ -63,6 +104,6 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update_sql, Stmt *&stmt)
     }
   }
 
-  stmt = new UpdateStmt(table, field, val, filter_stmt);
+  stmt = new UpdateStmt(table, fields_meta, expressions, filter_stmt);
   return RC::SUCCESS;
 }

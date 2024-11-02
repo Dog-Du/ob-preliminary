@@ -14,6 +14,7 @@ See the Mulan PSL v2 for more details. */
 
 #include "sql/operator/predicate_physical_operator.h"
 #include "common/log/log.h"
+#include "sql/expr/expression.h"
 #include "sql/stmt/filter_stmt.h"
 #include "storage/field/field.h"
 #include "storage/record/record.h"
@@ -30,7 +31,18 @@ RC PredicatePhysicalOperator::open(Trx *trx)
     return RC::INTERNAL;
   }
 
-  return children_[0]->open(trx);
+  RC rc = children_[0]->open(trx);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("open failed.");
+    return rc;
+  }
+
+  rc = ComparisonExpr::check_comparison_with_subquery(expression_.get());
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("check failed.");
+    return rc;
+  }
+  return rc;
 }
 
 RC PredicatePhysicalOperator::next()
@@ -67,7 +79,4 @@ RC PredicatePhysicalOperator::close()
 
 Tuple *PredicatePhysicalOperator::current_tuple() { return children_[0]->current_tuple(); }
 
-RC PredicatePhysicalOperator::tuple_schema(TupleSchema &schema) const
-{
-  return children_[0]->tuple_schema(schema);
-}
+RC PredicatePhysicalOperator::tuple_schema(TupleSchema &schema) const { return children_[0]->tuple_schema(schema); }

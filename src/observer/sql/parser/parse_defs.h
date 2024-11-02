@@ -87,16 +87,16 @@ enum CompOp
 // 用不到了。
 struct ConditionSqlNode
 {
-  int left_is_attr;  ///< TRUE if left-hand side is an attribute
-                     ///< 1时，操作符左边是属性名，0时，是属性值
-  Value          left_value;  ///< left-hand side value if left_is_attr = FALSE
-  RelAttrSqlNode left_attr;   ///< left-hand side attribute
-  CompOp         comp;        ///< comparison operator
+  int left_is_attr;              ///< TRUE if left-hand side is an attribute
+                                 ///< 1时，操作符左边是属性名，0时，是属性值
+  Value          left_value;     ///< left-hand side value if left_is_attr = FALSE
+  RelAttrSqlNode left_attr;      ///< left-hand side attribute
+  CompOp         comp;           ///< comparison operator
   int            right_is_attr;  ///< TRUE if right-hand side is an attribute
-                      ///< 1时，操作符右边是属性名，0时，是属性值
-  RelAttrSqlNode right_attr;  ///< right-hand side attribute if right_is_attr =
-                              ///< TRUE 右边的属性
-  Value right_value;  ///< right-hand side value if right_is_attr = FALSE
+                                 ///< 1时，操作符右边是属性名，0时，是属性值
+  RelAttrSqlNode right_attr;     ///< right-hand side attribute if right_is_attr =
+                                 ///< TRUE 右边的属性
+  Value right_value;             ///< right-hand side value if right_is_attr = FALSE
 };
 
 struct JoinSqlNode  // 用expression * 可以使用多态，更方便一些。
@@ -122,14 +122,12 @@ struct SelectSqlNode
 {
   std::vector<std::shared_ptr<Expression>> expressions;  ///< 查询的表达式
   std::vector<JoinSqlNode>                 relations;    ///< 查询的表
-  std::shared_ptr<Expression>
-      conditions;  ///< where的查询条件，使用AND串联起来多个条件
+  std::shared_ptr<Expression>              conditions;   ///< where的查询条件，使用AND串联起来多个条件
   // std::vector<std::shared_ptr<Expression>> group_by;  ///< group by clause
   std::vector<RelAttrSqlNode> group_by;
   std::shared_ptr<Expression> having;
-  std::vector<RelAttrSqlNode>
-      order_by;  // order_by 其实可以根据
-                 // 聚合进行排序，但是测试中只有列名，所以不考虑聚合。
+  std::vector<RelAttrSqlNode> order_by;  // order_by 其实可以根据
+                                         // 聚合进行排序，但是测试中只有列名，所以不考虑聚合。
 };
 
 /**
@@ -162,15 +160,19 @@ struct DeleteSqlNode
   std::shared_ptr<Expression> conditions;
 };
 
+struct UpdateNode
+{
+  RelAttrSqlNode              rel_attr;
+  std::shared_ptr<Expression> expression;
+};
 /**
  * @brief 描述一个update语句
  * @ingroup SQLParser
  */
 struct UpdateSqlNode
 {
-  std::string relation_name;   ///< Relation to update
-  std::string attribute_name;  ///< 更新的字段，仅支持一个字段
-  Value       value;           ///< 更新的值，仅支持一个字段
+  std::string                 rel_name;
+  std::vector<UpdateNode>  update_list;
   std::shared_ptr<Expression> conditions;
 };
 
@@ -357,12 +359,8 @@ class ParsedSqlResult
 public:
   void add_sql_node(std::shared_ptr<ParsedSqlNode> sql_node);
 
-  std::vector<std::shared_ptr<ParsedSqlNode>> &sql_nodes()
-  {
-    return sql_nodes_;
-  }
+  std::vector<std::shared_ptr<ParsedSqlNode>> &sql_nodes() { return sql_nodes_; }
 
 private:
-  std::vector<std::shared_ptr<ParsedSqlNode>>
-      sql_nodes_;  ///< 这里记录SQL命令。虽然看起来支持多个，但是当前仅处理一个
+  std::vector<std::shared_ptr<ParsedSqlNode>> sql_nodes_;  ///< 这里记录SQL命令。虽然看起来支持多个，但是当前仅处理一个
 };

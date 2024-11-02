@@ -86,7 +86,6 @@ bool FieldExpr::equal(const Expression &other) const
 RC FieldExpr::check_field(const std::unordered_map<std::string, Table *> &all_tables, Table *default_table,
     const std::vector<Table *> &tables, const std::unordered_map<std::string, std::string> &alias_map)
 {
-
   auto   table_name = std::string(Expression::table_name());
   auto   field_name = std::string(Expression::field_name());
   Table *table      = nullptr;
@@ -220,6 +219,79 @@ ComparisonExpr::ComparisonExpr(CompOp comp, shared_ptr<Expression> left, shared_
 {}
 
 ComparisonExpr::~ComparisonExpr() {}
+
+RC ComparisonExpr::check_comparison_with_subquery(Expression *expression)
+{
+  bool need_continue_check = true;
+  RC   rc                  = RC::SUCCESS;
+
+  std::function<void(Expression *)> open_subquery = [&](Expression *expression) {
+    if (!need_continue_check) {
+      return;
+    }
+
+    if (expression->type() == ExprType::SUBQUERY_OR_VALUELIST) {
+      auto expr = static_cast<SubQuery_ValueList_Expression *>(expression);
+      rc        = expr->open(nullptr);
+      if (rc != RC::SUCCESS) {
+        LOG_WARN("subquery open failed.");
+        need_continue_check = false;
+        return;
+      }
+      rc = expr->close();
+      if (rc != RC::SUCCESS) {
+        LOG_WARN("subquery close failed.");
+      }
+    }
+  };
+
+  std::function<void(Expression *)> check_comparison = [&](Expression *expression) {
+    if (!need_continue_check) {
+      return;
+    }
+
+    if (expression->type() == ExprType::COMPARISON) {
+      auto expr = static_cast<ComparisonExpr *>(expression);
+      auto comp = expr->comp();
+      /// TODO:考虑如果子查询为空怎么办 -> 转到子查询的地方去处理。
+
+      if (comp != CompOp::IN && comp != CompOp::NOT_IN && comp != CompOp::EXISTS && comp != CompOp::NOT_EXISTS) {
+        if (expr->left() != nullptr && expr->left()->type() == ExprType::SUBQUERY_OR_VALUELIST) {
+          auto left_expr = static_cast<SubQuery_ValueList_Expression *>(expr->left().get());
+          if (left_expr->value_num() > 1) {
+            LOG_WARN("value_num > 1 failed.");
+            rc                  = RC::VARIABLE_NOT_VALID;
+            need_continue_check = false;
+          }
+        }
+
+        if (expr->right() != nullptr && expr->right()->type() == ExprType::SUBQUERY_OR_VALUELIST) {
+          auto right_expr = static_cast<SubQuery_ValueList_Expression *>(expr->right().get());
+          if (right_expr->value_num() > 1) {
+            LOG_WARN("value_num > 1 failed.");
+            rc                  = RC::VARIABLE_NOT_VALID;
+            need_continue_check = false;
+          }
+        }
+      }
+    }
+  };
+
+  expression->check_or_get(open_subquery);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("open subquery failed.");
+    return rc;
+  }
+
+  rc                  = RC::SUCCESS;
+  need_continue_check = true;
+  expression->check_or_get(check_comparison);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("check_comparison failed.");
+    return rc;
+  }
+  return rc;
+}
 
 RC ComparisonExpr::compare_value(const Value &left, const Value &right, bool &result) const
 {
@@ -820,10 +892,49 @@ RC AggregateExpr::type_from_string(const char *type_str, AggregateExpr::Type &ty
   return rc;
 }
 
+// RC SubQuery_ValueList_Expression::open(Expression *expression) { return RC::SUCCESS; }
+
 RC SubQuery_ValueList_Expression::open(Trx *trx)
 {
   if (is_sub_query) {
-    return sub_physical_operator_->open(trx);
+    RC rc = sub_physical_operator_->open(trx);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("subquery open failed.");
+      return rc;
+    }
+
+    while ((rc = sub_physical_operator_->next()) == RC::SUCCESS) {
+      Tuple *tuple = sub_physical_operator_->current_tuple();
+      Value  tmp;
+      tuple->cell_at(0, tmp);
+      value_list_.push_back(std::make_shared<ValueExpr>(tmp));
+    }
+
+    if (rc != RC::SUCCESS) {
+      if (rc != RC::RECORD_EOF) {
+        LOG_WARN("next failed.");
+        return rc;
+      }
+      rc = RC::SUCCESS;
+    }
+
+    rc = sub_physical_operator_->close();
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("close failed.");
+      return rc;
+    }
+
+    if (value_list_.empty()) {
+      Value tmp;
+      tmp.set_type(AttrType::INTS);
+      tmp.set_data((const char *)&INT_NULL, sizeof(INT_NULL));
+      value_list_.push_back(std::make_shared<ValueExpr>(tmp));
+    }
+
+    is_sub_query         = false;
+    is_value_list        = true;
+    value_list_iterator_ = value_list_.begin();
+    return rc;
   }
 
   if (is_value_list) {

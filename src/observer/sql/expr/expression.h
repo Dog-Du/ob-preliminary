@@ -335,6 +335,7 @@ public:
   AttrType value_type() const override { return AttrType::BOOLEANS; }
   CompOp   comp() const { return comp_; }
 
+  static RC check_comparison_with_subquery(Expression *expression);
   /**
    * @brief 根据 ComparisonExpr 获得 `select` 结果。
    * select 的长度与chunk 的行数相同，表示每一行在ComparisonExpr
@@ -348,10 +349,10 @@ public:
   void check_or_get(std::function<void(Expression *)> &worker_func) override
   {
     if (left_ != nullptr) {
-      worker_func(left_.get());
+      left_->check_or_get(worker_func);
     }
     if (right_ != nullptr) {
-      worker_func(right_.get());
+      right_->check_or_get(worker_func);
     }
     worker_func(this);
   }
@@ -404,7 +405,7 @@ public:
   void check_or_get(std::function<void(Expression *)> &worker_func) override
   {
     for (auto &expr : children_) {
-      worker_func(expr.get());
+      expr->check_or_get(worker_func);
     }
     worker_func(this);
   }
@@ -459,10 +460,10 @@ public:
   void check_or_get(std::function<void(Expression *)> &worker_func) override
   {
     if (left_ != nullptr) {
-      worker_func(left_.get());
+      left_->check_or_get(worker_func);
     }
     if (right_ != nullptr) {
-      worker_func(right_.get());
+      right_->check_or_get(worker_func);
     }
     worker_func(this);
   }
@@ -500,7 +501,7 @@ public:
   void check_or_get(std::function<void(Expression *)> &worker_func) override
   {
     if (child_ != nullptr) {
-      worker_func(child_.get());
+      child_->check_or_get(worker_func);
     }
     worker_func(this);
   }
@@ -558,12 +559,12 @@ public:
   void                               check_or_get(std::function<void(Expression *)> &worker_func) override
   {
     if (child_ != nullptr) {
-      worker_func(child_.get());
+      child_->check_or_get(worker_func);
     }
     worker_func(this);
   }
 
-  RC                          create_aggregator();
+  RC create_aggregator();
 
 public:
   static RC type_from_string(const char *type_str, Type &type);
@@ -590,7 +591,7 @@ public:
     ASSERT(is_value_list ^ is_sub_query,"should not both false or both true");
   }
 
-  RC open(Trx *trx);  // 打开，进行简单的处理，并进行一些检查。
+  RC        open(Trx *trx);  // 打开，进行简单的处理，并进行一些检查。
 
   RC close();  // 如果是value_list则不进行任何处理应该。
 
@@ -613,14 +614,16 @@ public:
 
   void check_or_get(std::function<void(Expression *)> &worker_func) override
   {
-    if (is_sub_query) {
-      return;
-    }
-
     for (auto &child : value_list_) {
-      worker_func(child.get());
+      child->check_or_get(worker_func);
     }
     worker_func(this);
+  }
+
+  int value_num() const
+  {
+    ASSERT(is_value_list && !is_sub_query, "");
+    return value_list_.size();
   }
 
   RC create_stmt(Db *db, const std::unordered_map<std::string, Table *> &all_tables);
@@ -628,8 +631,8 @@ public:
   RC create_physical();
 
 private:
-  const bool                                                 is_sub_query  = false;
-  const bool                                                 is_value_list = false;
+  bool                                                       is_sub_query  = false;
+  bool                                                       is_value_list = false;
   std::vector<std::shared_ptr<Expression>>                   value_list_;
   mutable std::vector<std::shared_ptr<Expression>>::iterator value_list_iterator_;
   std::shared_ptr<SelectSqlNode>                             sub_sql_node_;

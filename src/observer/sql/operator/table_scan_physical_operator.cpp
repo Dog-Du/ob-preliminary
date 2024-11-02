@@ -14,6 +14,7 @@ See the Mulan PSL v2 for more details. */
 
 #include "sql/operator/table_scan_physical_operator.h"
 #include "event/sql_debug.h"
+#include "sql/expr/expression.h"
 #include "storage/table/table.h"
 
 using namespace std;
@@ -24,6 +25,15 @@ RC TableScanPhysicalOperator::open(Trx *trx)
   if (rc == RC::SUCCESS) {
     tuple_.set_schema(table_, table_->table_meta().field_metas());
   }
+
+  for (auto &p : predicates_) {
+    rc = ComparisonExpr::check_comparison_with_subquery(p.get());
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("check_comparison failed.");
+      return rc;
+    }
+  }
+
   trx_ = trx;
   return rc;
 }

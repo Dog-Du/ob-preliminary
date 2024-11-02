@@ -201,7 +201,8 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
   JoinSqlNode *                              join_node;
   std::vector<JoinSqlNode> *                 join_list;
   char *                                     string;
-
+  UpdateNode *                               update_node;
+  std::vector<UpdateNode> *                  update_node_list;
   int                                        number;
   float                                      floats;
   bool                                       boolean;
@@ -225,6 +226,8 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
 %type <insert_value_list>   insert_value_list
 %type <value_list>          insert_value
 %type <value>               value
+%type <update_node>         update_node
+%type <update_node_list>    update_node_list
 %type <number>              number
 /* %type <string>              alias */
 /* %type <order_by_type>       order_by_type */
@@ -655,21 +658,50 @@ delete_stmt:    /*  delete 语句的语法解析树*/
     ;
 
 update_stmt:      /*  update 语句的语法解析树*/
-    UPDATE ID SET ID EQ expression where
+    UPDATE ID SET update_node update_node_list where
     {
       $$ = new ParsedSqlNode(SCF_UPDATE);
-      $$->update.relation_name = $2;
-      $$->update.attribute_name = $4;
-      if (try_expression_to_value($6, $$->update.value) == false) {
-        yyerror (&yylloc, sql_string, sql_result, scanner, "try_expression_to_value failed in update_stmt");
+      if ($5 != nullptr) {
+        $$->update.update_list.swap(*$5);
+        delete $5;
       }
-      // $$->update.value = *$6;
-      $$->update.conditions.reset($7);
+
+      $$->update.conditions.reset($6);
+      $$->update.rel_name = $2;
+      $$->update.update_list.push_back(*$4);
+      std::reverse($$->update.update_list.begin(), $$->update.update_list.end());
+
       free($2);
-      free($4);
-      delete $6;
+      delete $4;
     }
     ;
+
+update_node_list:
+  /* empty */
+  {
+    $$ = nullptr;
+  }
+  | COMMA update_node update_node_list
+  {
+    if ($3 != nullptr) {
+      $$ = $3;
+    } else {
+      $$ = new std::vector<UpdateNode>();
+    }
+    $$->push_back(*$2);
+    delete $2;
+  }
+  ;
+
+update_node:
+  rel_attr EQ expression
+  {
+    $$ = new UpdateNode();
+    $$->rel_attr = *$1;
+    $$->expression.reset($3);
+    delete $1;
+  }
+  ;
 
 select_stmt:        /*  select 语句的语法解析树*/
     SELECT expression_list FROM from_node from_node_list where group_by having order_by

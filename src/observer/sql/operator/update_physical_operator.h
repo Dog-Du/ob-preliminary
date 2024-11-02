@@ -15,6 +15,7 @@ See the Mulan PSL v2 for more details. */
 #pragma once
 
 #include "common/value.h"
+#include "sql/expr/expression.h"
 #include "sql/operator/physical_operator.h"
 
 class Trx;
@@ -28,8 +29,9 @@ class FieldMeta;
 class UpdatePhysicalOperator : public PhysicalOperator
 {
 public:
-  UpdatePhysicalOperator(Table *table, const FieldMeta *field, const Value &value)
-      : table_(table), field_(field), value_(value)
+  UpdatePhysicalOperator(
+      Table *table, std::vector<const FieldMeta *> &fields, std::vector<std::shared_ptr<Expression>> &values)
+      : table_(table), fields_meta_(fields), expressions_(values)
   {}
 
   virtual ~UpdatePhysicalOperator() = default;
@@ -43,8 +45,11 @@ public:
   Tuple *current_tuple() override { return nullptr; }
 
 private:
-  Table           *table_ = nullptr;
-  const FieldMeta *field_ = nullptr;
-  Value            value_;
-  Trx             *trx_;
+  RC convert_expression_to_values();
+
+  Table                                   *table_ = nullptr;
+  std::vector<const FieldMeta *>           fields_meta_;
+  std::vector<std::shared_ptr<Expression>> expressions_;
+  std::vector<Value>                       values_;  // 通过expression转换得到的values
+  Trx                                     *trx_;
 };

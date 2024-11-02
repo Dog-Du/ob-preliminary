@@ -15,6 +15,7 @@ See the Mulan PSL v2 for more details. */
 #pragma once
 
 #include "common/value.h"
+#include "sql/expr/expression.h"
 #include "sql/operator/logical_operator.h"
 #include "storage/field/field_meta.h"
 
@@ -25,16 +26,17 @@ See the Mulan PSL v2 for more details. */
 class UpdateLogicalOperator : public LogicalOperator
 {
 public:
-  UpdateLogicalOperator(Table *table, const FieldMeta *field, const Value &value);
+  UpdateLogicalOperator(
+      Table *table, std::vector<const FieldMeta *> &fields, std::vector<std::shared_ptr<Expression>> &values);
   virtual ~UpdateLogicalOperator() = default;
 
   LogicalOperatorType type() const override { return LogicalOperatorType::UPDATE; }
   Table              *table() const { return table_; }
-  const FieldMeta    *field() const { return field_; }
-  const Value        &value() const { return value_; }
+  auto               &fields_meta() { return fields_meta_; }
+  auto               &expressions() { return expressions_; }
 
 private:
-  Table           *table_ = nullptr;
-  const FieldMeta *field_ = nullptr;
-  Value            value_;
+  Table                                   *table_ = nullptr;
+  std::vector<const FieldMeta *>           fields_meta_;
+  std::vector<std::shared_ptr<Expression>> expressions_;
 };

@@ -15,10 +15,39 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/update_physical_operator.h"
 #include "common/log/log.h"
 #include "common/value.h"
+#include "sql/expr/expression.h"
+#include "sql/expr/tuple.h"
+#include "storage/field/field_meta.h"
 #include "storage/record/record.h"
 #include "storage/table/table.h"
 #include "storage/trx/trx.h"
 #include <cstddef>
+
+RC UpdatePhysicalOperator::convert_expression_to_values()
+{
+  RC         rc = RC::SUCCESS;
+  ShellTuple tuple;  // 空壳，不会被触摸，如果被触摸是不应该的.
+  for (auto &e : expressions_) {
+    rc = ComparisonExpr::check_comparison_with_subquery(e.get());
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("check_comparison failed.");
+      return rc;
+    }
+
+    if (e->type() == ExprType::SUBQUERY_OR_VALUELIST) {
+      auto expr = static_cast<SubQuery_ValueList_Expression *>(e.get());
+      if (expr->value_num() > 1) {
+        LOG_WARN("update failed.");
+        return rc;
+      }
+    }
+
+    Value tmp;
+    e->get_value(tuple, tmp);
+    values_.push_back(tmp);
+  }
+  return rc;
+}
 
 RC UpdatePhysicalOperator::open(Trx *trx)
 {
@@ -26,21 +55,22 @@ RC UpdatePhysicalOperator::open(Trx *trx)
     return RC::SUCCESS;
   }
 
-  if (!field_->nullable() && value_.is_null(value_)) {
-    LOG_WARN("update a attr not nullable.");
-    return RC::VARIABLE_NOT_VALID;
-  }
-
   auto &child = children_[0];
 
-  RC rc = child->open(trx);
+  RC rc = convert_expression_to_values();
+
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("convert failed.");
+    return rc;
+  }
+
+  rc = child->open(trx);
   if (rc != RC::SUCCESS) {
     LOG_WARN("failed to open child operator: %s", strrc(rc));
     return rc;
   }
 
   trx_ = trx;
-  value_.resize(field_->len());
 
   std::vector<Record> new_records;
   std::vector<Record> old_records;
@@ -54,7 +84,10 @@ RC UpdatePhysicalOperator::open(Trx *trx)
     RowTuple *row_tuple  = static_cast<RowTuple *>(tuple);
     Record    new_record = row_tuple->record();
     Record    old_record(new_record);
-    memcpy(new_record.data() + field_->offset(), value_.data(), field_->len());
+
+    for (int i = 0; i < fields_meta_.size(); ++i) {
+      memcpy(new_record.data() + fields_meta_[i]->offset(), values_[i].data(), fields_meta_[i]->len());
+    }
     old_records.emplace_back(old_record);
     new_records.emplace_back(new_record);
   }

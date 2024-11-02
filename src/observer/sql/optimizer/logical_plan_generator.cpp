@@ -358,7 +358,36 @@ RC LogicalPlanGenerator::create_plan(UpdateStmt *update_stmt, std::shared_ptr<Lo
     return rc;
   }
 
-  shared_ptr<LogicalOperator> update_oper(new UpdateLogicalOperator(table, update_stmt->field(), update_stmt->value()));
+  bool                              need_continue_check = true;
+  std::function<void(Expression *)> check_subquery      = [&](Expression *expression) {
+    if (!need_continue_check) {
+      return;
+    }
+
+    switch (expression->type()) {
+      case ExprType::SUBQUERY_OR_VALUELIST: {
+        auto expr = static_cast<SubQuery_ValueList_Expression *>(expression);
+        rc        = expr->create_logical();
+        if (rc != RC::SUCCESS) {
+          LOG_WARN("create_logical failed.");
+          need_continue_check = false;
+        }
+      } break;
+      default: {
+      } break;
+    }
+  };
+
+  for (auto &e : update_stmt->expressions()) {
+    e->check_or_get(check_subquery);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("check_or_get failed.");
+      return rc;
+    }
+  }
+
+  shared_ptr<LogicalOperator> update_oper(
+      new UpdateLogicalOperator(table, update_stmt->fields_meta(), update_stmt->expressions()));
 
   if (predicate_oper) {
     predicate_oper->add_child(std::move(table_get_oper));

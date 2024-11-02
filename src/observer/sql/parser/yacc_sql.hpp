@@ -154,13 +154,14 @@ union YYSTYPE
   JoinSqlNode *                              join_node;
   std::vector<JoinSqlNode> *                 join_list;
   char *                                     string;
-
+  UpdateNode *                               update_node;
+  std::vector<UpdateNode> *                  update_node_list;
   int                                        number;
   float                                      floats;
   bool                                       boolean;
   OrderByType                                order_by_type;
 
-#line 164 "yacc_sql.hpp"
+#line 165 "yacc_sql.hpp"
 
 };
 typedef union YYSTYPE YYSTYPE;
