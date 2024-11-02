@@ -123,6 +123,7 @@ void Value::resize(int len)
     length_ = 0;
     return;
   }
+  
   string s(value_.pointer_value_);
   s.resize(len + 1);
   reset();

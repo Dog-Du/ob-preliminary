@@ -30,7 +30,8 @@ RC UpdatePhysicalOperator::convert_expression_to_values()
   for (size_t i = 0; i < expressions_.size(); ++i) {
     auto &e     = expressions_[i];
     auto  field = fields_meta_[i];
-    rc          = ComparisonExpr::check_comparison_with_subquery(e.get());
+
+    rc = ComparisonExpr::check_comparison_with_subquery(e.get());
     if (rc != RC::SUCCESS) {
       LOG_WARN("check_comparison failed.");
       return rc;
@@ -54,7 +55,7 @@ RC UpdatePhysicalOperator::convert_expression_to_values()
       LOG_WARN("should not be null.");
       return RC::VARIABLE_NOT_VALID;
     }
-    values_.push_back(value);
+    values_.emplace_back(std::move(value));
   }
   return rc;
 }
@@ -119,7 +120,7 @@ RC UpdatePhysicalOperator::open(Trx *trx)
       break;
     }
   }
-  return RC::SUCCESS;
+  return rc;
 }
 
 RC UpdatePhysicalOperator::next() { return RC::RECORD_EOF; }
