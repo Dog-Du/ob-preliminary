@@ -59,7 +59,13 @@ RC UpdatePhysicalOperator::convert_expression_to_values()
 
     Value value;
 
-    tmp.cast_to(tmp, field->type(), value);
+    rc = tmp.cast_to(tmp, field->type(), value);
+
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("cast_to failed.");
+      return rc;
+    }
+
     value.resize(field->len());
 
     if (!field->nullable() && value.is_null(value)) {
