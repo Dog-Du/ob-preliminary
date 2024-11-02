@@ -31,8 +31,10 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/group_by_logical_operator.h"
 #include "sql/operator/order_by_logical_operator.h"
 #include "sql/operator/update_logical_operator.h"
+#include "sql/operator/create_table_logical_operator.h"
 
 #include "sql/stmt/calc_stmt.h"
+#include "sql/stmt/create_table_stmt.h"
 #include "sql/stmt/delete_stmt.h"
 #include "sql/stmt/explain_stmt.h"
 #include "sql/stmt/filter_stmt.h"
@@ -88,11 +90,42 @@ RC LogicalPlanGenerator::create(Stmt *stmt, shared_ptr<LogicalOperator> &logical
 
       rc = create_plan(explain_stmt, logical_operator);
     } break;
+
+    case StmtType::CREATE_TABLE: {
+      CreateTableStmt *create_table_stmt = static_cast<CreateTableStmt *>(stmt);
+
+      rc = create_plan(create_table_stmt, logical_operator);
+    } break;
     default: {
       rc = RC::UNIMPLEMENTED;
     }
   }
   return rc;
+}
+
+RC LogicalPlanGenerator::create_plan(
+    CreateTableStmt *create_table_stmt, std::shared_ptr<LogicalOperator> &logical_operator)
+{
+  RC                               rc = RC::SUCCESS;
+  std::shared_ptr<LogicalOperator> select_operator;
+
+  if (create_table_stmt->select_stmt() != nullptr) {
+    rc = create_plan(create_table_stmt->select_stmt().get(), select_operator);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("create_plan failed.");
+      return rc;
+    }
+  }
+
+  logical_operator = std::shared_ptr<LogicalOperator>(new CreateTableLogicalOperator(create_table_stmt->table_name(),
+      create_table_stmt->attr_infos(),
+      create_table_stmt->db(),
+      create_table_stmt->storage_format()));
+
+  if (select_operator != nullptr) {
+    logical_operator->add_child(select_operator);
+  }
+  return RC::SUCCESS;
 }
 
 RC LogicalPlanGenerator::create_plan(CalcStmt *calc_stmt, std::shared_ptr<LogicalOperator> &logical_operator)

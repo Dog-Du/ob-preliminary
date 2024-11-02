@@ -15,6 +15,7 @@ See the Mulan PSL v2 for more details. */
 #pragma once
 
 #include "common/rc.h"
+#include "sql/operator/create_table_logical_operator.h"
 #include "sql/operator/logical_operator.h"
 #include "sql/operator/order_by_logical_operator.h"
 #include "sql/operator/physical_operator.h"
@@ -47,6 +48,7 @@ public:
   RC create_vec(LogicalOperator &logical_operator, std::shared_ptr<PhysicalOperator> &oper);
 
 private:
+  RC create_plan(CreateTableLogicalOperator &logical_oper, std::shared_ptr<PhysicalOperator> &oper);
   RC create_plan(TableGetLogicalOperator &logical_oper, std::shared_ptr<PhysicalOperator> &oper);
   RC create_plan(PredicateLogicalOperator &logical_oper, std::shared_ptr<PhysicalOperator> &oper);
   RC create_plan(ProjectLogicalOperator &logical_oper, std::shared_ptr<PhysicalOperator> &oper);

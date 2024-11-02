@@ -19,6 +19,8 @@ See the Mulan PSL v2 for more details. */
 // #include "sql/operator/aggregate_vec_physical_operator.h"
 #include "sql/operator/calc_logical_operator.h"
 #include "sql/operator/calc_physical_operator.h"
+#include "sql/operator/create_table_logical_operator.h"
+#include "sql/operator/create_table_physical_operator.h"
 #include "sql/operator/delete_logical_operator.h"
 #include "sql/operator/delete_physical_operator.h"
 #include "sql/operator/explain_logical_operator.h"
@@ -100,6 +102,9 @@ RC PhysicalPlanGenerator::create(LogicalOperator &logical_operator, shared_ptr<P
     case LogicalOperatorType::ORDER_BY: {
       return create_plan(static_cast<OrderByLogicalOperator &>(logical_operator), oper);
     } break;
+    case LogicalOperatorType::CREATE_TABLE: {
+      return create_plan(static_cast<CreateTableLogicalOperator &>(logical_operator), oper);
+    } break;
     default: {
       ASSERT(false, "unknown logical operator type");
       return RC::INVALID_ARGUMENT;
@@ -128,6 +133,27 @@ RC PhysicalPlanGenerator::create_vec(LogicalOperator &logical_operator, shared_p
     default: {
       return RC::INVALID_ARGUMENT;
     }
+  }
+  return rc;
+}
+
+RC PhysicalPlanGenerator::create_plan(
+    CreateTableLogicalOperator &create_table_oper, std::shared_ptr<PhysicalOperator> &oper)
+{
+  RC rc = RC::SUCCESS;
+  oper  = std::shared_ptr<PhysicalOperator>(new CreateTablePhysicalOperator(create_table_oper.db(),
+      create_table_oper.table_name(),
+      create_table_oper.attr_infos(),
+      create_table_oper.storage_format()));
+
+  std::shared_ptr<PhysicalOperator> select_operator;
+  if (!create_table_oper.children().empty()) {
+    rc = create(*create_table_oper.children()[0], select_operator);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("create subquery failed.");
+      return rc;
+    }
+    oper->add_child(select_operator);
   }
   return rc;
 }

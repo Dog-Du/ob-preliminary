@@ -18,6 +18,7 @@ See the Mulan PSL v2 for more details. */
 
 #include "common/rc.h"
 #include "common/type/attr_type.h"
+#include "sql/stmt/create_table_stmt.h"
 #include "sql/stmt/groupby_stmt.h"
 #include "sql/stmt/orderby_stmt.h"
 #include "sql/stmt/update_stmt.h"
@@ -49,6 +50,7 @@ private:
   RC create_plan(UpdateStmt *update_stmt, std::shared_ptr<LogicalOperator> &logical_operator);
   RC create_plan(GroupByStmt *groupby_stmt, std::shared_ptr<LogicalOperator> &logical_operator);
   RC create_plan(OrderByStmt *orderby_stmt, std::shared_ptr<LogicalOperator> &logical_operator);
+  RC create_plan(CreateTableStmt *create_table_stmt, std::shared_ptr<LogicalOperator> &logical_operator);
   // RC create_group_by_plan(SelectStmt *select_stmt, std::shared_ptr<LogicalOperator> &logical_operator);
   RC join_table_in_tree(std::shared_ptr<LogicalOperator> &oper, Table *table, FilterStmt *filter_stmt);
 
