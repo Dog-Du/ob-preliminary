@@ -16,6 +16,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/value.h"
 #include "common/lang/limits.h"
 #include "common/value.h"
+#include <cmath>
 
 int FloatType::compare(const Value &left, const Value &right) const
 {
@@ -54,7 +55,7 @@ RC FloatType::cast_to(const Value &val, AttrType attr_type, Value &result) const
       result.attr_type_ = AttrType::INTS;
 
       if (!val.is_null(val)) {
-        result.value_.int_value_ = static_cast<int>(val.get_float());
+        result.value_.int_value_ = static_cast<int>(val.get_float() + 0.5);  // 需要四舍五入。
       } else {
         result.value_.int_value_ = INT_NULL;
       }
