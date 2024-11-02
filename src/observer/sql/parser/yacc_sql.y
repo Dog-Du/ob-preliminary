@@ -466,9 +466,31 @@ create_table_stmt:    /*create table 语句的语法解析树*/
       $$->create_table.relation_name = $3;
       free($3);
     }
+    | CREATE TABLE ID select_stmt
+    {
+      $$ = $4;
+      $$->flag = SCF_CREATE_TABLE;
+      $$->create_table.relation_name = $3;
+      free($3);
+    }
     | CREATE TABLE ID LBRACE attr_def attr_def_list RBRACE AS_T select_stmt
     {
       $$ = $9;
+      $$->flag = SCF_CREATE_TABLE;
+      $$->create_table.relation_name = $3;
+      free($3);
+
+      if ($6 != nullptr) {
+        $$->create_table.attr_infos.swap(*$6);
+        delete $6;
+      }
+      $$->create_table.attr_infos.emplace_back(*$5);
+      std::reverse($$->create_table.attr_infos.begin(), $$->create_table.attr_infos.end());
+      delete $5;
+    }
+    | CREATE TABLE ID LBRACE attr_def attr_def_list RBRACE select_stmt
+    {
+      $$ = $8;
       $$->flag = SCF_CREATE_TABLE;
       $$->create_table.relation_name = $3;
       free($3);
