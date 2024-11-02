@@ -92,11 +92,13 @@ RC UpdatePhysicalOperator::open(Trx *trx)
       return rc;
     }
 
-    RowTuple *row_tuple  = static_cast<RowTuple *>(tuple);
-    Record    new_record = row_tuple->record();
-    Record    old_record(new_record);
+    RowTuple *row_tuple = static_cast<RowTuple *>(tuple);
+    Record    new_record;
+    new_record.copy_data(row_tuple->record().data(), row_tuple->record().len());
+    Record old_record(new_record);
+    old_record.set_rid(row_tuple->record().rid());
 
-    for (int i = 0; i < fields_meta_.size(); ++i) {
+    for (size_t i = 0; i < fields_meta_.size(); ++i) {
       memcpy(new_record.data() + fields_meta_[i]->offset(), values_[i].data(), fields_meta_[i]->len());
     }
     old_records.emplace_back(old_record);
@@ -104,18 +106,57 @@ RC UpdatePhysicalOperator::open(Trx *trx)
   }
   child->close();
 
-  for (int i = 0; i < old_records.size(); ++i) {
-    rc = table_->update_record(old_records[i].rid(), old_records[i], new_records[i]);
+  for (size_t i = 0; i < old_records.size(); ++i) {
+    rc = table_->delete_record(old_records[i]);
+    // rc = table_->update_record(old_records[i].rid(), old_records[i], new_records[i]);
     if (rc != RC::SUCCESS) {
-      LOG_WARN("update_record failed. maybe duplicate key.");
+      LOG_WARN("delete_record failed. something wrong maybe duplicate key.");
       // 回滚。
       RC rc2 = RC::SUCCESS;
       for (int j = i - 1; j >= 0; --j) {
-        rc2 = table_->update_record(new_records[j].rid(), new_records[j], old_records[j]);
+        rc2 = table_->insert_record(old_records[j]);
+        // rc2 = table_->update_record(new_records[j].rid(), new_records[j], old_records[j]);
         if (rc2 != RC::SUCCESS) {
           LOG_WARN("rollback failed while update_record.");
           break;
         }
+      }
+      break;
+    }
+  }
+
+  if (rc != RC::SUCCESS) {
+    return rc;
+  }
+
+  for (size_t i = 0; i < new_records.size(); ++i) {
+    rc = table_->insert_record(new_records[i]);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("insert_record failed. may be duplicate.");
+      RC rc2 = RC::SUCCESS;
+      for (int j = i - 1; j >= 0; --j) {
+        rc2 = table_->delete_record(new_records[j]);
+        // rc2 = table_->update_record(new_records[j].rid(), new_records[j], old_records[j]);
+        if (rc2 != RC::SUCCESS) {
+          LOG_WARN("rollback failed while update_record.");
+          break;
+        }
+      }
+
+      if (rc2 != RC::SUCCESS) {
+        return rc2;
+      }
+
+      for (size_t j = 0; j < old_records.size(); ++j) {
+        rc2 = table_->insert_record(old_records[j]);
+        if (rc2 != RC::SUCCESS) {
+          LOG_WARN("rollback failed while update_record.");
+          break;
+        }
+      }
+
+      if (rc2 != RC::SUCCESS) {
+        return rc2;
       }
       break;
     }
