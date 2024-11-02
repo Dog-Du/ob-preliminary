@@ -14,6 +14,8 @@ See the Mulan PSL v2 for more details. */
 
 #include "sql/operator/update_physical_operator.h"
 #include "common/log/log.h"
+#include "common/rc.h"
+#include "common/type/attr_type.h"
 #include "common/value.h"
 #include "sql/expr/expression.h"
 #include "sql/expr/tuple.h"
@@ -39,15 +41,29 @@ RC UpdatePhysicalOperator::convert_expression_to_values()
 
     if (e->type() == ExprType::SUBQUERY_OR_VALUELIST) {
       auto expr = static_cast<SubQuery_ValueList_Expression *>(e.get());
+      expr->open(nullptr);
       if (expr->value_num() > 1) {
         LOG_WARN("update failed.");
+        expr->close();
         return rc;
       }
     }
 
     Value tmp;
     e->get_value(tuple, tmp);
+
+    if (e->type() == ExprType::SUBQUERY_OR_VALUELIST) {
+      auto expr = static_cast<SubQuery_ValueList_Expression *>(e.get());
+      expr->close();
+    }
+
     Value value;
+
+    if ((tmp.attr_type() == AttrType::CHARS) ^ (field->type() == AttrType::CHARS)) {
+      LOG_WARN("type cannot cast.");
+      return RC::VARIABLE_NOT_VALID;
+    }
+
     tmp.cast_to(tmp, field->type(), value);
     value.resize(field->len());
 
@@ -66,14 +82,8 @@ RC UpdatePhysicalOperator::open(Trx *trx)
     return RC::SUCCESS;
   }
 
+  RC    rc    = RC::SUCCESS;
   auto &child = children_[0];
-
-  RC rc = convert_expression_to_values();
-
-  if (rc != RC::SUCCESS) {
-    LOG_WARN("convert failed.");
-    return rc;
-  }
 
   rc = child->open(trx);
   if (rc != RC::SUCCESS) {
@@ -82,6 +92,20 @@ RC UpdatePhysicalOperator::open(Trx *trx)
   }
 
   trx_ = trx;
+
+  rc = convert_expression_to_values();
+
+  if (rc != RC::SUCCESS) {
+    RC rc2 = child->next();
+    if (rc2 == RC::RECORD_EOF) {
+      child->close();
+      LOG_WARN("convert failed but empty.");
+      return RC::SUCCESS;
+    }
+    child->close();
+    LOG_WARN("convert failed.");
+    return rc;
+  }
 
   std::vector<Record> new_records;
   std::vector<Record> old_records;
@@ -104,7 +128,21 @@ RC UpdatePhysicalOperator::open(Trx *trx)
     old_records.emplace_back(old_record);
     new_records.emplace_back(new_record);
   }
-  child->close();
+
+  if (rc != RC::SUCCESS) {
+    if (rc != RC::RECORD_EOF) {
+      LOG_WARN("next failed.");
+      child->close();
+      return rc;
+    }
+    rc = RC::SUCCESS;
+  }
+
+  rc = child->close();
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("close failed.");
+    return rc;
+  }
 
   for (size_t i = 0; i < old_records.size(); ++i) {
     rc = table_->delete_record(old_records[i]);
@@ -126,6 +164,7 @@ RC UpdatePhysicalOperator::open(Trx *trx)
   }
 
   if (rc != RC::SUCCESS) {
+    LOG_WARN("update abort before insert.");
     return rc;
   }
 

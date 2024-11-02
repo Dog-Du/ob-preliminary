@@ -110,7 +110,6 @@ RC CharType::cast_to(const Value &val, AttrType type, Value &result) const
     } break;
     case AttrType::INTS: {
       result.attr_type_ = AttrType::INTS;
-
       if (!val.is_null(val)) {
         result.value_.int_value_ = static_cast<int>(val.get_float());
       } else {

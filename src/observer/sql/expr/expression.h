@@ -614,9 +614,10 @@ public:
 
   void check_or_get(std::function<void(Expression *)> &worker_func) override
   {
-    if (is_sub_query) {
-      return;
-    }
+    // 好好好，给这等着我呢
+    // if (is_sub_query) {
+    //   return;
+    // }
 
     for (auto &child : value_list_) {
       worker_func(child.get());
