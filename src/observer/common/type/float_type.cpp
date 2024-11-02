@@ -38,6 +38,7 @@ bool FloatType::is_null(const Value &val) const { return val.value_.float_value_
 
 RC FloatType::cast_to(const Value &val, AttrType attr_type, Value &result) const
 {
+  ASSERT(val.attr_type()==AttrType::FLOATS,"");
   RC rc = RC::SUCCESS;
   switch (attr_type) {
     case AttrType::FLOATS: {
@@ -67,11 +68,13 @@ RC FloatType::cast_to(const Value &val, AttrType attr_type, Value &result) const
       result.value_.date_value_ = DATE_NULL;
     } break;
     case AttrType::CHARS: {
-      if (!val.is_null(val)) {
-        return RC::VARIABLE_NOT_VALID;
-      }
       result.attr_type_ = AttrType::CHARS;
-      result.set_string(nullptr);
+      if (val.is_null(val)) {
+        result.set_string(nullptr);
+      } else {
+        auto tmp = std::to_string(val.value_.float_value_);
+        result.set_string(tmp.c_str(), tmp.size());
+      }
     } break;
     default: {
       rc = RC::VARIABLE_NOT_VALID;
