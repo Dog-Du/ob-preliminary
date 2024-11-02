@@ -34,10 +34,7 @@ int FloatType::compare(const Value &left, const Value &right) const
   return common::compare_float((void *)&left_val, (void *)&right_val);
 }
 
-bool FloatType::is_null(const Value &val) const
-{
-  return val.value_.float_value_ == FLOAT_NULL;
-}
+bool FloatType::is_null(const Value &val) const { return val.value_.float_value_ == FLOAT_NULL; }
 
 RC FloatType::cast_to(const Value &val, AttrType attr_type, Value &result) const
 {
@@ -63,12 +60,16 @@ RC FloatType::cast_to(const Value &val, AttrType attr_type, Value &result) const
 
     } break;
     case AttrType::DATES: {
-      ASSERT(val.is_null(val),"");
+      if (!val.is_null(val)) {
+        return RC::VARIABLE_NOT_VALID;
+      }
       result.attr_type_         = AttrType::DATES;
       result.value_.date_value_ = DATE_NULL;
     } break;
     case AttrType::CHARS: {
-      ASSERT(val.is_null(val),"");
+      if (!val.is_null(val)) {
+        return RC::VARIABLE_NOT_VALID;
+      }
       result.attr_type_ = AttrType::CHARS;
       result.set_string(nullptr);
     } break;
@@ -84,14 +85,12 @@ RC FloatType::add(const Value &left, const Value &right, Value &result) const
   result.set_float(left.get_float() + right.get_float());
   return RC::SUCCESS;
 }
-RC FloatType::subtract(
-    const Value &left, const Value &right, Value &result) const
+RC FloatType::subtract(const Value &left, const Value &right, Value &result) const
 {
   result.set_float(left.get_float() - right.get_float());
   return RC::SUCCESS;
 }
-RC FloatType::multiply(
-    const Value &left, const Value &right, Value &result) const
+RC FloatType::multiply(const Value &left, const Value &right, Value &result) const
 {
   result.set_float(left.get_float() * right.get_float());
   return RC::SUCCESS;

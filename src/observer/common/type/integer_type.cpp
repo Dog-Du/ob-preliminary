@@ -31,8 +31,7 @@ int IntegerType::compare(const Value &left, const Value &right) const
   }
 
   if (right.attr_type() == AttrType::INTS) {
-    return common::compare_int(
-        (void *)&left.value_.int_value_, (void *)&right.value_.int_value_);
+    return common::compare_int((void *)&left.value_.int_value_, (void *)&right.value_.int_value_);
   } else if (right.attr_type() == AttrType::FLOATS) {
     float left_val  = left.get_float();
     float right_val = right.get_float();
@@ -45,13 +44,9 @@ int IntegerType::compare(const Value &left, const Value &right) const
   return INT32_MAX;
 }
 
-bool IntegerType::is_null(const Value &val) const
-{
-  return val.value_.int_value_ == INT_NULL;
-}
+bool IntegerType::is_null(const Value &val) const { return val.value_.int_value_ == INT_NULL; }
 
-RC IntegerType::cast_to(
-    const Value &val, AttrType attr_type, Value &result) const
+RC IntegerType::cast_to(const Value &val, AttrType attr_type, Value &result) const
 {
   RC rc = RC::SUCCESS;
   switch (attr_type) {
@@ -73,12 +68,16 @@ RC IntegerType::cast_to(
       }
     } break;
     case AttrType::DATES: {
-      ASSERT(val.is_null(val),"");
+      if (!val.is_null(val)) {
+        return RC::VARIABLE_NOT_VALID;
+      }
       result.attr_type_         = AttrType::DATES;
       result.value_.date_value_ = DATE_NULL;
     } break;
     case AttrType::CHARS: {
-      ASSERT(val.is_null(val),"");
+      if (!val.is_null(val)) {
+        return RC::VARIABLE_NOT_VALID;
+      }
       result.attr_type_ = AttrType::CHARS;
       result.set_string(nullptr);
     } break;
@@ -95,8 +94,7 @@ RC IntegerType::add(const Value &left, const Value &right, Value &result) const
   return RC::SUCCESS;
 }
 
-RC IntegerType::divide(
-    const Value &left, const Value &right, Value &result) const
+RC IntegerType::divide(const Value &left, const Value &right, Value &result) const
 {
   if (right.get_float() == 0) {
     result.set_int(INT_NULL);
@@ -107,15 +105,13 @@ RC IntegerType::divide(
   return RC::SUCCESS;
 }
 
-RC IntegerType::subtract(
-    const Value &left, const Value &right, Value &result) const
+RC IntegerType::subtract(const Value &left, const Value &right, Value &result) const
 {
   result.set_int(left.get_int() - right.get_int());
   return RC::SUCCESS;
 }
 
-RC IntegerType::multiply(
-    const Value &left, const Value &right, Value &result) const
+RC IntegerType::multiply(const Value &left, const Value &right, Value &result) const
 {
   result.set_int(left.get_int() * right.get_int());
   return RC::SUCCESS;

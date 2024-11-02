@@ -59,11 +59,6 @@ RC UpdatePhysicalOperator::convert_expression_to_values()
 
     Value value;
 
-    if ((tmp.attr_type() == AttrType::CHARS) ^ (field->type() == AttrType::CHARS)) {
-      LOG_WARN("type cannot cast.");
-      return RC::VARIABLE_NOT_VALID;
-    }
-
     tmp.cast_to(tmp, field->type(), value);
     value.resize(field->len());
 

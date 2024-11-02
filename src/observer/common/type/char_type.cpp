@@ -29,10 +29,8 @@ int CharType::compare(const Value &left, const Value &right) const
 
   switch (right.attr_type()) {
     case AttrType::CHARS: {
-      return common::compare_string((void *)left.value_.pointer_value_,
-          left.length_,
-          (void *)right.value_.pointer_value_,
-          right.length_);
+      return common::compare_string(
+          (void *)left.value_.pointer_value_, left.length_, (void *)right.value_.pointer_value_, right.length_);
     } break;
     case AttrType::DATES: {
       Value date_val;
@@ -67,8 +65,7 @@ bool CharType::is_null(const Value &val) const
   if (val.attr_type() != AttrType::CHARS) {
     return false;
   }
-  return val.length_ == 0 || val.value_.pointer_value_ == nullptr ||
-         val.value_.pointer_value_[0] == '\0';
+  return val.length_ == 0 || val.value_.pointer_value_ == nullptr || val.value_.pointer_value_[0] == '\0';
 }
 
 RC CharType::cast_to(const Value &val, AttrType type, Value &result) const
@@ -100,6 +97,9 @@ RC CharType::cast_to(const Value &val, AttrType type, Value &result) const
       return RC::SUCCESS;
     };
     case AttrType::FLOATS: {
+      if (!val.is_null(val)) {
+        return RC::VARIABLE_NOT_VALID;
+      }
       result.attr_type_ = AttrType::FLOATS;
 
       if (!val.is_null(val)) {
@@ -109,6 +109,9 @@ RC CharType::cast_to(const Value &val, AttrType type, Value &result) const
       }
     } break;
     case AttrType::INTS: {
+      if (!val.is_null(val)) {
+        return RC::VARIABLE_NOT_VALID;
+      }
       result.attr_type_ = AttrType::INTS;
       if (!val.is_null(val)) {
         result.value_.int_value_ = static_cast<int>(val.get_float());
