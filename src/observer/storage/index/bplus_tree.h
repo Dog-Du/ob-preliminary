@@ -76,7 +76,7 @@ public:
     Value right;
     right.set_type(attr_type_);
     right.set_data(v2, attr_length_);
-    return (left.is_null(left) && right.is_null(right)) ? 0 : left.compare(right);
+    return /* (left.is_null(left) && right.is_null(right)) ? 0 : */ left.compare(right);
   }
 
 private:

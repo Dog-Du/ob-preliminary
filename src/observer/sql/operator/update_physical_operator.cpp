@@ -43,9 +43,9 @@ RC UpdatePhysicalOperator::convert_expression_to_values()
       auto expr = static_cast<SubQuery_ValueList_Expression *>(e.get());
       expr->open(nullptr);
       if (expr->value_num() > 1) {
-        LOG_WARN("update failed.");
+        LOG_WARN("subquery value_num > 1 failed.");
         expr->close();
-        return rc;
+        return RC::VARIABLE_NOT_VALID;
       }
     }
 
