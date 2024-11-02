@@ -349,10 +349,10 @@ public:
   void check_or_get(std::function<void(Expression *)> &worker_func) override
   {
     if (left_ != nullptr) {
-      left_->check_or_get(worker_func);
+      worker_func(left_.get());
     }
     if (right_ != nullptr) {
-      right_->check_or_get(worker_func);
+      worker_func(right_.get());
     }
     worker_func(this);
   }
@@ -405,7 +405,7 @@ public:
   void check_or_get(std::function<void(Expression *)> &worker_func) override
   {
     for (auto &expr : children_) {
-      expr->check_or_get(worker_func);
+      worker_func(expr.get());
     }
     worker_func(this);
   }
@@ -460,10 +460,10 @@ public:
   void check_or_get(std::function<void(Expression *)> &worker_func) override
   {
     if (left_ != nullptr) {
-      left_->check_or_get(worker_func);
+      worker_func(left_.get());
     }
     if (right_ != nullptr) {
-      right_->check_or_get(worker_func);
+      worker_func(right_.get());
     }
     worker_func(this);
   }
@@ -501,7 +501,7 @@ public:
   void check_or_get(std::function<void(Expression *)> &worker_func) override
   {
     if (child_ != nullptr) {
-      child_->check_or_get(worker_func);
+      worker_func(child_.get());
     }
     worker_func(this);
   }
@@ -559,7 +559,7 @@ public:
   void                               check_or_get(std::function<void(Expression *)> &worker_func) override
   {
     if (child_ != nullptr) {
-      child_->check_or_get(worker_func);
+      worker_func(child_.get());
     }
     worker_func(this);
   }
@@ -591,7 +591,7 @@ public:
     ASSERT(is_value_list ^ is_sub_query,"should not both false or both true");
   }
 
-  RC        open(Trx *trx);  // 打开，进行简单的处理，并进行一些检查。
+  RC open(Trx *trx);  // 打开，进行简单的处理，并进行一些检查。
 
   RC close();  // 如果是value_list则不进行任何处理应该。
 
@@ -614,8 +614,12 @@ public:
 
   void check_or_get(std::function<void(Expression *)> &worker_func) override
   {
+    if (is_sub_query) {
+      return;
+    }
+
     for (auto &child : value_list_) {
-      child->check_or_get(worker_func);
+      worker_func(child.get());
     }
     worker_func(this);
   }

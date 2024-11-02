@@ -230,18 +230,52 @@ RC ComparisonExpr::check_comparison_with_subquery(Expression *expression)
       return;
     }
 
-    if (expression->type() == ExprType::SUBQUERY_OR_VALUELIST) {
-      auto expr = static_cast<SubQuery_ValueList_Expression *>(expression);
-      rc        = expr->open(nullptr);
-      if (rc != RC::SUCCESS) {
-        LOG_WARN("subquery open failed.");
-        need_continue_check = false;
-        return;
-      }
-      rc = expr->close();
-      if (rc != RC::SUCCESS) {
-        LOG_WARN("subquery close failed.");
-      }
+    switch (expression->type()) {
+      case ExprType::SUBQUERY_OR_VALUELIST: {
+        auto expr = static_cast<SubQuery_ValueList_Expression *>(expression);
+        rc        = expr->open(nullptr);
+        if (rc != RC::SUCCESS) {
+          LOG_WARN("subquery open failed.");
+          need_continue_check = false;
+          return;
+        }
+        rc = expr->close();
+        if (rc != RC::SUCCESS) {
+          LOG_WARN("subquery close failed.");
+        }
+      } break;
+      case ExprType::ARITHMETIC: {
+        auto expr = static_cast<ArithmeticExpr *>(expression);
+        if (expr->left() != nullptr) {
+          open_subquery(expr->left().get());
+        }
+        if (expr->right() != nullptr) {
+          open_subquery(expr->right().get());
+        }
+      } break;
+      case ExprType::AGGREGATION: {
+        auto expr = static_cast<AggregateExpr *>(expression);
+        if (expr->child() != nullptr) {
+          open_subquery(expr->child().get());
+        }
+      } break;
+      case ExprType::COMPARISON: {
+        auto expr = static_cast<ComparisonExpr *>(expression);
+        if (expr->left() != nullptr) {
+          open_subquery(expr->left().get());
+        }
+        if (expr->right() != nullptr) {
+          open_subquery(expr->right().get());
+        }
+      } break;
+      case ExprType::CONJUNCTION: {
+        auto expr = static_cast<ConjunctionExpr *>(expression);
+        for (auto &e : expr->children()) {
+          open_subquery(e.get());
+        }
+      } break;
+      default: {
+      } break;
     }
   };
 
@@ -250,30 +284,55 @@ RC ComparisonExpr::check_comparison_with_subquery(Expression *expression)
       return;
     }
 
-    if (expression->type() == ExprType::COMPARISON) {
-      auto expr = static_cast<ComparisonExpr *>(expression);
-      auto comp = expr->comp();
-      /// TODO:考虑如果子查询为空怎么办 -> 转到子查询的地方去处理。
+    switch (expression->type()) {
+      case ExprType::COMPARISON: {
+        auto expr = static_cast<ComparisonExpr *>(expression);
+        auto comp = expr->comp();
+        /// TODO:考虑如果子查询为空怎么办 -> 转到子查询的地方去处理。
 
-      if (comp != CompOp::IN && comp != CompOp::NOT_IN && comp != CompOp::EXISTS && comp != CompOp::NOT_EXISTS) {
-        if (expr->left() != nullptr && expr->left()->type() == ExprType::SUBQUERY_OR_VALUELIST) {
-          auto left_expr = static_cast<SubQuery_ValueList_Expression *>(expr->left().get());
-          if (left_expr->value_num() > 1) {
-            LOG_WARN("value_num > 1 failed.");
-            rc                  = RC::VARIABLE_NOT_VALID;
-            need_continue_check = false;
+        if (comp != CompOp::IN && comp != CompOp::NOT_IN && comp != CompOp::EXISTS && comp != CompOp::NOT_EXISTS) {
+          if (expr->left() != nullptr && expr->left()->type() == ExprType::SUBQUERY_OR_VALUELIST) {
+            auto left_expr = static_cast<SubQuery_ValueList_Expression *>(expr->left().get());
+            if (left_expr->value_num() > 1) {
+              LOG_WARN("value_num > 1 failed.");
+              rc                  = RC::VARIABLE_NOT_VALID;
+              need_continue_check = false;
+            }
+          }
+
+          if (expr->right() != nullptr && expr->right()->type() == ExprType::SUBQUERY_OR_VALUELIST) {
+            auto right_expr = static_cast<SubQuery_ValueList_Expression *>(expr->right().get());
+            if (right_expr->value_num() > 1) {
+              LOG_WARN("value_num > 1 failed.");
+              rc                  = RC::VARIABLE_NOT_VALID;
+              need_continue_check = false;
+            }
           }
         }
-
-        if (expr->right() != nullptr && expr->right()->type() == ExprType::SUBQUERY_OR_VALUELIST) {
-          auto right_expr = static_cast<SubQuery_ValueList_Expression *>(expr->right().get());
-          if (right_expr->value_num() > 1) {
-            LOG_WARN("value_num > 1 failed.");
-            rc                  = RC::VARIABLE_NOT_VALID;
-            need_continue_check = false;
-          }
+      } break;
+      case ExprType::ARITHMETIC: {
+        auto expr = static_cast<ArithmeticExpr *>(expression);
+        if (expr->left() != nullptr) {
+          check_comparison(expr->left().get());
         }
-      }
+        if (expr->right() != nullptr) {
+          check_comparison(expr->right().get());
+        }
+      } break;
+      case ExprType::AGGREGATION: {
+        auto expr = static_cast<AggregateExpr *>(expression);
+        if (expr->child() != nullptr) {
+          check_comparison(expr->child().get());
+        }
+      } break;
+      case ExprType::CONJUNCTION: {
+        auto expr = static_cast<ConjunctionExpr *>(expression);
+        for (auto &e : expr->children()) {
+          check_comparison(e.get());
+        }
+      } break;
+      default: {
+      } break;
     }
   };
 

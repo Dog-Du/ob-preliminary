@@ -27,8 +27,10 @@ RC UpdatePhysicalOperator::convert_expression_to_values()
 {
   RC         rc = RC::SUCCESS;
   ShellTuple tuple;  // 空壳，不会被触摸，如果被触摸是不应该的.
-  for (auto &e : expressions_) {
-    rc = ComparisonExpr::check_comparison_with_subquery(e.get());
+  for (size_t i = 0; i < expressions_.size(); ++i) {
+    auto &e     = expressions_[i];
+    auto  field = fields_meta_[i];
+    rc          = ComparisonExpr::check_comparison_with_subquery(e.get());
     if (rc != RC::SUCCESS) {
       LOG_WARN("check_comparison failed.");
       return rc;
@@ -44,7 +46,15 @@ RC UpdatePhysicalOperator::convert_expression_to_values()
 
     Value tmp;
     e->get_value(tuple, tmp);
-    values_.push_back(tmp);
+    Value value;
+    tmp.cast_to(tmp, field->type(), value);
+    value.resize(field->len());
+
+    if (!field->nullable() && value.is_null(value)) {
+      LOG_WARN("should not be null.");
+      return RC::VARIABLE_NOT_VALID;
+    }
+    values_.push_back(value);
   }
   return rc;
 }
