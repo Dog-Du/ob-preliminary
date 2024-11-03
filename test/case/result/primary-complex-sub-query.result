@@ -8,6 +8,8 @@ SUCCESS
 CREATE TABLE csq_4(id int, col4 int, feat4 float);
 SUCCESS
 
+select * from csq_1 where feat1 > (select min(csq_2.feat2) from csq_2 where csq_2.id in (select csq_3.id from csq_3 where csq_3.col3 <> (select csq_4.col4 from csq_4 where csq_4.id <> csq_1.id)));
+
 INSERT INTO csq_1 VALUES (1, 4, 11.2);
 SUCCESS
 INSERT INTO csq_1 VALUES (2, 2, 12.0);

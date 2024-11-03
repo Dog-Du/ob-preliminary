@@ -484,15 +484,27 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value) const
     expr->open(nullptr);
 
     bool in = false;
-    while (expr->next(tuple, right_value) == RC::SUCCESS) {
+    while ((rc = expr->next(tuple, right_value)) == RC::SUCCESS) {
       if (left_value.compare(right_value) == 0) {
         in = true;
         break;
       }
     }
 
+    if (rc != RC::SUCCESS) {
+      if (rc != RC::RECORD_EOF) {
+        LOG_WARN("next failed.");
+        expr->close();
+        return rc;
+      }
+      rc = RC::SUCCESS;
+    }
     rc = expr->close();
 
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("close failed");
+      return rc;
+    }
     value.set_boolean(comp_ == IN ? in : !in);
     return rc;
   }

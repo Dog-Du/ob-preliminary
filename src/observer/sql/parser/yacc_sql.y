@@ -1166,6 +1166,13 @@ rel_attr:
       free($1);
       free($3);
     }
+    | ID DOT '*' {
+      $$ = new RelAttrSqlNode;
+      $$->relation_name  = $1;
+      $$->attribute_name = "*";
+      $$->order_by_type = OrderByType::ASC;
+      free($1);
+    }
     | ID DOT ID ASC_T {
       $$ = new RelAttrSqlNode;
       $$->relation_name  = $1;
@@ -1173,6 +1180,13 @@ rel_attr:
       $$->order_by_type = OrderByType::ASC;
       free($1);
       free($3);
+    }
+    | ID DOT '*' ASC_T {
+      $$ = new RelAttrSqlNode;
+      $$->relation_name  = $1;
+      $$->attribute_name = "*";
+      $$->order_by_type = OrderByType::ASC;
+      free($1);
     }
     | ID DOT ID DESC_T {
       $$ = new RelAttrSqlNode;
@@ -1182,7 +1196,13 @@ rel_attr:
       free($1);
       free($3);
     }
-
+    | ID DOT '*' DESC_T {
+      $$ = new RelAttrSqlNode;
+      $$->relation_name  = $1;
+      $$->attribute_name = "*";
+      $$->order_by_type = OrderByType::DESC;
+      free($1);
+    }
     | ID DOT ID ID {
       $$ = new RelAttrSqlNode;
       $$->relation_name  = $1;
@@ -1191,6 +1211,15 @@ rel_attr:
       $$->order_by_type = OrderByType::ASC;
       free($1);
       free($3);
+      free($4);
+    }
+    | ID DOT '*' ID {
+      $$ = new RelAttrSqlNode;
+      $$->relation_name  = $1;
+      $$->attribute_name = "*";
+      $$->alias = $4;
+      $$->order_by_type = OrderByType::ASC;
+      free($1);
       free($4);
     }
     | ID DOT ID ID ASC_T {
@@ -1203,6 +1232,15 @@ rel_attr:
       free($3);
       free($4);
     }
+    | ID DOT '*' ID ASC_T {
+      $$ = new RelAttrSqlNode;
+      $$->relation_name  = $1;
+      $$->attribute_name = "*";
+      $$->alias = $4;
+      $$->order_by_type = OrderByType::ASC;
+      free($1);
+      free($4);
+    }
     | ID DOT ID ID DESC_T {
       $$ = new RelAttrSqlNode;
       $$->relation_name  = $1;
@@ -1211,6 +1249,16 @@ rel_attr:
       $$->order_by_type = OrderByType::DESC;
       free($1);
       free($3);
+      free($4);
+    }
+    | ID DOT '*' ID DESC_T {
+      $$ = new RelAttrSqlNode;
+      $$->relation_name  = $1;
+      $$->attribute_name = "*";
+      $$->alias = $4;
+      $$->order_by_type = OrderByType::DESC;
+      free($1);
+      // free($3);
       free($4);
     }
     | ID DOT ID AS_T ID {
@@ -1223,6 +1271,16 @@ rel_attr:
       free($3);
       free($5);
     }
+    | ID DOT '*' AS_T ID {
+      $$ = new RelAttrSqlNode;
+      $$->relation_name  = $1;
+      $$->attribute_name = "*";
+      $$->alias = $5;
+      $$->order_by_type = OrderByType::ASC;
+      free($1);
+      // free($3);
+      free($5);
+    }
     | ID DOT ID AS_T ID ASC_T {
       $$ = new RelAttrSqlNode;
       $$->relation_name  = $1;
@@ -1233,6 +1291,16 @@ rel_attr:
       free($3);
       free($5);
     }
+    | ID DOT '*' AS_T ID ASC_T {
+      $$ = new RelAttrSqlNode;
+      $$->relation_name  = $1;
+      $$->attribute_name = "*";
+      $$->alias = $5;
+      $$->order_by_type = OrderByType::ASC;
+      free($1);
+      // free($3);
+      free($5);
+    }
     | ID DOT ID AS_T ID DESC_T {
       $$ = new RelAttrSqlNode;
       $$->relation_name  = $1;
@@ -1241,6 +1309,16 @@ rel_attr:
       $$->order_by_type = OrderByType::DESC;
       free($1);
       free($3);
+      free($5);
+    }
+    | ID DOT '*' AS_T ID DESC_T {
+      $$ = new RelAttrSqlNode;
+      $$->relation_name  = $1;
+      $$->attribute_name = "*";
+      $$->alias = $5;
+      $$->order_by_type = OrderByType::DESC;
+      free($1);
+      // free($3);
       free($5);
     }
 
