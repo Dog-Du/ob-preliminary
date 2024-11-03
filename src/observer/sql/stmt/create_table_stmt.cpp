@@ -41,7 +41,7 @@ RC create_table_with_select(Db *db, const CreateTableSqlNode &create_table, Stmt
       attr_info.name = attr_expr->name();
     } else if (attr_name.find('.') != std::string::npos) {
       size_t p       = attr_name.find('.');
-      attr_info.name = attr_name.substr(p + 1);
+      attr_info.name = attr_name.substr(p + 1); // 从 p + 1 -> end()
     } else {
       attr_info.name = attr_expr->alias();
     }
