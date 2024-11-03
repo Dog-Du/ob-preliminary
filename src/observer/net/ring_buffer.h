@@ -14,6 +14,7 @@ See the Mulan PSL v2 for more details. */
 
 #pragma once
 
+#include <cstdint>
 #include <stdint.h>
 
 #include "common/rc.h"
@@ -27,7 +28,7 @@ class RingBuffer
 {
 public:
   /**
-   * @brief 使用默认缓存大小的构造函数，默认大小16K
+   * @brief 使用默认缓存大小的构造函数，默认大小16K -> 2MB
    */
   RingBuffer();
 
@@ -69,6 +70,8 @@ public:
    * @param write_size 实际写入的数据大小
    */
   RC write(const char *buf, int32_t size, int32_t &write_size);
+
+  RC go_back(int32_t size);
 
   /**
    * @brief 缓存的总容量

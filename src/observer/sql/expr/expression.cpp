@@ -14,6 +14,7 @@ See the Mulan PSL v2 for more details. */
 
 #include "sql/expr/expression.h"
 #include "common/log/log.h"
+#include "common/rc.h"
 #include "common/type/attr_type.h"
 #include "common/value.h"
 #include "sql/expr/aggregator.h"
@@ -220,8 +221,10 @@ ComparisonExpr::ComparisonExpr(CompOp comp, shared_ptr<Expression> left, shared_
 
 ComparisonExpr::~ComparisonExpr() {}
 
-RC ComparisonExpr::check_comparison_with_subquery(Expression *expression)
+RC ComparisonExpr::check_comparison_with_subquery(Expression *expression, bool need_check_complex_subquery)
 {
+  return RC::SUCCESS;  // 暂时决定什么都不做
+
   bool need_continue_check = true;
   RC   rc                  = RC::SUCCESS;
 
@@ -292,8 +295,16 @@ RC ComparisonExpr::check_comparison_with_subquery(Expression *expression)
 
         if (comp != CompOp::IN && comp != CompOp::NOT_IN && comp != CompOp::EXISTS && comp != CompOp::NOT_EXISTS) {
           if (expr->left() != nullptr && expr->left()->type() == ExprType::SUBQUERY_OR_VALUELIST) {
-            auto left_expr = static_cast<SubQuery_ValueList_Expression *>(expr->left().get());
-            if (left_expr->value_num() > 1) {
+            auto    left_expr = static_cast<SubQuery_ValueList_Expression *>(expr->left().get());
+            int32_t num;
+            rc = left_expr->value_num(num);
+            if (rc != RC::SUCCESS) {
+              LOG_WARN("value_num failed.");
+              need_continue_check = false;
+              return;
+            }
+
+            if (num > 1) {
               LOG_WARN("value_num > 1 failed.");
               rc                  = RC::VARIABLE_NOT_VALID;
               need_continue_check = false;
@@ -301,8 +312,17 @@ RC ComparisonExpr::check_comparison_with_subquery(Expression *expression)
           }
 
           if (expr->right() != nullptr && expr->right()->type() == ExprType::SUBQUERY_OR_VALUELIST) {
-            auto right_expr = static_cast<SubQuery_ValueList_Expression *>(expr->right().get());
-            if (right_expr->value_num() > 1) {
+            auto    right_expr = static_cast<SubQuery_ValueList_Expression *>(expr->right().get());
+            int32_t num;
+            rc = right_expr->value_num(num);
+
+            if (rc != RC::SUCCESS) {
+              LOG_WARN("value_num failed.");
+              need_continue_check = false;
+              return;
+            }
+
+            if (num > 1) {
               LOG_WARN("value_num > 1 failed.");
               rc                  = RC::VARIABLE_NOT_VALID;
               need_continue_check = false;
@@ -433,17 +453,13 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value) const
     ASSERT(right_ == nullptr, "right must be nullptr.");
   }
 
-  if (left_ != nullptr && left_->type() == ExprType::SUBQUERY_OR_VALUELIST) {
-    static_cast<SubQuery_ValueList_Expression *>(left_.get())->open(nullptr);
-  }
-
-  if (right_ != nullptr && right_->type() == ExprType::SUBQUERY_OR_VALUELIST) {
-    static_cast<SubQuery_ValueList_Expression *>(right_.get())->open(nullptr);
-  }
-
   RC rc = RC::SUCCESS;
 
   if (comp_ == EXISTS || comp_ == NOT_EXISTS) {
+    if (left_ != nullptr && left_->type() == ExprType::SUBQUERY_OR_VALUELIST) {
+      static_cast<SubQuery_ValueList_Expression *>(left_.get())->open(nullptr);
+    }
+
     bool exists = left_->get_value(tuple, value) == RC::RECORD_EOF ? false : true;
     rc          = static_cast<SubQuery_ValueList_Expression *>(left_.get())->close();
 
@@ -456,31 +472,74 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value) const
     return rc;
   }
 
-  rc = left_->get_value(tuple, left_value);
-  if (rc != RC::SUCCESS) {
-    LOG_WARN("failed to get value of left expression. rc=%s", strrc(rc));
-    return rc;
-  }
-
   if (comp_ == IN || comp_ == NOT_IN) {
     ASSERT(right_->type() == ExprType::SUBQUERY_OR_VALUELIST, "");
     ASSERT(left_->type() != ExprType::SUBQUERY_OR_VALUELIST, "");
+    rc = left_->get_value(tuple, left_value);  // 这里是这样想的 ： 只会有 value/field in ( select_stmt ) 的情况
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("failed to get value of left expression. rc=%s", strrc(rc));
+      return rc;
+    }
+    auto expr = static_cast<SubQuery_ValueList_Expression *>(right_.get());
+    expr->open(nullptr);
 
     bool in = false;
-    while (static_cast<SubQuery_ValueList_Expression *>(right_.get())->next(tuple, right_value) == RC::SUCCESS) {
+    while (expr->next(tuple, right_value) == RC::SUCCESS) {
       if (left_value.compare(right_value) == 0) {
         in = true;
         break;
       }
     }
 
-    rc = static_cast<SubQuery_ValueList_Expression *>(right_.get())->close();
+    rc = expr->close();
 
     value.set_boolean(comp_ == IN ? in : !in);
     return rc;
   }
 
-  rc = right_->get_value(tuple, right_value);
+  auto get_value_from_subquery = [&rc, &tuple](Expression *expression, Value &value) {
+    if (expression->type() == ExprType::SUBQUERY_OR_VALUELIST) {
+      auto expr = static_cast<SubQuery_ValueList_Expression *>(expression);
+      expr->set_prev_tuple(&tuple);
+      rc = expr->open(nullptr);
+      if (rc != RC::SUCCESS) {
+        LOG_WARN("open failed.");
+      }
+
+      rc = expr->next(tuple, value);
+
+      if (rc == RC::RECORD_EOF) {  // 空表
+        value.set_type(AttrType::INTS);
+        value.set_data((const char *)&INT_NULL, sizeof(INT_NULL));
+        expr->close();
+      } else if (rc != RC::SUCCESS) {  // 出错
+        expr->close();
+        LOG_WARN("next failed.");
+      } else {  // 检查是否有多个tuple
+        Value val;
+        rc = expr->next(tuple, val);
+        expr->close();
+        if (rc != RC::RECORD_EOF) {
+          LOG_WARN("more than one tuple.");
+          rc = RC::INVALID_ARGUMENT;
+          return;
+        }
+        rc = RC::SUCCESS;
+      }
+    } else {
+      rc = expression->get_value(tuple, value);
+    }
+  };
+
+  get_value_from_subquery(left_.get(), left_value);
+
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("failed to get value of left expression. rc=%s", strrc(rc));
+    return rc;
+  }
+
+  get_value_from_subquery(right_.get(), right_value);
+
   if (rc != RC::SUCCESS) {
     LOG_WARN("failed to get value of right expression. rc=%s", strrc(rc));
     return rc;
@@ -599,6 +658,7 @@ bool ArithmeticExpr::equal(const Expression &other) const
   return arithmetic_type_ == other_arith_expr.arithmetic_type() && left_->equal(*other_arith_expr.left_) &&
          right_->equal(*other_arith_expr.right_);
 }
+
 AttrType ArithmeticExpr::value_type() const
 {
   if (!right_) {
@@ -961,38 +1021,6 @@ RC SubQuery_ValueList_Expression::open(Trx *trx)
       LOG_WARN("subquery open failed.");
       return rc;
     }
-
-    while ((rc = sub_physical_operator_->next()) == RC::SUCCESS) {
-      Tuple *tuple = sub_physical_operator_->current_tuple();
-      Value  tmp;
-      tuple->cell_at(0, tmp);
-      value_list_.push_back(std::make_shared<ValueExpr>(tmp));
-    }
-
-    if (rc != RC::SUCCESS) {
-      if (rc != RC::RECORD_EOF) {
-        LOG_WARN("next failed.");
-        return rc;
-      }
-      rc = RC::SUCCESS;
-    }
-
-    rc = sub_physical_operator_->close();
-    if (rc != RC::SUCCESS) {
-      LOG_WARN("close failed.");
-      return rc;
-    }
-
-    if (value_list_.empty()) {
-      Value tmp;
-      tmp.set_type(AttrType::INTS);
-      tmp.set_data((const char *)&INT_NULL, sizeof(INT_NULL));
-      value_list_.push_back(std::make_shared<ValueExpr>(tmp));
-    }
-
-    is_sub_query         = false;
-    is_value_list        = true;
-    value_list_iterator_ = value_list_.begin();
     return rc;
   }
 
@@ -1025,7 +1053,9 @@ RC SubQuery_ValueList_Expression::get_value(const Tuple &tuple, Value &value) co
     sub_physical_operator_->set_prev_tuple(&tuple);
     RC rc = sub_physical_operator_->next();
 
-    if (rc == RC::RECORD_EOF) {
+    if (rc == RC::RECORD_EOF) {  // 子查询如果为EOF，直接为空。
+      value.set_type(AttrType::INTS);
+      value.set_data((const char *)&INT_NULL, sizeof(INT_NULL));
       return rc;
     }
 
@@ -1124,4 +1154,49 @@ RC SubQuery_ValueList_Expression::create_physical()
   }
 
   return RC::SUCCESS;
+}
+
+void SubQuery_ValueList_Expression::set_prev_tuple(const Tuple *tuple)
+{
+  sub_physical_operator_->set_prev_tuple(tuple);
+}
+
+RC SubQuery_ValueList_Expression::value_num(int32_t &num) const
+{
+  if (is_sub_query) {
+    // 考虑到只需要 0，1，2这三个数字，所以简单处理即可。
+    num   = 0;
+    RC rc = RC::SUCCESS;
+    // rc =  sub_physical_operator_->open(nullptr); // 只考虑当前的位置
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("sub_query open failed");
+      return rc;
+    }
+
+    sub_physical_operator_->open(nullptr);
+    while ((rc = sub_physical_operator_->next()) == RC::SUCCESS && ++num < 2) {
+      ;
+    }
+
+    if (rc != RC::SUCCESS) {
+      if (rc != RC::RECORD_EOF) {
+        LOG_WARN("close failed.");
+        return rc;
+      }
+      rc = RC::SUCCESS;
+    }
+
+    rc = sub_physical_operator_->close();
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("close failed.");
+    }
+    return rc;
+  }
+
+  if (is_value_list) {
+    num = value_list_.size();
+    return RC::SUCCESS;
+  }
+
+  return RC::INVALID_ARGUMENT;
 }

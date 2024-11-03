@@ -14,9 +14,10 @@ See the Mulan PSL v2 for more details. */
 
 #include "common/lang/algorithm.h"
 #include "common/log/log.h"
+#include <cstdint>
 #include "net/ring_buffer.h"
 
-const int32_t DEFAULT_BUFFER_SIZE = 1024 * 1024 ;
+const int32_t DEFAULT_BUFFER_SIZE = 1024 * 1024 * 2;
 
 RingBuffer::RingBuffer() : RingBuffer(DEFAULT_BUFFER_SIZE) {}
 
@@ -32,7 +33,7 @@ RC RingBuffer::read(char *buf, int32_t size, int32_t &read_size)
 
   RC rc     = RC::SUCCESS;
   read_size = 0;
-  while (OB_SUCC(rc) && read_size<size &&this->size()> 0) {
+  while (OB_SUCC(rc) && read_size < size && this->size() > 0) {
     const char *tmp_buf  = nullptr;
     int32_t     tmp_size = 0;
     rc                   = buffer(tmp_buf, tmp_size);
@@ -82,6 +83,22 @@ RC RingBuffer::forward(int32_t size)
   return RC::SUCCESS;
 }
 
+RC RingBuffer::go_back(int32_t size)
+{
+  if (size <= 0) {
+    return RC::INVALID_ARGUMENT;
+  }
+
+  if (size > this->size()) {
+    LOG_DEBUG("go back size is too large.size=%d, size=%d", size, this->size());
+    return RC::INVALID_ARGUMENT;
+  }
+
+  data_size_ -= size;
+  write_pos_ -= size;
+  return RC::SUCCESS;
+}
+
 RC RingBuffer::write(const char *data, int32_t size, int32_t &write_size)
 {
   if (size < 0) {
@@ -90,7 +107,7 @@ RC RingBuffer::write(const char *data, int32_t size, int32_t &write_size)
 
   RC rc      = RC::SUCCESS;
   write_size = 0;
-  while (OB_SUCC(rc) && write_size<size &&this->remain()> 0) {
+  while (OB_SUCC(rc) && write_size < size && this->remain() > 0) {
 
     const int32_t read_pos     = this->read_pos();
     const int32_t tmp_buf_size = (read_pos <= write_pos_) ? (capacity() - write_pos_) : (read_pos - write_pos_);

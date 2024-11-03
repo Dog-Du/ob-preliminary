@@ -335,7 +335,9 @@ public:
   AttrType value_type() const override { return AttrType::BOOLEANS; }
   CompOp   comp() const { return comp_; }
 
-  static RC check_comparison_with_subquery(Expression *expression);
+  // 因为
+
+  static RC check_comparison_with_subquery(Expression *expression, bool need_check_complex_subquery);
   /**
    * @brief 根据 ComparisonExpr 获得 `select` 结果。
    * select 的长度与chunk 的行数相同，表示每一行在ComparisonExpr
@@ -607,6 +609,8 @@ public:
     return ExprType::SUBQUERY_OR_VALUELIST;
   }
 
+  void set_prev_tuple(const Tuple *tuple);
+
   AttrType value_type() const override
   {
     return AttrType::UNDEFINED;  // 类型是不规则的。
@@ -625,11 +629,8 @@ public:
     worker_func(this);
   }
 
-  int value_num() const
-  {
-    ASSERT(is_value_list && !is_sub_query, "");
-    return value_list_.size();
-  }
+  // 从当前位置到最后的个数。
+  RC value_num(int32_t &num) const;
 
   RC create_stmt(Db *db, const std::unordered_map<std::string, Table *> &all_tables);
   RC create_logical();

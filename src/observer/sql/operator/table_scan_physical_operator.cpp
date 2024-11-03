@@ -27,7 +27,7 @@ RC TableScanPhysicalOperator::open(Trx *trx)
   }
 
   for (auto &p : predicates_) {
-    rc = ComparisonExpr::check_comparison_with_subquery(p.get());
+    rc = ComparisonExpr::check_comparison_with_subquery(p.get(), true);
     if (rc != RC::SUCCESS) {
       LOG_WARN("check_comparison failed.");
       return rc;

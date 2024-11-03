@@ -129,6 +129,10 @@ RC OrderByPhysicalOperator::next() { return ++i_ == tuples_index_.size() ? RC::R
 RC OrderByPhysicalOperator::close()
 {
   children_[0]->close();
+  tuples_.clear();
+  tuple_cells_.clear();
+  tuples_index_.clear();
+  i_ = -1;
   return RC::SUCCESS;
 }
 

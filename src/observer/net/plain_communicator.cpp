@@ -19,6 +19,7 @@ See the Mulan PSL v2 for more details. */
 #include "net/buffered_writer.h"
 #include "session/session.h"
 #include "sql/expr/tuple.h"
+#include <cstdint>
 
 PlainCommunicator::PlainCommunicator()
 {
@@ -191,7 +192,7 @@ RC PlainCommunicator::write_result_internal(SessionEvent *event, bool &need_disc
   }
 
   rc = sql_result->open();
-  
+
   if (OB_FAIL(rc)) {
     sql_result->close();
     sql_result->set_return_code(rc);
@@ -201,6 +202,8 @@ RC PlainCommunicator::write_result_internal(SessionEvent *event, bool &need_disc
   const TupleSchema &schema   = sql_result->tuple_schema();
   const int          cell_num = schema.cell_num();
 
+  int32_t go_back_size_if_error = 0;  // 如果运行中出现了错误，需要回滚之前的writen
+
   for (int i = 0; i < cell_num; i++) {
     const TupleCellSpec &spec  = schema.cell_at(i);
     const char          *alias = spec.alias();
@@ -208,6 +211,7 @@ RC PlainCommunicator::write_result_internal(SessionEvent *event, bool &need_disc
       if (0 != i) {
         const char *delim = " | ";
 
+        go_back_size_if_error += strlen(delim);
         rc = writer_->writen(delim, strlen(delim));
         if (OB_FAIL(rc)) {
           LOG_WARN("failed to send data to client. err=%s", strerror(errno));
@@ -216,7 +220,7 @@ RC PlainCommunicator::write_result_internal(SessionEvent *event, bool &need_disc
       }
 
       int len = strlen(alias);
-
+      go_back_size_if_error += len;
       rc = writer_->writen(alias, len);
       if (OB_FAIL(rc)) {
         LOG_WARN("failed to send data to client. err=%s", strerror(errno));
@@ -228,7 +232,7 @@ RC PlainCommunicator::write_result_internal(SessionEvent *event, bool &need_disc
 
   if (cell_num > 0) {
     char newline = '\n';
-
+    go_back_size_if_error += 1;
     rc = writer_->writen(&newline, 1);
     if (OB_FAIL(rc)) {
       LOG_WARN("failed to send data to client. err=%s", strerror(errno));
@@ -238,15 +242,17 @@ RC PlainCommunicator::write_result_internal(SessionEvent *event, bool &need_disc
   }
 
   rc = RC::SUCCESS;
-  if (event->session()->get_execution_mode() == ExecutionMode::CHUNK_ITERATOR
-      && event->session()->used_chunk_mode()) {
-    rc = write_chunk_result(sql_result);
+  if (event->session()->get_execution_mode() == ExecutionMode::CHUNK_ITERATOR && event->session()->used_chunk_mode()) {
+    rc = write_chunk_result(sql_result, go_back_size_if_error);
   } else {
-    rc = write_tuple_result(sql_result);
+    rc = write_tuple_result(sql_result, go_back_size_if_error);
   }
 
   if (OB_FAIL(rc)) {
-    return rc;
+    writer_->go_back(go_back_size_if_error);  // 运行期间出现错误，回滚。
+    sql_result->close();
+    sql_result->set_return_code(rc);
+    return write_state(event, need_disconnect);
   }
 
   if (cell_num == 0) {
@@ -271,9 +277,9 @@ RC PlainCommunicator::write_result_internal(SessionEvent *event, bool &need_disc
   return rc;
 }
 
-RC PlainCommunicator::write_tuple_result(SqlResult *sql_result)
+RC PlainCommunicator::write_tuple_result(SqlResult *sql_result, int32_t &go_back_size_if_error)
 {
-  RC rc = RC::SUCCESS;
+  RC     rc    = RC::SUCCESS;
   Tuple *tuple = nullptr;
   while (RC::SUCCESS == (rc = sql_result->next_tuple(tuple))) {
     assert(tuple != nullptr);
@@ -283,6 +289,7 @@ RC PlainCommunicator::write_tuple_result(SqlResult *sql_result)
       if (i != 0) {
         const char *delim = " | ";
 
+        go_back_size_if_error += strlen(delim);
         rc = writer_->writen(delim, strlen(delim));
         if (OB_FAIL(rc)) {
           LOG_WARN("failed to send data to client. err=%s", strerror(errno));
@@ -301,6 +308,7 @@ RC PlainCommunicator::write_tuple_result(SqlResult *sql_result)
 
       string cell_str = value.to_string();
 
+      go_back_size_if_error += cell_str.size();
       rc = writer_->writen(cell_str.data(), cell_str.size());
       if (OB_FAIL(rc)) {
         LOG_WARN("failed to send data to client. err=%s", strerror(errno));
@@ -311,6 +319,7 @@ RC PlainCommunicator::write_tuple_result(SqlResult *sql_result)
 
     char newline = '\n';
 
+    go_back_size_if_error += 1;
     rc = writer_->writen(&newline, 1);
     if (OB_FAIL(rc)) {
       LOG_WARN("failed to send data to client. err=%s", strerror(errno));
@@ -325,9 +334,9 @@ RC PlainCommunicator::write_tuple_result(SqlResult *sql_result)
   return rc;
 }
 
-RC PlainCommunicator::write_chunk_result(SqlResult *sql_result)
+RC PlainCommunicator::write_chunk_result(SqlResult *sql_result, int32_t &go_back_size_if_error)
 {
-  RC rc = RC::SUCCESS;
+  RC    rc = RC::SUCCESS;
   Chunk chunk;
   while (RC::SUCCESS == (rc = sql_result->next_chunk(chunk))) {
     int col_num = chunk.column_num();
@@ -336,6 +345,7 @@ RC PlainCommunicator::write_chunk_result(SqlResult *sql_result)
         if (col_idx != 0) {
           const char *delim = " | ";
 
+          go_back_size_if_error += strlen(delim);
           rc = writer_->writen(delim, strlen(delim));
           if (OB_FAIL(rc)) {
             LOG_WARN("failed to send data to client. err=%s", strerror(errno));
@@ -348,6 +358,7 @@ RC PlainCommunicator::write_chunk_result(SqlResult *sql_result)
 
         string cell_str = value.to_string();
 
+        go_back_size_if_error += cell_str.size();
         rc = writer_->writen(cell_str.data(), cell_str.size());
         if (OB_FAIL(rc)) {
           LOG_WARN("failed to send data to client. err=%s", strerror(errno));
@@ -357,6 +368,7 @@ RC PlainCommunicator::write_chunk_result(SqlResult *sql_result)
       }
       char newline = '\n';
 
+      go_back_size_if_error += 1;
       rc = writer_->writen(&newline, 1);
       if (OB_FAIL(rc)) {
         LOG_WARN("failed to send data to client. err=%s", strerror(errno));

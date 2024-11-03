@@ -13,6 +13,7 @@ See the Mulan PSL v2 for more details. */
 //
 
 #include <algorithm>
+#include <cstdint>
 #ifdef __MUSL__
 #include <errno.h>
 #else
@@ -58,6 +59,19 @@ RC BufferedWriter::write(const char *data, int32_t size, int32_t &write_size)
   }
 
   return buffer_.write(data, size, write_size);
+}
+
+RC BufferedWriter::go_back(int32_t size)
+{
+  if (fd_ < 0) {
+    return RC::INVALID_ARGUMENT;
+  }
+
+  if (buffer_.remain() == buffer_.capacity()) {
+    return RC::VARIABLE_NOT_VALID;
+  }
+
+  return buffer_.go_back(size);
 }
 
 RC BufferedWriter::writen(const char *data, int32_t size)

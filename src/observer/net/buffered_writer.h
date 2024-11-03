@@ -15,6 +15,7 @@ See the Mulan PSL v2 for more details. */
 #pragma once
 
 #include "net/ring_buffer.h"
+#include <cstdint>
 
 /**
  * @brief 支持以缓存模式写入数据到文件/socket
@@ -56,6 +57,8 @@ public:
    * @details 将缓存中的数据全部写入文件/socket
    */
   RC flush();
+
+  RC go_back(int32_t size);
 
 private:
   /**

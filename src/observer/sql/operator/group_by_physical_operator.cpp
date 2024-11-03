@@ -270,7 +270,38 @@ RC GroupByPhysicalOperator::open(Trx *trx)
   return rc;
 }
 
-RC GroupByPhysicalOperator::close() { return children_[0]->close(); }
+RC GroupByPhysicalOperator::close()
+{
+
+  RC rc = children_[0]->close();
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("close failed.");
+    return rc;
+  }
+
+  group_tuples_.clear();
+  group_iter_ = group_tuples_.end();
+  tuples_.clear();
+  tuple_schema_.clear();
+
+  for (auto agg : aggregate_expressions_) {
+    agg->reset();
+  }
+
+  // std::function<void(Expression *)> expr_reset = [&](Expression *expression) {
+  //   switch (expression->type()) {
+  //     case ExprType::AGGREGATION: {
+  //       auto expr = static_cast<AggregateExpr *>(expression);
+  //       expr->reset();
+  //     } break;
+  //     default: {
+  //     } break;
+  //   }
+  // };
+
+  // having_filter_->check_or_get(expr_reset);
+  return RC::SUCCESS;
+}
 
 RC GroupByPhysicalOperator::next()
 {

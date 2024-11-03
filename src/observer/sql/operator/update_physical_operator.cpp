@@ -33,24 +33,32 @@ RC UpdatePhysicalOperator::convert_expression_to_values()
     auto &e     = expressions_[i];
     auto  field = fields_meta_[i];
 
-    rc = ComparisonExpr::check_comparison_with_subquery(e.get());
+    rc = ComparisonExpr::check_comparison_with_subquery(e.get(), false);
     if (rc != RC::SUCCESS) {
       LOG_WARN("check_comparison failed.");
       return rc;
     }
 
     if (e->type() == ExprType::SUBQUERY_OR_VALUELIST) {
-      auto expr = static_cast<SubQuery_ValueList_Expression *>(e.get());
-      expr->open(nullptr);
-      if (expr->value_num() > 1) {
+      auto    expr = static_cast<SubQuery_ValueList_Expression *>(e.get());
+      int32_t num  = 0;
+      rc           = expr->value_num(num);
+
+      if (rc != RC::SUCCESS) {
+        LOG_WARN("value_num failed.");
+        return rc;
+      }
+
+      if (num > 1) {
         LOG_WARN("subquery value_num > 1 failed.");
         expr->close();
         return RC::VARIABLE_NOT_VALID;
       }
+      expr->open(nullptr);
     }
 
     Value tmp;
-    e->get_value(tuple, tmp);
+    e->get_value(tuple, tmp);  // 如果是空表会返回EOF，但是不用管。
 
     if (e->type() == ExprType::SUBQUERY_OR_VALUELIST) {
       auto expr = static_cast<SubQuery_ValueList_Expression *>(e.get());
