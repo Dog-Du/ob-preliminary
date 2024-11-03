@@ -221,6 +221,7 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
 %type <join_list>           from_node_list
 %type <join_node>           join_list
 %type <number>              type
+/* %type <string>              alias_name */
 %type <expression>          condition_list
 %type <index_attr_list>     index_attr_list
 %type <insert_value_list>   insert_value_list
@@ -229,7 +230,7 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
 %type <update_node>         update_node
 %type <update_node_list>    update_node_list
 %type <number>              number
-/* %type <string>              alias */
+%type <string>              alias_name
 /* %type <order_by_type>       order_by_type */
 %type <rel_attr>            relation
 %type <comp>                comp_op
@@ -910,10 +911,26 @@ calc_stmt:
     }
     ;
 
+alias_name:
+  /* empty */
+  {
+    $$ = nullptr;
+  }
+  | ID
+  {
+    $$ = $1;
+  }
+  | AS_T ID
+  {
+    $$ = $2;
+  }
+  ;
+
 expression_list:
     expression
     {
       $$ = new std::vector<std::shared_ptr<Expression>>;
+
       $$->emplace_back($1);
     }
     | expression COMMA expression_list
@@ -923,6 +940,7 @@ expression_list:
       } else {
         $$ = new std::vector<std::shared_ptr<Expression>>;
       }
+
       $$->emplace($$->begin(), $1);
     }
     ;
@@ -988,7 +1006,7 @@ expression:
       $$->set_name(token_name(sql_string, &@$));
       delete $2;
     }
-    | SUM_T LBRACE expression RBRACE
+    | SUM_T LBRACE expression RBRACE alias_name
     {
       // assert_is_not_aggregate($3);
       $$ = new AggregateExpr(AggregateExpr::Type::SUM, $3);
@@ -998,8 +1016,13 @@ expression:
         yyerror (&yylloc, sql_string, sql_result, scanner, "create_aggregator failed.");
       }
       $$->set_name(token_name(sql_string, &@$));
+
+      if ($5 != nullptr) {
+        $$->set_name($5);
+        free($5);
+      }
     }
-    | AVG_T LBRACE expression RBRACE
+    | AVG_T LBRACE expression RBRACE alias_name
     {
       // assert_is_not_aggregate($3);
       $$ = new AggregateExpr(AggregateExpr::Type::AVG, $3);
@@ -1009,8 +1032,13 @@ expression:
         yyerror (&yylloc, sql_string, sql_result, scanner, "create_aggregator failed.");
       }
       $$->set_name(token_name(sql_string, &@$));
+
+      if ($5 != nullptr) {
+        $$->set_name($5);
+        free($5);
+      }
     }
-    | MIN_T LBRACE expression RBRACE
+    | MIN_T LBRACE expression RBRACE alias_name
     {
       // assert_is_not_aggregate($3);
       $$ = new AggregateExpr(AggregateExpr::Type::MIN, $3);
@@ -1020,8 +1048,13 @@ expression:
         yyerror (&yylloc, sql_string, sql_result, scanner, "create_aggregator failed.");
       }
       $$->set_name(token_name(sql_string, &@$));
+
+      if ($5 != nullptr) {
+        $$->set_name($5);
+        free($5);
+      }
     }
-    | MAX_T LBRACE expression RBRACE
+    | MAX_T LBRACE expression RBRACE alias_name
     {
       // assert_is_not_aggregate($3);
       $$ = new AggregateExpr(AggregateExpr::Type::MAX, $3);
@@ -1031,8 +1064,13 @@ expression:
         yyerror (&yylloc, sql_string, sql_result, scanner, "create_aggregator failed.");
       }
       $$->set_name(token_name(sql_string, &@$));
+
+      if ($5 != nullptr) {
+        $$->set_name($5);
+        free($5);
+      }
     }
-    | COUNT_T LBRACE expression RBRACE
+    | COUNT_T LBRACE expression RBRACE alias_name
     {
       // assert_is_not_aggregate($3);
       $$ = new AggregateExpr(AggregateExpr::Type::COUNT, $3);
@@ -1042,6 +1080,11 @@ expression:
         yyerror (&yylloc, sql_string, sql_result, scanner, "create_aggregator failed.");
       }
       $$->set_name(token_name(sql_string, &@$));
+
+      if ($5 != nullptr) {
+        $$->set_name($5);
+        free($5);
+      }
     }
     // your code here
     ;
@@ -1065,6 +1108,7 @@ rel_attr:
       $$->order_by_type = OrderByType::DESC;
       free($1);
     }
+
     | ID ID {
       $$ = new RelAttrSqlNode;
       $$->attribute_name = $1;
@@ -1113,6 +1157,7 @@ rel_attr:
       free($1);
       free($3);
     }
+
     | ID DOT ID {
       $$ = new RelAttrSqlNode;
       $$->relation_name  = $1;
@@ -1137,6 +1182,7 @@ rel_attr:
       free($1);
       free($3);
     }
+
     | ID DOT ID ID {
       $$ = new RelAttrSqlNode;
       $$->relation_name  = $1;
@@ -1197,6 +1243,7 @@ rel_attr:
       free($3);
       free($5);
     }
+
     ;
 
 

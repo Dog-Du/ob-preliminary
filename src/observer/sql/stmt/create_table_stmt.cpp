@@ -35,15 +35,15 @@ RC create_table_with_select(Db *db, const CreateTableSqlNode &create_table, Stmt
   std::vector<AttrInfoSqlNode> attr_infos;
   for (auto &attr_expr : static_cast<SelectStmt *>(select_stmt)->query_expressions()) {
     AttrInfoSqlNode attr_info;
-    std::string     attr_name = attr_expr->alias();
+    std::string     attr_name = attr_expr->name();
 
     if (attr_name.empty()) {
-      attr_info.name = attr_expr->name();
+      attr_info.name = attr_expr->alias();
     } else if (attr_name.find('.') != std::string::npos) {
       size_t p       = attr_name.find('.');
       attr_info.name = attr_name.substr(p + 1); // 从 p + 1 -> end()
     } else {
-      attr_info.name = attr_expr->alias();
+      attr_info.name = attr_name;
     }
 
     if (attr_expr->type() == ExprType::FIELD) {

@@ -172,7 +172,7 @@ struct UpdateNode
 struct UpdateSqlNode
 {
   std::string                 rel_name;
-  std::vector<UpdateNode>  update_list;
+  std::vector<UpdateNode>     update_list;
   std::shared_ptr<Expression> conditions;
 };
 
