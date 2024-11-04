@@ -48,8 +48,8 @@ struct RelAttrSqlNode
 {
   std::string relation_name;   ///< relation name (may be NULL) 表名
   std::string attribute_name;  ///< attribute name              属性名
-  std::string alias;
-  OrderByType order_by_type;
+  std::string alias;           // 用于在 from relations 中。
+  OrderByType order_by_type;   // 用于排序
 };
 
 /**

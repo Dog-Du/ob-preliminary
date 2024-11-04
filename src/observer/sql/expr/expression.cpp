@@ -1194,6 +1194,9 @@ RC SubQuery_ValueList_Expression::create_physical()
 
 void SubQuery_ValueList_Expression::set_prev_tuple(const Tuple *tuple)
 {
+  if (sub_physical_operator_ == nullptr) {
+    return;
+  }
   sub_physical_operator_->set_prev_tuple(tuple);
 }
 

@@ -927,20 +927,28 @@ alias_name:
   ;
 
 expression_list:
-    expression
+    expression alias_name
     {
       $$ = new std::vector<std::shared_ptr<Expression>>;
 
+      if ($2 != nullptr) {
+        $1->set_name($2);
+        free($2);
+      }
       $$->emplace_back($1);
     }
-    | expression COMMA expression_list
+    | expression alias_name COMMA expression_list
     {
-      if ($3 != nullptr) {
-        $$ = $3;
+      if ($4 != nullptr) {
+        $$ = $4;
       } else {
         $$ = new std::vector<std::shared_ptr<Expression>>;
       }
 
+      if ($2 != nullptr) {
+        $1->set_name($2);
+        free($2);
+      }
       $$->emplace($$->begin(), $1);
     }
     ;
@@ -1006,7 +1014,7 @@ expression:
       $$->set_name(token_name(sql_string, &@$));
       delete $2;
     }
-    | SUM_T LBRACE expression RBRACE alias_name
+    | SUM_T LBRACE expression RBRACE /* alias_name */
     {
       // assert_is_not_aggregate($3);
       $$ = new AggregateExpr(AggregateExpr::Type::SUM, $3);
@@ -1017,12 +1025,14 @@ expression:
       }
       $$->set_name(token_name(sql_string, &@$));
 
+      /*
       if ($5 != nullptr) {
         $$->set_name($5);
         free($5);
       }
+      */
     }
-    | AVG_T LBRACE expression RBRACE alias_name
+    | AVG_T LBRACE expression RBRACE /* alias_name */
     {
       // assert_is_not_aggregate($3);
       $$ = new AggregateExpr(AggregateExpr::Type::AVG, $3);
@@ -1033,12 +1043,14 @@ expression:
       }
       $$->set_name(token_name(sql_string, &@$));
 
+      /*
       if ($5 != nullptr) {
         $$->set_name($5);
         free($5);
       }
+      */
     }
-    | MIN_T LBRACE expression RBRACE alias_name
+    | MIN_T LBRACE expression RBRACE /* alias_name */
     {
       // assert_is_not_aggregate($3);
       $$ = new AggregateExpr(AggregateExpr::Type::MIN, $3);
@@ -1049,12 +1061,14 @@ expression:
       }
       $$->set_name(token_name(sql_string, &@$));
 
+      /*
       if ($5 != nullptr) {
         $$->set_name($5);
         free($5);
       }
+      */
     }
-    | MAX_T LBRACE expression RBRACE alias_name
+    | MAX_T LBRACE expression RBRACE /* alias_name */
     {
       // assert_is_not_aggregate($3);
       $$ = new AggregateExpr(AggregateExpr::Type::MAX, $3);
@@ -1065,12 +1079,14 @@ expression:
       }
       $$->set_name(token_name(sql_string, &@$));
 
+      /*
       if ($5 != nullptr) {
         $$->set_name($5);
         free($5);
       }
+      */
     }
-    | COUNT_T LBRACE expression RBRACE alias_name
+    | COUNT_T LBRACE expression RBRACE /* alias_name */
     {
       // assert_is_not_aggregate($3);
       $$ = new AggregateExpr(AggregateExpr::Type::COUNT, $3);
@@ -1081,10 +1097,12 @@ expression:
       }
       $$->set_name(token_name(sql_string, &@$));
 
+      /*
       if ($5 != nullptr) {
         $$->set_name($5);
         free($5);
       }
+      */
     }
     // your code here
     ;
@@ -1109,6 +1127,7 @@ rel_attr:
       free($1);
     }
 
+/*
     | ID ID {
       $$ = new RelAttrSqlNode;
       $$->attribute_name = $1;
@@ -1157,7 +1176,7 @@ rel_attr:
       free($1);
       free($3);
     }
-
+*/
     | ID DOT ID {
       $$ = new RelAttrSqlNode;
       $$->relation_name  = $1;
@@ -1203,6 +1222,7 @@ rel_attr:
       $$->order_by_type = OrderByType::DESC;
       free($1);
     }
+/*
     | ID DOT ID ID {
       $$ = new RelAttrSqlNode;
       $$->relation_name  = $1;
@@ -1321,7 +1341,7 @@ rel_attr:
       // free($3);
       free($5);
     }
-
+*/
     ;
 
 
