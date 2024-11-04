@@ -32,6 +32,7 @@ RC UpdatePhysicalOperator::convert_expression_to_values()
   for (size_t i = 0; i < expressions_.size(); ++i) {
     auto &e     = expressions_[i];
     auto  field = fields_meta_[i];
+    Value tmp;
 
     rc = ComparisonExpr::check_comparison_with_subquery(e.get(), false);
     if (rc != RC::SUCCESS) {
@@ -40,29 +41,37 @@ RC UpdatePhysicalOperator::convert_expression_to_values()
     }
 
     if (e->type() == ExprType::SUBQUERY_OR_VALUELIST) {
-      auto    expr = static_cast<SubQuery_ValueList_Expression *>(e.get());
-      int32_t num  = 0;
-      rc           = expr->value_num(num);
-
+      auto expr = static_cast<SubQuery_ValueList_Expression *>(e.get());
+      rc        = expr->open(trx_);
       if (rc != RC::SUCCESS) {
-        LOG_WARN("value_num failed.");
+        LOG_WARN("open failed.");
+        expr->close();
         return rc;
       }
 
-      if (num > 1) {
-        LOG_WARN("subquery value_num > 1 failed.");
+      rc = expr->next(tuple, tmp);
+
+      if (rc == RC::RECORD_EOF) {
+        tmp.set_type(AttrType::INTS);
+        tmp.set_data((const char *)&INT_NULL, sizeof(INT_NULL));
         expr->close();
-        return RC::VARIABLE_NOT_VALID;
+      } else if (rc != RC::SUCCESS) {
+        LOG_WARN("error");
+        expr->close();
+        return rc;
+      } else {
+        Value val;
+        rc = expr->next(tuple, val);
+        expr->close();
+        if (rc != RC::RECORD_EOF) {
+          LOG_WARN("something wrong");
+          return rc == RC::SUCCESS ? RC::INVALID_ARGUMENT : rc;
+        }
+
+        rc = RC::SUCCESS;
       }
-      expr->open(nullptr);
-    }
-
-    Value tmp;
-    e->get_value(tuple, tmp);  // 如果是空表会返回EOF，但是不用管。
-
-    if (e->type() == ExprType::SUBQUERY_OR_VALUELIST) {
-      auto expr = static_cast<SubQuery_ValueList_Expression *>(e.get());
-      expr->close();
+    } else {
+      e->get_value(tuple, tmp);
     }
 
     Value value;

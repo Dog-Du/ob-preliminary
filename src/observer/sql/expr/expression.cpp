@@ -225,151 +225,151 @@ RC ComparisonExpr::check_comparison_with_subquery(Expression *expression, bool n
 {
   return RC::SUCCESS;  // 暂时决定什么都不做
 
-  bool need_continue_check = true;
-  RC   rc                  = RC::SUCCESS;
+  // bool need_continue_check = true;
+  // RC   rc                  = RC::SUCCESS;
 
-  std::function<void(Expression *)> open_subquery = [&](Expression *expression) {
-    if (!need_continue_check) {
-      return;
-    }
+  // std::function<void(Expression *)> open_subquery = [&](Expression *expression) {
+  //   if (!need_continue_check) {
+  //     return;
+  //   }
 
-    switch (expression->type()) {
-      case ExprType::SUBQUERY_OR_VALUELIST: {
-        auto expr = static_cast<SubQuery_ValueList_Expression *>(expression);
-        rc        = expr->open(nullptr);
-        if (rc != RC::SUCCESS) {
-          LOG_WARN("subquery open failed.");
-          need_continue_check = false;
-          return;
-        }
-        rc = expr->close();
-        if (rc != RC::SUCCESS) {
-          LOG_WARN("subquery close failed.");
-        }
-      } break;
-      case ExprType::ARITHMETIC: {
-        auto expr = static_cast<ArithmeticExpr *>(expression);
-        if (expr->left() != nullptr) {
-          open_subquery(expr->left().get());
-        }
-        if (expr->right() != nullptr) {
-          open_subquery(expr->right().get());
-        }
-      } break;
-      case ExprType::AGGREGATION: {
-        auto expr = static_cast<AggregateExpr *>(expression);
-        if (expr->child() != nullptr) {
-          open_subquery(expr->child().get());
-        }
-      } break;
-      case ExprType::COMPARISON: {
-        auto expr = static_cast<ComparisonExpr *>(expression);
-        if (expr->left() != nullptr) {
-          open_subquery(expr->left().get());
-        }
-        if (expr->right() != nullptr) {
-          open_subquery(expr->right().get());
-        }
-      } break;
-      case ExprType::CONJUNCTION: {
-        auto expr = static_cast<ConjunctionExpr *>(expression);
-        for (auto &e : expr->children()) {
-          open_subquery(e.get());
-        }
-      } break;
-      default: {
-      } break;
-    }
-  };
+  //   switch (expression->type()) {
+  //     case ExprType::SUBQUERY_OR_VALUELIST: {
+  //       auto expr = static_cast<SubQuery_ValueList_Expression *>(expression);
+  //       rc        = expr->open(nullptr);
+  //       if (rc != RC::SUCCESS) {
+  //         LOG_WARN("subquery open failed.");
+  //         need_continue_check = false;
+  //         return;
+  //       }
+  //       rc = expr->close();
+  //       if (rc != RC::SUCCESS) {
+  //         LOG_WARN("subquery close failed.");
+  //       }
+  //     } break;
+  //     case ExprType::ARITHMETIC: {
+  //       auto expr = static_cast<ArithmeticExpr *>(expression);
+  //       if (expr->left() != nullptr) {
+  //         open_subquery(expr->left().get());
+  //       }
+  //       if (expr->right() != nullptr) {
+  //         open_subquery(expr->right().get());
+  //       }
+  //     } break;
+  //     case ExprType::AGGREGATION: {
+  //       auto expr = static_cast<AggregateExpr *>(expression);
+  //       if (expr->child() != nullptr) {
+  //         open_subquery(expr->child().get());
+  //       }
+  //     } break;
+  //     case ExprType::COMPARISON: {
+  //       auto expr = static_cast<ComparisonExpr *>(expression);
+  //       if (expr->left() != nullptr) {
+  //         open_subquery(expr->left().get());
+  //       }
+  //       if (expr->right() != nullptr) {
+  //         open_subquery(expr->right().get());
+  //       }
+  //     } break;
+  //     case ExprType::CONJUNCTION: {
+  //       auto expr = static_cast<ConjunctionExpr *>(expression);
+  //       for (auto &e : expr->children()) {
+  //         open_subquery(e.get());
+  //       }
+  //     } break;
+  //     default: {
+  //     } break;
+  //   }
+  // };
 
-  std::function<void(Expression *)> check_comparison = [&](Expression *expression) {
-    if (!need_continue_check) {
-      return;
-    }
+  // std::function<void(Expression *)> check_comparison = [&](Expression *expression) {
+  //   if (!need_continue_check) {
+  //     return;
+  //   }
 
-    switch (expression->type()) {
-      case ExprType::COMPARISON: {
-        auto expr = static_cast<ComparisonExpr *>(expression);
-        auto comp = expr->comp();
-        /// TODO:考虑如果子查询为空怎么办 -> 转到子查询的地方去处理。
+  //   switch (expression->type()) {
+  //     case ExprType::COMPARISON: {
+  //       auto expr = static_cast<ComparisonExpr *>(expression);
+  //       auto comp = expr->comp();
+  //       /// TODO:考虑如果子查询为空怎么办 -> 转到子查询的地方去处理。
 
-        if (comp != CompOp::IN && comp != CompOp::NOT_IN && comp != CompOp::EXISTS && comp != CompOp::NOT_EXISTS) {
-          if (expr->left() != nullptr && expr->left()->type() == ExprType::SUBQUERY_OR_VALUELIST) {
-            auto    left_expr = static_cast<SubQuery_ValueList_Expression *>(expr->left().get());
-            int32_t num;
-            rc = left_expr->value_num(num);
-            if (rc != RC::SUCCESS) {
-              LOG_WARN("value_num failed.");
-              need_continue_check = false;
-              return;
-            }
+  //       if (comp != CompOp::IN && comp != CompOp::NOT_IN && comp != CompOp::EXISTS && comp != CompOp::NOT_EXISTS) {
+  //         if (expr->left() != nullptr && expr->left()->type() == ExprType::SUBQUERY_OR_VALUELIST) {
+  //           auto    left_expr = static_cast<SubQuery_ValueList_Expression *>(expr->left().get());
+  //           int32_t num;
+  //           rc = left_expr->value_num(num);
+  //           if (rc != RC::SUCCESS) {
+  //             LOG_WARN("value_num failed.");
+  //             need_continue_check = false;
+  //             return;
+  //           }
 
-            if (num > 1) {
-              LOG_WARN("value_num > 1 failed.");
-              rc                  = RC::VARIABLE_NOT_VALID;
-              need_continue_check = false;
-            }
-          }
+  //           if (num > 1) {
+  //             LOG_WARN("value_num > 1 failed.");
+  //             rc                  = RC::VARIABLE_NOT_VALID;
+  //             need_continue_check = false;
+  //           }
+  //         }
 
-          if (expr->right() != nullptr && expr->right()->type() == ExprType::SUBQUERY_OR_VALUELIST) {
-            auto    right_expr = static_cast<SubQuery_ValueList_Expression *>(expr->right().get());
-            int32_t num;
-            rc = right_expr->value_num(num);
+  //         if (expr->right() != nullptr && expr->right()->type() == ExprType::SUBQUERY_OR_VALUELIST) {
+  //           auto    right_expr = static_cast<SubQuery_ValueList_Expression *>(expr->right().get());
+  //           int32_t num;
+  //           rc = right_expr->value_num(num);
 
-            if (rc != RC::SUCCESS) {
-              LOG_WARN("value_num failed.");
-              need_continue_check = false;
-              return;
-            }
+  //           if (rc != RC::SUCCESS) {
+  //             LOG_WARN("value_num failed.");
+  //             need_continue_check = false;
+  //             return;
+  //           }
 
-            if (num > 1) {
-              LOG_WARN("value_num > 1 failed.");
-              rc                  = RC::VARIABLE_NOT_VALID;
-              need_continue_check = false;
-            }
-          }
-        }
-      } break;
-      case ExprType::ARITHMETIC: {
-        auto expr = static_cast<ArithmeticExpr *>(expression);
-        if (expr->left() != nullptr) {
-          check_comparison(expr->left().get());
-        }
-        if (expr->right() != nullptr) {
-          check_comparison(expr->right().get());
-        }
-      } break;
-      case ExprType::AGGREGATION: {
-        auto expr = static_cast<AggregateExpr *>(expression);
-        if (expr->child() != nullptr) {
-          check_comparison(expr->child().get());
-        }
-      } break;
-      case ExprType::CONJUNCTION: {
-        auto expr = static_cast<ConjunctionExpr *>(expression);
-        for (auto &e : expr->children()) {
-          check_comparison(e.get());
-        }
-      } break;
-      default: {
-      } break;
-    }
-  };
+  //           if (num > 1) {
+  //             LOG_WARN("value_num > 1 failed.");
+  //             rc                  = RC::VARIABLE_NOT_VALID;
+  //             need_continue_check = false;
+  //           }
+  //         }
+  //       }
+  //     } break;
+  //     case ExprType::ARITHMETIC: {
+  //       auto expr = static_cast<ArithmeticExpr *>(expression);
+  //       if (expr->left() != nullptr) {
+  //         check_comparison(expr->left().get());
+  //       }
+  //       if (expr->right() != nullptr) {
+  //         check_comparison(expr->right().get());
+  //       }
+  //     } break;
+  //     case ExprType::AGGREGATION: {
+  //       auto expr = static_cast<AggregateExpr *>(expression);
+  //       if (expr->child() != nullptr) {
+  //         check_comparison(expr->child().get());
+  //       }
+  //     } break;
+  //     case ExprType::CONJUNCTION: {
+  //       auto expr = static_cast<ConjunctionExpr *>(expression);
+  //       for (auto &e : expr->children()) {
+  //         check_comparison(e.get());
+  //       }
+  //     } break;
+  //     default: {
+  //     } break;
+  //   }
+  // };
 
-  expression->check_or_get(open_subquery);
-  if (rc != RC::SUCCESS) {
-    LOG_WARN("open subquery failed.");
-    return rc;
-  }
+  // expression->check_or_get(open_subquery);
+  // if (rc != RC::SUCCESS) {
+  //   LOG_WARN("open subquery failed.");
+  //   return rc;
+  // }
 
-  rc                  = RC::SUCCESS;
-  need_continue_check = true;
-  expression->check_or_get(check_comparison);
-  if (rc != RC::SUCCESS) {
-    LOG_WARN("check_comparison failed.");
-    return rc;
-  }
-  return rc;
+  // rc                  = RC::SUCCESS;
+  // need_continue_check = true;
+  // expression->check_or_get(check_comparison);
+  // if (rc != RC::SUCCESS) {
+  //   LOG_WARN("check_comparison failed.");
+  //   return rc;
+  // }
+  // return rc;
 }
 
 RC ComparisonExpr::compare_value(const Value &left, const Value &right, bool &result) const
@@ -456,12 +456,26 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value) const
   RC rc = RC::SUCCESS;
 
   if (comp_ == EXISTS || comp_ == NOT_EXISTS) {
-    if (left_ != nullptr && left_->type() == ExprType::SUBQUERY_OR_VALUELIST) {
-      static_cast<SubQuery_ValueList_Expression *>(left_.get())->open(nullptr);
+    auto expr = static_cast<SubQuery_ValueList_Expression *>(left_.get());
+    expr->set_prev_tuple(&tuple);
+    rc = expr->open(nullptr);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("open failed");
+      expr->close();
+      return rc;
     }
 
-    bool exists = left_->get_value(tuple, value) == RC::RECORD_EOF ? false : true;
-    rc          = static_cast<SubQuery_ValueList_Expression *>(left_.get())->close();
+    rc = expr->get_value(tuple, value);
+    if (rc != RC::SUCCESS) {
+      if (rc != RC::RECORD_EOF) {
+        LOG_WARN("something wrong.");
+        expr->close();
+        return rc;
+      }
+    }
+
+    bool exists = rc == RC::RECORD_EOF ? false : true;
+    rc          = expr->close();
 
     if (rc != RC::SUCCESS) {
       LOG_WARN("close failed.");
@@ -481,7 +495,14 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value) const
       return rc;
     }
     auto expr = static_cast<SubQuery_ValueList_Expression *>(right_.get());
-    expr->open(nullptr);
+    expr->set_prev_tuple(&tuple);
+    rc = expr->open(nullptr);
+
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("open failed.");
+      expr->close();
+      return rc;
+    }
 
     bool in = false;
     while ((rc = expr->next(tuple, right_value)) == RC::SUCCESS) {
@@ -516,6 +537,8 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value) const
       rc = expr->open(nullptr);
       if (rc != RC::SUCCESS) {
         LOG_WARN("open failed.");
+        expr->close();
+        return;
       }
 
       rc = expr->next(tuple, value);
@@ -1031,6 +1054,7 @@ RC SubQuery_ValueList_Expression::open(Trx *trx)
     RC rc = sub_physical_operator_->open(trx);
     if (rc != RC::SUCCESS) {
       LOG_WARN("subquery open failed.");
+      sub_physical_operator_->close();
       return rc;
     }
     return rc;
@@ -1173,42 +1197,43 @@ void SubQuery_ValueList_Expression::set_prev_tuple(const Tuple *tuple)
   sub_physical_operator_->set_prev_tuple(tuple);
 }
 
-RC SubQuery_ValueList_Expression::value_num(int32_t &num) const
-{
-  if (is_sub_query) {
-    // 考虑到只需要 0，1，2这三个数字，所以简单处理即可。
-    num   = 0;
-    RC rc = RC::SUCCESS;
-    // rc =  sub_physical_operator_->open(nullptr); // 只考虑当前的位置
-    if (rc != RC::SUCCESS) {
-      LOG_WARN("sub_query open failed");
-      return rc;
-    }
+// RC SubQuery_ValueList_Expression::value_num(int32_t &num) const
+// {
+//   if (is_sub_query) {
+//     // 考虑到只需要 0，1，2这三个数字，所以简单处理即可。
+//     num   = 0;
+//     RC rc = RC::SUCCESS;
+//     // rc =  sub_physical_operator_->open(nullptr); // 只考虑当前的位置
+//     if (rc != RC::SUCCESS) {
+//       LOG_WARN("sub_query open failed");
+//       return rc;
+//     }
 
-    sub_physical_operator_->open(nullptr);
-    while ((rc = sub_physical_operator_->next()) == RC::SUCCESS && ++num < 2) {
-      ;
-    }
+//     sub_physical_operator_->open(nullptr);
+//     while ((rc = sub_physical_operator_->next()) == RC::SUCCESS && ++num < 2) {
+//       ;
+//     }
 
-    if (rc != RC::SUCCESS) {
-      if (rc != RC::RECORD_EOF) {
-        LOG_WARN("close failed.");
-        return rc;
-      }
-      rc = RC::SUCCESS;
-    }
+//     if (rc != RC::SUCCESS) {
+//       if (rc != RC::RECORD_EOF) {
+//         LOG_WARN("close failed.");
+//         sub_physical_operator_->close();
+//         return rc;
+//       }
+//       rc = RC::SUCCESS;
+//     }
 
-    rc = sub_physical_operator_->close();
-    if (rc != RC::SUCCESS) {
-      LOG_WARN("close failed.");
-    }
-    return rc;
-  }
+//     rc = sub_physical_operator_->close();
+//     if (rc != RC::SUCCESS) {
+//       LOG_WARN("close failed.");
+//     }
+//     return rc;
+//   }
 
-  if (is_value_list) {
-    num = value_list_.size();
-    return RC::SUCCESS;
-  }
+//   if (is_value_list) {
+//     num = value_list_.size();
+//     return RC::SUCCESS;
+//   }
 
-  return RC::INVALID_ARGUMENT;
-}
+//   return RC::INVALID_ARGUMENT;
+// }

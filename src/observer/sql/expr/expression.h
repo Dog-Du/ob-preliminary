@@ -630,7 +630,7 @@ public:
   }
 
   // 从当前位置到最后的个数。
-  RC value_num(int32_t &num) const;
+  // RC value_num(int32_t &num) const;
 
   RC create_stmt(Db *db, const std::unordered_map<std::string, Table *> &all_tables);
   RC create_logical();
