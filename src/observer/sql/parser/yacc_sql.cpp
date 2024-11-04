@@ -2718,7 +2718,7 @@ yyreduce:
       (yyval.expression_list) = new std::vector<std::shared_ptr<Expression>>;
 
       if ((yyvsp[0].string) != nullptr) {
-        (yyvsp[-1].expression)->set_name((yyvsp[0].string));
+        (yyvsp[-1].expression)->set_alias((yyvsp[0].string));
         free((yyvsp[0].string));
       }
       (yyval.expression_list)->emplace_back((yyvsp[-1].expression));
@@ -2736,7 +2736,7 @@ yyreduce:
       }
 
       if ((yyvsp[-2].string) != nullptr) {
-        (yyvsp[-3].expression)->set_name((yyvsp[-2].string));
+        (yyvsp[-3].expression)->set_alias((yyvsp[-2].string));
         free((yyvsp[-2].string));
       }
       (yyval.expression_list)->emplace((yyval.expression_list)->begin(), (yyvsp[-3].expression));

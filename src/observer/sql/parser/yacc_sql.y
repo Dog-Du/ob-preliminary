@@ -932,7 +932,7 @@ expression_list:
       $$ = new std::vector<std::shared_ptr<Expression>>;
 
       if ($2 != nullptr) {
-        $1->set_name($2);
+        $1->set_alias($2);
         free($2);
       }
       $$->emplace_back($1);
@@ -946,7 +946,7 @@ expression_list:
       }
 
       if ($2 != nullptr) {
-        $1->set_name($2);
+        $1->set_alias($2);
         free($2);
       }
       $$->emplace($$->begin(), $1);
