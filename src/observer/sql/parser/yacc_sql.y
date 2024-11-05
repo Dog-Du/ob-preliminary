@@ -437,6 +437,7 @@ create_index_stmt:    /*create index 语句的语法解析树*/
       }
 
       create_index.unique = false;
+      create_index.is_vector_index = true;
       create_index.attr_names.push_back(std::string($8));
       std::reverse(create_index.attr_names.begin(), create_index.attr_names.end());
       create_index.distance_type = $15;

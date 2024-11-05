@@ -15,6 +15,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/stmt/create_index_stmt.h"
 #include "common/lang/string.h"
 #include "common/log/log.h"
+#include "common/type/attr_type.h"
 #include "storage/db/db.h"
 #include "storage/field/field_meta.h"
 #include "storage/table/table.h"
@@ -22,8 +23,21 @@ See the Mulan PSL v2 for more details. */
 using namespace std;
 using namespace common;
 
-RC CreateIndexStmt::create(
-    Db *db, const CreateIndexSqlNode &create_index, Stmt *&stmt)
+bool str_equal(const string &l, const string &r)
+{
+  if (l.size() != r.size()) {
+    return false;
+  }
+
+  for (size_t i = 0; i < l.size(); ++i) {
+    if (tolower(l[i]) != tolower(r[i])) {
+      return false;
+    }
+  }
+  return true;
+}
+
+RC CreateIndexStmt::create(Db *db, const CreateIndexSqlNode &create_index, Stmt *&stmt)
 {
   stmt = nullptr;
 
@@ -59,7 +73,24 @@ RC CreateIndexStmt::create(
     fields_meta.push_back(field_meta);
   }
 
-  stmt = new CreateIndexStmt(
-      table, fields_meta, create_index.index_name, create_index.unique);
+  if (create_index.is_vector_index) {
+    for (auto field : fields_meta) {
+      if (field->type() != AttrType::VECTORS) {
+        return RC::INVALID_ARGUMENT;
+      }
+    }
+
+    if (str_equal(create_index.algorithm_type, "ivfflat") == false) {
+      return RC::INVALID_ARGUMENT;
+    }
+
+    if (!str_equal(create_index.distance_type, "inner_product") &&
+        !str_equal(create_index.distance_type, "l2_distance") &&
+        !str_equal(create_index.distance_type, "cosine_distance")) {
+      return RC::INVALID_ARGUMENT;
+    }
+  }
+
+  stmt = new CreateIndexStmt(table, fields_meta, create_index.index_name, create_index.unique);
   return RC::SUCCESS;
 }
