@@ -14,6 +14,10 @@ See the Mulan PSL v2 for more details. */
 
 #include "sql/operator/explain_physical_operator.h"
 #include "common/log/log.h"
+#include "common/type/attr_type.h"
+#include "sql/operator/order_by_physical_operator.h"
+#include "sql/operator/physical_operator.h"
+#include "sql/operator/table_scan_physical_operator.h"
 #include <sstream>
 
 using namespace std;
@@ -66,8 +70,8 @@ RC ExplainPhysicalOperator::next(Chunk &chunk)
   }
   generate_physical_plan();
 
-  Value         cell(physical_plan_.c_str());
-  auto column = make_unique<Column>();
+  Value cell(physical_plan_.c_str());
+  auto  column = make_unique<Column>();
   column->init(cell);
   chunk.add_column(std::move(column), 0);
   return RC::SUCCESS;
@@ -102,6 +106,23 @@ void ExplainPhysicalOperator::to_string(
     }
   }
 
+  if (oper->type() == PhysicalOperatorType::ORDER_BY &&
+      oper->children().front()->type() == PhysicalOperatorType::TABLE_SCAN) {
+
+    auto  table_oper = static_cast<TableScanPhysicalOperator *>(oper->children().front().get());
+    auto  table      = table_oper->table();
+    auto &table_meta = table->table_meta();
+
+    for (int i = 0; i < table_meta.index_num(); ++i) {
+      auto        index_meta   = table->table_meta().index(i);
+      const auto &index_fields = index_meta->fields();
+      if (index_fields.size() == 1 && table_meta.field(index_fields[0].c_str())->type() == AttrType::VECTORS) {
+        os << "VECTOR_INDEX_SCAN(" << index_meta->name() << " ON " << table_meta.name() << ")";
+        return;
+      }
+    }
+  }
+  
   os << oper->name();
   std::string param = oper->param();
   if (!param.empty()) {
@@ -114,11 +135,12 @@ void ExplainPhysicalOperator::to_string(
   }
   ends[level + 1] = false;
 
-  auto &children = oper->children();
-  const auto                                 size     = static_cast<int>(children.size());
+  auto      &children = oper->children();
+  const auto size     = static_cast<int>(children.size());
   for (auto i = 0; i < size - 1; i++) {
     to_string(os, children[i].get(), level + 1, false /*last_child*/, ends);
   }
+
   if (size > 0) {
     to_string(os, children[size - 1].get(), level + 1, true /*last_child*/, ends);
   }

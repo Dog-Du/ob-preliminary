@@ -42,7 +42,8 @@ public:
 
   Tuple *current_tuple() override;
 
-  void set_predicates(std::vector<std::shared_ptr<Expression>> &&exprs);
+  void   set_predicates(std::vector<std::shared_ptr<Expression>> &&exprs);
+  Table *table() { return table_; }
 
 private:
   RC filter(RowTuple &tuple, bool &result);

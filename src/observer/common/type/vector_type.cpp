@@ -135,7 +135,12 @@ RC VectorType::subtract(const Value &left, const Value &right, Value &result) co
 
 RC VectorType::to_string(const Value &val, string &result) const
 {
-  ASSERT(val.attr_type() == AttrType::VECTORS && val.length_ % VECTOR_UNIT_SIZE==0,"");
+  ASSERT(val.attr_type() == AttrType::VECTORS && val.length_ % VECTOR_UNIT_SIZE == 0,"");
+  if (val.length_ == 0) {
+    result = "[]";
+    return RC::SUCCESS;
+  }
+
   int size = val.length_ / VECTOR_UNIT_SIZE;
 
   std::stringstream ss;
