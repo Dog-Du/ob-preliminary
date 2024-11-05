@@ -20,6 +20,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/lang/string.h"
 #include "common/log/log.h"
 #include "common/type/attr_type.h"
+#include "common/type/vector_type.h"
 #include "common/type/date_type.h"
 
 Value::Value(int val) { set_int(val); }
@@ -32,14 +33,17 @@ Value::Value(const char *s, int len /*= 0*/) { set_string(s, len); }
 
 Value::Value(const Value &other)
 {
-  this->attr_type_ = other.attr_type_;
-  this->length_    = other.length_;
-  this->own_data_  = other.own_data_;
+  this->attr_type_            = other.attr_type_;
+  this->length_               = other.length_;
+  this->own_data_             = other.own_data_;
+  this->value_.pointer_value_ = nullptr;
   switch (this->attr_type_) {
     case AttrType::CHARS: {
       set_string_from_other(other);
     } break;
-
+    case AttrType::VECTORS: {
+      set_vector(other.value_.vector_pointer_, other.length_);
+    } break;
     default: {
       this->value_ = other.value_;
     } break;
@@ -62,14 +66,17 @@ Value &Value::operator=(const Value &other)
     return *this;
   }
   reset();
-  this->attr_type_ = other.attr_type_;
-  this->length_    = other.length_;
-  this->own_data_  = other.own_data_;
+  this->attr_type_            = other.attr_type_;
+  this->length_               = other.length_;
+  this->own_data_             = other.own_data_;
+  this->value_.pointer_value_ = nullptr;
   switch (this->attr_type_) {
     case AttrType::CHARS: {
       set_string_from_other(other);
     } break;
-
+    case AttrType::VECTORS: {
+      set_vector(other.value_.vector_pointer_, other.length_);
+    } break;
     default: {
       this->value_ = other.value_;
     } break;
@@ -96,6 +103,7 @@ void Value::reset()
 {
   switch (attr_type_) {
     case AttrType::CHARS:
+    case AttrType::VECTORS:
       if (own_data_ && value_.pointer_value_ != nullptr) {
         delete[] value_.pointer_value_;
         value_.pointer_value_ = nullptr;
@@ -123,7 +131,7 @@ void Value::resize(int len)
     length_ = 0;
     return;
   }
-  
+
   string s(value_.pointer_value_);
   s.resize(len + 1);
   reset();
@@ -155,6 +163,9 @@ void Value::set_data(char *data, int length)
     case AttrType::DATES: {
       value_.int_value_ = *(int *)data;
       length_           = length;
+    } break;
+    case AttrType::VECTORS: {
+      set_vector((const float *)data, length);
     } break;
     default: {
       LOG_WARN("unknown data type: %d", attr_type_);
@@ -213,6 +224,23 @@ void Value::set_date(int y, int m, int d)
   value_.int_value_ = y * 10000 + m * 100 + d;
 }
 
+void Value::set_vector(const float *s, int size)
+{
+  reset();
+  ASSERT(size %4==0,"");
+  attr_type_ = AttrType::VECTORS;
+  length_    = size;
+
+  if (size == 0) {
+    value_.vector_pointer_ = nullptr;
+    return;
+  }
+
+  value_.vector_pointer_ = new float[size / 4];
+  own_data_              = true;
+  memcpy(value_.vector_pointer_, s, length_);
+}
+
 void Value::set_value(const Value &value)
 {
   switch (value.attr_type_) {
@@ -228,6 +256,9 @@ void Value::set_value(const Value &value)
     case AttrType::BOOLEANS: {
       set_boolean(value.get_boolean());
     } break;
+    case AttrType::VECTORS:{
+      set_vector(value.value_.vector_pointer_, value.length_);
+    } break;
     default: {
       ASSERT(false, "got an invalid value type");
     } break;
@@ -239,11 +270,14 @@ void Value::set_string_from_other(const Value &other)
   ASSERT(attr_type_ == AttrType::CHARS, "attr type is not CHARS");
   if (own_data_ && other.value_.pointer_value_ != nullptr && length_ != 0) {
     this->value_.pointer_value_ = new char[this->length_ + 1];
-    memcpy(this->value_.pointer_value_,
-        other.value_.pointer_value_,
-        this->length_);
+    memcpy(this->value_.pointer_value_, other.value_.pointer_value_, this->length_);
     this->value_.pointer_value_[this->length_] = '\0';
   }
+}
+
+RC Value::cast_vector_from_str(const char *s, int len, Value &result)
+{
+  return VectorType::set_from_str(s, len, result);
 }
 
 const char *Value::data() const
@@ -251,6 +285,9 @@ const char *Value::data() const
   switch (attr_type_) {
     case AttrType::CHARS: {
       return value_.pointer_value_;
+    } break;
+    case AttrType::VECTORS: {
+      return (const char *)value_.vector_pointer_;  //
     } break;
     default: {
       return (const char *)&value_;

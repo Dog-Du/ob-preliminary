@@ -126,8 +126,9 @@ extern int yydebug;
     FLOAT = 327,                   /* FLOAT  */
     ID = 328,                      /* ID  */
     SSS = 329,                     /* SSS  */
-    OR = 330,                      /* OR  */
-    UMINUS = 331                   /* UMINUS  */
+    VECTOR_VALUE = 330,            /* VECTOR_VALUE  */
+    OR = 331,                      /* OR  */
+    UMINUS = 332                   /* UMINUS  */
   };
   typedef enum yytokentype yytoken_kind_t;
 #endif
@@ -161,7 +162,7 @@ union YYSTYPE
   bool                                       boolean;
   OrderByType                                order_by_type;
 
-#line 165 "yacc_sql.hpp"
+#line 166 "yacc_sql.hpp"
 
 };
 typedef union YYSTYPE YYSTYPE;

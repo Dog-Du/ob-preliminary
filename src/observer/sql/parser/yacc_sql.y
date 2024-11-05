@@ -213,6 +213,7 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
 %token <floats> FLOAT
 %token <string> ID
 %token <string> SSS
+%token <string> VECTOR_VALUE
 //非终结符
 
 /** type 定义了各种解析后的结果输出的是什么类型。类型对应了 union 中的定义的成员变量名称 **/
@@ -530,6 +531,10 @@ attr_def:
       $$->type = (AttrType)$2;
       $$->name = $1;
       $$->length = $4;
+
+      if ($$->type == AttrType::VECTORS) {
+        $$->length *= 4;
+      }
       $$->nullable = $6;
       free($1);
     }
@@ -669,14 +674,27 @@ value:
 
       char *tmp = common::substr($1,1,len);
       $$ = new Value();
-      $$->set_type(AttrType::CHARS);
-      $$->set_data(tmp, len);
+
+      if (Value::cast_vector_from_str(tmp, len, *$$) != RC::SUCCESS) {
+        $$->set_type(AttrType::CHARS);
+        $$->set_data(tmp, len);
+      }
+
       free(tmp);
       free($1);
     }
     |NULL_T {
       $$ = new Value(INT_NULL);
       @$ = @1;
+    }
+    |VECTOR_VALUE {
+      int len = strlen($1);
+      $$ = new Value();
+      if (Value::cast_vector_from_str($1, len, *$$) != RC::SUCCESS) {
+        yyerror (&yylloc, sql_string, sql_result, scanner, "cast failed.");
+      }
+
+      free($1);
     }
     ;
 

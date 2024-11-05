@@ -705,6 +705,11 @@ AttrType ArithmeticExpr::value_type() const
     return AttrType::INTS;
   }
 
+  if (left_->value_type() == AttrType::VECTORS && right_->value_type() == AttrType::VECTORS &&
+      arithmetic_type_ != Type::DIV) {
+    return AttrType::VECTORS;
+  }
+
   return AttrType::FLOATS;
 }
 

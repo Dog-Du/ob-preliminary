@@ -52,10 +52,7 @@ public:
 
   ~Value() { reset(); }
 
-  Value(AttrType attr_type, char *data, int length = 4) : attr_type_(attr_type)
-  {
-    this->set_data(data, length);
-  }
+  Value(AttrType attr_type, char *data, int length = 4) : attr_type_(attr_type) { this->set_data(data, length); }
 
   explicit Value(int val);
   explicit Value(float val);
@@ -71,33 +68,26 @@ public:
   void reset();
   void resize(int len);
 
-  static bool is_null(const Value &val)
-  {
-    return DataType::type_instance(val.attr_type())->is_null(val);
-  }
+  static bool is_null(const Value &val) { return DataType::type_instance(val.attr_type())->is_null(val); }
 
   static RC add(const Value &left, const Value &right, Value &result)
   {
-    return DataType::type_instance(result.attr_type())
-        ->add(left, right, result);
+    return DataType::type_instance(result.attr_type())->add(left, right, result);
   }
 
   static RC subtract(const Value &left, const Value &right, Value &result)
   {
-    return DataType::type_instance(result.attr_type())
-        ->subtract(left, right, result);
+    return DataType::type_instance(result.attr_type())->subtract(left, right, result);
   }
 
   static RC multiply(const Value &left, const Value &right, Value &result)
   {
-    return DataType::type_instance(result.attr_type())
-        ->multiply(left, right, result);
+    return DataType::type_instance(result.attr_type())->multiply(left, right, result);
   }
 
   static RC divide(const Value &left, const Value &right, Value &result)
   {
-    return DataType::type_instance(result.attr_type())
-        ->divide(left, right, result);
+    return DataType::type_instance(result.attr_type())->divide(left, right, result);
   }
 
   static RC negative(const Value &value, Value &result)
@@ -107,16 +97,14 @@ public:
 
   static RC cast_to(const Value &value, AttrType to_type, Value &result)
   {
-    return DataType::type_instance(value.attr_type())
-        ->cast_to(value, to_type, result);
+    return DataType::type_instance(value.attr_type())->cast_to(value, to_type, result);
   }
+
+  static RC cast_vector_from_str(const char *s, int len, Value &result);
 
   void set_type(AttrType type) { this->attr_type_ = type; }
   void set_data(char *data, int length);
-  void set_data(const char *data, int length)
-  {
-    this->set_data(const_cast<char *>(data), length);
-  }
+  void set_data(const char *data, int length) { this->set_data(const_cast<char *>(data), length); }
   void set_value(const Value &value);
   void set_boolean(bool val);
   void set_date(int y, int m, int d);
@@ -142,6 +130,7 @@ public:
   int32_t get_date() const;
 
 private:
+  void set_vector(const float *s, int size);
   void set_int(int val);
   void set_float(float val);
   void set_string(const char *s, int len = 0);
@@ -159,6 +148,7 @@ private:
     float   float_value_;
     bool    bool_value_;
     char   *pointer_value_;
+    float  *vector_pointer_;
   } value_ = {.int_value_ = 0};
 
   /// 是否申请并占有内存, 目前对于 CHARS 类型 own_data_ 为true, 其余类型

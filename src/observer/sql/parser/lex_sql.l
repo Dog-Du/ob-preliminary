@@ -165,6 +165,8 @@ IN                                      RETURN_TOKEN(IN_T);
 "-" |
 "*" |
 "/"                                     { return yytext[0]; }
+
+\[[^\]]*\]                              yylval->string = strdup(yytext); RETURN_TOKEN(VECTOR_VALUE);
 \"[^"]*\"                               yylval->string = strdup(yytext); RETURN_TOKEN(SSS);
 '[^']*\'                                yylval->string = strdup(yytext); RETURN_TOKEN(SSS);
 

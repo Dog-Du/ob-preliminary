@@ -22,11 +22,12 @@ public:
   VectorType() : DataType(AttrType::VECTORS) {}
   virtual ~VectorType() {}
 
-  int compare(const Value &left, const Value &right) const override { return INT32_MAX; }
+  // 要求输入的是形如 ： "[****]" 的字符串。
+  static RC set_from_str(const char *s, int len, Value &result);
 
-  RC add(const Value &left, const Value &right, Value &result) const override { return RC::UNIMPLEMENTED; }
-  RC subtract(const Value &left, const Value &right, Value &result) const override { return RC::UNIMPLEMENTED; }
-  RC multiply(const Value &left, const Value &right, Value &result) const override { return RC::UNIMPLEMENTED; }
-
-  RC to_string(const Value &val, string &result) const override { return RC::UNIMPLEMENTED; }
+  int compare(const Value &left, const Value &right) const override;
+  RC  add(const Value &left, const Value &right, Value &result) const override;
+  RC  subtract(const Value &left, const Value &right, Value &result) const override;
+  RC  multiply(const Value &left, const Value &right, Value &result) const override;
+  RC  to_string(const Value &val, string &result) const override;
 };
