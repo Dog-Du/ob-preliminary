@@ -16,13 +16,13 @@ See the Mulan PSL v2 for more details. */
 #include "common/log/log.h"
 #include "storage/record/record.h"
 #include "storage/table/table.h"
+#include <cstdint>
 
 using namespace std;
 
-ProjectPhysicalOperator::ProjectPhysicalOperator(const vector<shared_ptr<Expression>> &expressions)
-  : expressions_(expressions), tuple_(expressions_)
-{
-}
+ProjectPhysicalOperator::ProjectPhysicalOperator(const vector<shared_ptr<Expression>> &expressions, int32_t limit)
+    : expressions_(expressions), tuple_(expressions_), limit_(limit)
+{}
 
 RC ProjectPhysicalOperator::open(Trx *trx)
 {
@@ -30,6 +30,7 @@ RC ProjectPhysicalOperator::open(Trx *trx)
     return RC::SUCCESS;
   }
 
+  count_                  = 0;
   PhysicalOperator *child = children_[0].get();
   RC                rc    = child->open(trx);
   if (rc != RC::SUCCESS) {
@@ -42,9 +43,10 @@ RC ProjectPhysicalOperator::open(Trx *trx)
 
 RC ProjectPhysicalOperator::next()
 {
-  if (children_.empty()) {
+  if (children_.empty() || count_ >= limit_) {
     return RC::RECORD_EOF;
   }
+  ++count_;
   return children_[0]->next();
 }
 
@@ -53,6 +55,7 @@ RC ProjectPhysicalOperator::close()
   if (!children_.empty()) {
     children_[0]->close();
   }
+  count_ = 0;
   return RC::SUCCESS;
 }
 

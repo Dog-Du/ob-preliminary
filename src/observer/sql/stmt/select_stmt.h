@@ -49,20 +49,18 @@ public:
   StmtType type() const override { return StmtType::SELECT; }
 
 public:
-  static RC create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt,
-      const std::unordered_map<std::string, Table *> &all_tables = {});
+  static RC create(
+      Db *db, SelectSqlNode &select_sql, Stmt *&stmt, const std::unordered_map<std::string, Table *> &all_tables = {});
 
 public:
   std::vector<JoinNodes> &join_nodes() { return tables_; }
   FilterStmt             *filter_stmt() const { return filter_stmt_.get(); }
 
-  std::vector<std::shared_ptr<Expression>> &query_expressions()
-  {
-    return query_expressions_;
-  }
+  std::vector<std::shared_ptr<Expression>> &query_expressions() { return query_expressions_; }
 
   std::shared_ptr<GroupByStmt> &group_by() { return group_by_; }
   std::shared_ptr<OrderByStmt> &order_by() { return order_by_; }
+  int32_t                       limit() const { return limit_; }
 
 private:
   std::vector<std::shared_ptr<Expression>> query_expressions_;
@@ -70,4 +68,5 @@ private:
   std::shared_ptr<FilterStmt>              filter_stmt_ = nullptr;
   std::shared_ptr<GroupByStmt>             group_by_;
   std::shared_ptr<OrderByStmt>             order_by_;
+  int32_t                                  limit_;
 };

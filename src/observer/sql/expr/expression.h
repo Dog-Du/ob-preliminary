@@ -27,6 +27,7 @@ See the Mulan PSL v2 for more details. */
 #include "storage/common/chunk.h"
 #include "storage/field/field_meta.h"
 #include "storage/table/table.h"
+#include "sql/expr/vector_functioner.h"
 
 class Tuple;
 class LogicalOperator;
@@ -657,17 +658,29 @@ public:
     COSINE_DISTANCE,
     INNER_PRODUCT,
   };
-  
-  VectorFunctionExpr(Expression *left, Expression *right, Type type) : left_(left), right_(right), type_(type) {}
+
+  VectorFunctionExpr(Expression *left, Expression *right, Type type) : left_(left), right_(right), type_(type)
+  {
+    function_worker_ = create_function_worker(type_);
+  }
+
   VectorFunctionExpr(std::shared_ptr<Expression> left, std::shared_ptr<Expression> right, Type type)
       : left_(left), right_(right), type_(type)
-  {}
+  {
+    function_worker_ = create_function_worker(type_);
+  }
 
-  RC       get_value(const Tuple &tuple, Value &value) const override { return RC::UNIMPLEMENTED; }
-  RC       try_get_value(Value &value) const override { return RC::UNIMPLEMENTED; }
+  static std::shared_ptr<FunctionWorker> create_function_worker(Type type);
+
+  RC get_value(const Tuple &tuple, Value &value) const override;
+
+  RC try_get_value(Value &value) const override { return RC::UNIMPLEMENTED; }
+
   AttrType value_type() const override { return AttrType::FLOATS; }
+
   ExprType type() const override { return ExprType::VECTOR_FUNCTION; }
-  void     check_or_get(std::function<void(Expression *)> &worker_func) override
+
+  void check_or_get(std::function<void(Expression *)> &worker_func) override
   {
     if (left_ != nullptr) {
       worker_func(left_.get());
@@ -678,8 +691,13 @@ public:
     worker_func(this);
   }
 
+  std::shared_ptr<Expression> &left() { return left_; }
+  std::shared_ptr<Expression> &right() { return right_; }
+  Type                         function_type() { return type_; }
+
 private:
-  std::shared_ptr<Expression> left_;
-  std::shared_ptr<Expression> right_;
-  Type                        type_;
+  std::shared_ptr<Expression>     left_;
+  std::shared_ptr<Expression>     right_;
+  Type                            type_;
+  std::shared_ptr<FunctionWorker> function_worker_;
 };

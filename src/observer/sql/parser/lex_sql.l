@@ -125,6 +125,7 @@ BY                                      RETURN_TOKEN(BY);
 STORAGE                                 RETURN_TOKEN(STORAGE);
 FORMAT                                  RETURN_TOKEN(FORMAT);
 
+LIMIT                                   RETURN_TOKEN(LIMIT_T);
 L2_DISTANCE                             RETURN_TOKEN(L2_DISTANCE_T);
 COSINE_DISTANCE                         RETURN_TOKEN(COSINE_DISTANCE_T);
 INNER_PRODUCT                           RETURN_TOKEN(INNER_PRODUCT_T);

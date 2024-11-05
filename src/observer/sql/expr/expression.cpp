@@ -20,6 +20,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/expr/aggregator.h"
 #include "sql/expr/tuple.h"
 #include "sql/expr/arithmetic_operator.hpp"
+#include "sql/expr/vector_functioner.h"
 #include "sql/parser/parse_defs.h"
 #include "sql/stmt/select_stmt.h"
 #include "storage/table/table.h"
@@ -1203,6 +1204,51 @@ void SubQuery_ValueList_Expression::set_prev_tuple(const Tuple *tuple)
     return;
   }
   sub_physical_operator_->set_prev_tuple(tuple);
+}
+
+std::shared_ptr<FunctionWorker> VectorFunctionExpr::create_function_worker(Type type)
+{
+  std::shared_ptr<FunctionWorker> function_worker;
+  switch (type) {
+    case Type::COSINE_DISTANCE: {
+      function_worker.reset(new CosineDistanceWorker());
+    } break;
+    case Type::L2_DISTANCE: {
+      function_worker.reset(new L2DistanceWorker());
+    } break;
+    case Type::INNER_PRODUCT: {
+      function_worker.reset(new InnerProduceWorker());
+    } break;
+    default: {
+      LOG_WARN("unimplement function worker.");
+    } break;
+  }
+  return function_worker;
+}
+
+RC VectorFunctionExpr::get_value(const Tuple &tuple, Value &value) const
+{
+  RC    rc = RC::SUCCESS;
+  Value left_value;
+  Value right_value;
+  rc = left_->get_value(tuple, left_value);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("get_value failed.");
+    return rc;
+  }
+
+  rc = right_->get_value(tuple, right_value);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("get_value failed.");
+    return rc;
+  }
+
+  if (left_value.attr_type() != AttrType::VECTORS || right_value.attr_type() != AttrType::VECTORS) {
+    LOG_WARN("value is not vectors");
+    return RC::INVALID_ARGUMENT;
+  }
+
+  return function_worker_->compute_result(left_value, right_value, value);
 }
 
 // RC SubQuery_ValueList_Expression::value_num(int32_t &num) const

@@ -15,6 +15,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/stmt/select_stmt.h"
 #include "common/lang/string.h"
 #include "common/log/log.h"
+#include "common/type/attr_type.h"
 #include "sql/expr/expression.h"
 #include "sql/parser/parse_defs.h"
 #include "sql/stmt/filter_stmt.h"
@@ -234,6 +235,22 @@ RC SelectStmt::create(
         }
         now_is_agg = false;
       } break;
+      case ExprType::VECTOR_FUNCTION: {
+        auto *expr = static_cast<VectorFunctionExpr *>(expression);
+        if (expr->left() != nullptr) {
+          check_projections(expr->left().get());
+        }
+
+        if (expr->right() != nullptr) {
+          check_projections(expr->right().get());
+        }
+
+        if (expr->left()->value_type() != AttrType::VECTORS || expr->right()->value_type() != AttrType::VECTORS) {
+          need_continue_check = false;
+          rc                  = RC::INVALID_ARGUMENT;
+          LOG_WARN("vector functionexpr failed.");
+        }
+      } break;
       default: {
       } break;
     }
@@ -370,7 +387,7 @@ RC SelectStmt::create(
   select_stmt->filter_stmt_.reset(filter_stmt);
   select_stmt->group_by_.reset(groupby_stmt);
   select_stmt->order_by_.reset(orderby_stmt);
-
+  select_stmt->limit_ = select_sql.limit;
   // select_stmt->group_by_.swap(group_by_expressions);
   stmt = select_stmt;
   return RC::SUCCESS;

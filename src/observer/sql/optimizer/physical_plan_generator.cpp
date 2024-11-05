@@ -381,7 +381,7 @@ RC PhysicalPlanGenerator::create_plan(ProjectLogicalOperator &project_oper, shar
     }
   }
 
-  auto project_operator = make_unique<ProjectPhysicalOperator>(project_oper.expressions());
+  auto project_operator = make_unique<ProjectPhysicalOperator>(project_oper.expressions(), project_oper.limit());
   if (child_phy_oper) {
     project_operator->add_child(std::move(child_phy_oper));
   }

@@ -16,7 +16,8 @@ See the Mulan PSL v2 for more details. */
 
 using namespace std;
 
-ProjectLogicalOperator::ProjectLogicalOperator(vector<shared_ptr<Expression>> &expressions)
+ProjectLogicalOperator::ProjectLogicalOperator(vector<shared_ptr<Expression>> &expressions, int32_t limit)
 {
   expressions_ = expressions;
+  limit_       = limit;
 }

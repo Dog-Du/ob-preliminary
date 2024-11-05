@@ -287,7 +287,7 @@ RC LogicalPlanGenerator::create_plan(SelectStmt *select_stmt, shared_ptr<Logical
     last_oper = &orderby_oper;
   }
 
-  auto project_oper = make_shared<ProjectLogicalOperator>(select_stmt->query_expressions());
+  auto project_oper = make_shared<ProjectLogicalOperator>(select_stmt->query_expressions(), select_stmt->limit());
   if (*last_oper) {
     project_oper->add_child(*last_oper);
   }

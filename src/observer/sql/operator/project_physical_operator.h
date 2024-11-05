@@ -25,7 +25,7 @@ See the Mulan PSL v2 for more details. */
 class ProjectPhysicalOperator : public PhysicalOperator
 {
 public:
-  ProjectPhysicalOperator(const std::vector<std::shared_ptr<Expression>> &expressions);
+  ProjectPhysicalOperator(const std::vector<std::shared_ptr<Expression>> &expressions, int32_t limit);
 
   virtual ~ProjectPhysicalOperator() = default;
 
@@ -45,4 +45,6 @@ public:
 private:
   std::vector<std::shared_ptr<Expression>>     expressions_;
   ExpressionTuple<std::shared_ptr<Expression>> tuple_;
+  int32_t                                      limit_;
+  int32_t                                      count_;
 };

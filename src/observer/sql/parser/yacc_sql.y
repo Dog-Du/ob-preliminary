@@ -117,6 +117,7 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
 %token  SEMICOLON
         BY
         CREATE
+        LIMIT_T
         L2_DISTANCE_T
         COSINE_DISTANCE_T
         INNER_PRODUCT_T
@@ -225,6 +226,7 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
 %type <join_list>           from_node_list
 %type <join_node>           join_list
 %type <number>              type
+%type <number>              limit
 /* %type <string>              alias_name */
 %type <expression>          condition_list
 %type <index_attr_list>     index_attr_list
@@ -773,7 +775,7 @@ update_node:
   ;
 
 select_stmt:        /*  select 语句的语法解析树*/
-    SELECT expression_list FROM from_node from_node_list where group_by having order_by
+    SELECT expression_list FROM from_node from_node_list where group_by having order_by limit
     {
       $$ = new ParsedSqlNode(SCF_SELECT);
       if ($2 != nullptr) {
@@ -807,8 +809,21 @@ select_stmt:        /*  select 语句的语法解析树*/
         $$->selection.order_by = *$9;
         delete $9;
       }
+
+      $$->selection.limit = $10;
     }
     ;
+
+limit:
+  /* empty */
+  {
+    $$ = INT32_MAX;
+  }
+  | LIMIT_T NUMBER
+  {
+    $$ = $2;
+  }
+  ;
 
 order_by:
   /* empty */

@@ -128,6 +128,22 @@ RC FilterStmt::create(Db *db, Table *default_table, std::unordered_map<std::stri
               check_condition(expr->child().get());
             }
           } break;
+          case ExprType::VECTOR_FUNCTION: {
+            auto *expr = static_cast<VectorFunctionExpr *>(expression);
+            if (expr->left() != nullptr) {
+              check_condition(expr->left().get());
+            }
+
+            if (expr->right() != nullptr) {
+              check_condition(expr->right().get());
+            }
+
+            if (expr->left()->value_type() != AttrType::VECTORS || expr->right()->value_type() != AttrType::VECTORS) {
+              need_continue_check = false;
+              rc                  = RC::INVALID_ARGUMENT;
+              LOG_WARN("vector functionexpr failed.");
+            }
+          } break;
           default: {
 
           } break;

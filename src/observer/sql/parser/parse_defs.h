@@ -129,6 +129,7 @@ struct SelectSqlNode
   std::shared_ptr<Expression> having;
   std::vector<RelAttrSqlNode> order_by;  // order_by 其实可以根据
                                          // 聚合进行排序，但是测试中只有列名，所以不考虑聚合。
+  int32_t limit;
 };
 
 /**
