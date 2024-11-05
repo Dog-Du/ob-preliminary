@@ -230,7 +230,7 @@ struct CreateIndexSqlNode
   std::vector<std::string> attr_names;
   bool                     unique          = false;
   bool                     is_vector_index = false;
-  std::string              distance_type;
+  int                      distance_type;
   std::string              algorithm_type;
   int                      lists;
   int                      probes;

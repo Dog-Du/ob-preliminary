@@ -19,6 +19,7 @@ See the Mulan PSL v2 for more details. */
 #include "storage/db/db.h"
 #include "storage/field/field_meta.h"
 #include "storage/table/table.h"
+#include "sql/expr/expression.h"
 
 using namespace std;
 using namespace common;
@@ -81,12 +82,6 @@ RC CreateIndexStmt::create(Db *db, const CreateIndexSqlNode &create_index, Stmt 
     }
 
     if (str_equal(create_index.algorithm_type, "ivfflat") == false) {
-      return RC::INVALID_ARGUMENT;
-    }
-
-    if (!str_equal(create_index.distance_type, "inner_product") &&
-        !str_equal(create_index.distance_type, "l2_distance") &&
-        !str_equal(create_index.distance_type, "cosine_distance")) {
       return RC::INVALID_ARGUMENT;
     }
   }

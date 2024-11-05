@@ -651,9 +651,9 @@ private:
 class VectorFunctionExpr : public Expression
 {
 public:
-  enum Type
+  enum class Type
   {
-    L2_DISTANCE,
+    L2_DISTANCE = 0,
     COSINE_DISTANCE,
     INNER_PRODUCT,
   };

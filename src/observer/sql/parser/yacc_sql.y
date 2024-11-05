@@ -229,6 +229,7 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
 
 /** type 定义了各种解析后的结果输出的是什么类型。类型对应了 union 中的定义的成员变量名称 **/
 %type <join_node>           join_node
+%type <number>              vector_function_type
 %type <join_node>           from_node
 %type <join_list>           from_node_list
 %type <join_node>           join_list
@@ -385,6 +386,21 @@ desc_table_stmt:
     }
     ;
 
+vector_function_type:
+  L2_DISTANCE_T
+  {
+    $$ = static_cast<int>(VectorFunctionExpr::Type::L2_DISTANCE);
+  }
+  | COSINE_DISTANCE_T
+  {
+    $$ = static_cast<int>(VectorFunctionExpr::Type::COSINE_DISTANCE);
+  }
+  | INNER_PRODUCT_T
+  {
+    $$ = static_cast<int>(VectorFunctionExpr::Type::INNER_PRODUCT);
+  }
+  ;
+
 create_index_stmt:    /*create index 语句的语法解析树*/
     CREATE INDEX ID ON ID LBRACE ID index_attr_list RBRACE
     {
@@ -424,7 +440,7 @@ create_index_stmt:    /*create index 语句的语法解析树*/
       free($6);
       free($8);
     }
-    | CREATE VECTOR_T INDEX ID ON ID LBRACE ID index_attr_list RBRACE WITH_T LBRACE DISTANCE_T EQ ID /* 15 */ COMMA TYPE_T EQ ID /* 19 */ COMMA LISTS_T EQ NUMBER /* 23 */ COMMA PROBES_T EQ NUMBER /* 27 */ RBRACE
+    | CREATE VECTOR_T INDEX ID ON ID LBRACE ID index_attr_list RBRACE WITH_T LBRACE TYPE_T EQ ID /* 15 */ COMMA DISTANCE_T EQ vector_function_type /* 19 */ COMMA LISTS_T EQ NUMBER /* 23 */ COMMA PROBES_T EQ NUMBER /* 27 */ RBRACE
     {
       $$ = new ParsedSqlNode(SCF_CREATE_INDEX);
       CreateIndexSqlNode &create_index = $$->create_index;
@@ -440,12 +456,12 @@ create_index_stmt:    /*create index 语句的语法解析树*/
       create_index.is_vector_index = true;
       create_index.attr_names.push_back(std::string($8));
       std::reverse(create_index.attr_names.begin(), create_index.attr_names.end());
-      create_index.distance_type = $15;
-      create_index.algorithm_type = $19;
+      create_index.distance_type = static_cast<int>($19);
+      create_index.algorithm_type = $15;
       create_index.lists = $23;
       create_index.probes = $27;
       free($15);
-      free($19);
+      // free($19);
       free($4);
       free($6);
       free($8);
