@@ -646,3 +646,6 @@ private:
   std::shared_ptr<LogicalOperator>                           sub_logical_operator_;
   std::shared_ptr<PhysicalOperator>                          sub_physical_operator_;
 };
+
+// class VectorFunction : public Expression
+// {};

@@ -165,7 +165,7 @@ void Value::set_data(char *data, int length)
       length_           = length;
     } break;
     case AttrType::VECTORS: {
-      set_vector((const float *)data, length);
+      set_vector((const vector_unit_t *)data, length);
     } break;
     default: {
       LOG_WARN("unknown data type: %d", attr_type_);
@@ -224,10 +224,10 @@ void Value::set_date(int y, int m, int d)
   value_.int_value_ = y * 10000 + m * 100 + d;
 }
 
-void Value::set_vector(const float *s, int size)
+void Value::set_vector(const vector_unit_t *s, int size)
 {
   reset();
-  ASSERT(size %4==0,"");
+  ASSERT(size % VECTOR_UNIT_SIZE==0,"");
   attr_type_ = AttrType::VECTORS;
   length_    = size;
 
@@ -236,7 +236,7 @@ void Value::set_vector(const float *s, int size)
     return;
   }
 
-  value_.vector_pointer_ = new float[size / 4];
+  value_.vector_pointer_ = new vector_unit_t[size / VECTOR_UNIT_SIZE];
   own_data_              = true;
   memcpy(value_.vector_pointer_, s, length_);
 }
@@ -256,7 +256,7 @@ void Value::set_value(const Value &value)
     case AttrType::BOOLEANS: {
       set_boolean(value.get_boolean());
     } break;
-    case AttrType::VECTORS:{
+    case AttrType::VECTORS: {
       set_vector(value.value_.vector_pointer_, value.length_);
     } break;
     default: {

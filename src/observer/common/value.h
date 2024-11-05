@@ -26,6 +26,8 @@ See the Mulan PSL v2 for more details. */
 static const int32_t INT_NULL   = INT32_MIN;
 static const float   FLOAT_NULL = -FLT_MAX;
 static const int32_t DATE_NULL  = INT32_MIN;
+typedef float        vector_unit_t;
+static const int     VECTOR_UNIT_SIZE = sizeof(vector_unit_t);
 
 /**
  * @brief 属性的值
@@ -130,7 +132,7 @@ public:
   int32_t get_date() const;
 
 private:
-  void set_vector(const float *s, int size);
+  void set_vector(const vector_unit_t *s, int size);
   void set_int(int val);
   void set_float(float val);
   void set_string(const char *s, int len = 0);
@@ -143,12 +145,12 @@ private:
 
   union Val
   {
-    int32_t int_value_;
-    int32_t date_value_;
-    float   float_value_;
-    bool    bool_value_;
-    char   *pointer_value_;
-    float  *vector_pointer_;
+    int32_t        int_value_;
+    int32_t        date_value_;
+    float          float_value_;
+    bool           bool_value_;
+    char          *pointer_value_;
+    vector_unit_t *vector_pointer_;
   } value_ = {.int_value_ = 0};
 
   /// 是否申请并占有内存, 目前对于 CHARS 类型 own_data_ 为true, 其余类型

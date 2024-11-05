@@ -117,6 +117,9 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
 %token  SEMICOLON
         BY
         CREATE
+        L2_DISTANCE_T
+        COSINE_DISTANCE_T
+        INNER_PRODUCT_T
         ORDER_T
         HAVING_T
         LIKE_T
@@ -533,7 +536,7 @@ attr_def:
       $$->length = $4;
 
       if ($$->type == AttrType::VECTORS) {
-        $$->length *= 4;
+        $$->length *= VECTOR_UNIT_SIZE;
       }
       $$->nullable = $6;
       free($1);
@@ -1121,6 +1124,18 @@ expression:
         free($5);
       }
       */
+    }
+    | L2_DISTANCE_T LBRACE expression COMMA expression RBRACE
+    {
+      $$ = nullptr;
+    }
+    | COSINE_DISTANCE_T LBRACE expression COMMA expression RBRACE
+    {
+      $$ = nullptr;
+    }
+    | INNER_PRODUCT_T LBRACE expression COMMA expression RBRACE
+    {
+      $$ = nullptr;
     }
     // your code here
     ;
