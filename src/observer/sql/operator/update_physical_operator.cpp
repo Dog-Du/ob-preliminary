@@ -83,7 +83,12 @@ RC UpdatePhysicalOperator::convert_expression_to_values()
       return rc;
     }
 
-    value.resize(field->len());
+    rc = value.resize(field->len());
+
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("resize failed.");
+      return rc;
+    }
 
     if (!field->nullable() && value.is_null(value)) {
       LOG_WARN("should not be null.");

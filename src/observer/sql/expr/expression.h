@@ -56,7 +56,8 @@ enum class ExprType
   CONJUNCTION,            ///< 多个表达式使用同一种关系(AND或OR)来联结
   ARITHMETIC,             ///< 算术运算
   SUBQUERY_OR_VALUELIST,  /// <  子查询 or 常量列表
-  AGGREGATION,            ///< 聚合运算
+  VECTOR_FUNCTION,
+  AGGREGATION,  ///< 聚合运算
 };
 
 /**
@@ -647,5 +648,38 @@ private:
   std::shared_ptr<PhysicalOperator>                          sub_physical_operator_;
 };
 
-// class VectorFunction : public Expression
-// {};
+class VectorFunctionExpr : public Expression
+{
+public:
+  enum Type
+  {
+    L2_DISTANCE,
+    COSINE_DISTANCE,
+    INNER_PRODUCT,
+  };
+  
+  VectorFunctionExpr(Expression *left, Expression *right, Type type) : left_(left), right_(right), type_(type) {}
+  VectorFunctionExpr(std::shared_ptr<Expression> left, std::shared_ptr<Expression> right, Type type)
+      : left_(left), right_(right), type_(type)
+  {}
+
+  RC       get_value(const Tuple &tuple, Value &value) const override { return RC::UNIMPLEMENTED; }
+  RC       try_get_value(Value &value) const override { return RC::UNIMPLEMENTED; }
+  AttrType value_type() const override { return AttrType::FLOATS; }
+  ExprType type() const override { return ExprType::VECTOR_FUNCTION; }
+  void     check_or_get(std::function<void(Expression *)> &worker_func) override
+  {
+    if (left_ != nullptr) {
+      worker_func(left_.get());
+    }
+    if (right_ != nullptr) {
+      worker_func(right_.get());
+    }
+    worker_func(this);
+  }
+
+private:
+  std::shared_ptr<Expression> left_;
+  std::shared_ptr<Expression> right_;
+  Type                        type_;
+};

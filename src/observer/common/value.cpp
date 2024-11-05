@@ -117,10 +117,14 @@ void Value::reset()
   own_data_  = false;
 }
 
-void Value::resize(int len)
+RC Value::resize(int len)
 {
+  if (attr_type_ == AttrType::VECTORS) {
+    return length_ == len ? RC::SUCCESS : RC::INVALID_ARGUMENT;
+  }
+
   if (attr_type_ != AttrType::CHARS || length_ >= len) {
-    return;
+    return RC::SUCCESS;
   }
 
   if (is_null(*this)) {
@@ -129,7 +133,7 @@ void Value::resize(int len)
     value_.pointer_value_ = new char[len + 1];
     memset(value_.pointer_value_, 0, len + 1);
     length_ = 0;
-    return;
+    return RC::SUCCESS;
   }
 
   string s(value_.pointer_value_);
@@ -140,6 +144,7 @@ void Value::resize(int len)
   value_.pointer_value_ = new char[len + 1];
   memcpy(value_.pointer_value_, s.c_str(), len + 1);
   length_ = len;
+  return RC::SUCCESS;
 }
 
 void Value::set_data(char *data, int length)

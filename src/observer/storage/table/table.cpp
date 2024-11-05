@@ -46,8 +46,7 @@ Table::~Table()
     data_buffer_pool_ = nullptr;
   }
 
-  for (vector<Index *>::iterator it = indexes_.begin(); it != indexes_.end();
-       ++it) {
+  for (vector<Index *>::iterator it = indexes_.begin(); it != indexes_.end(); ++it) {
     Index *index = *it;
     delete index;
   }
@@ -56,9 +55,8 @@ Table::~Table()
   LOG_INFO("Table has been closed: %s", name());
 }
 
-RC Table::create(Db *db, int32_t table_id, const char *path, const char *name,
-    const char *base_dir, span<const AttrInfoSqlNode> attributes,
-    StorageFormat storage_format)
+RC Table::create(Db *db, int32_t table_id, const char *path, const char *name, const char *base_dir,
+    span<const AttrInfoSqlNode> attributes, StorageFormat storage_format)
 {
   if (table_id < 0) {
     LOG_WARN("invalid table id. table_id=%d, table_name=%s", table_id, name);
@@ -94,9 +92,7 @@ RC Table::create(Db *db, int32_t table_id, const char *path, const char *name,
 
   // 创建文件
   const vector<FieldMeta> *trx_fields = db->trx_kit().trx_fields();
-  if ((rc = table_meta_.init(
-           table_id, name, trx_fields, attributes, storage_format)) !=
-      RC::SUCCESS) {
+  if ((rc = table_meta_.init(table_id, name, trx_fields, attributes, storage_format)) != RC::SUCCESS) {
     LOG_ERROR("Failed to init table meta. name:%s, ret:%d", name, rc);
     return rc;  // delete table file
   }
@@ -157,8 +153,7 @@ RC Table::drop(const char *dir)
   for (int i = 0; i < index_num; ++i) {
     ((BplusTreeIndex *)indexes_[i])->close();
     const IndexMeta *index_meta = table_meta_.index(i);
-    std::string      index_file = std::string(dir) + "/" + name() + "-" +
-                             index_meta->name() + TABLE_INDEX_SUFFIX;
+    std::string      index_file = std::string(dir) + "/" + name() + "-" + index_meta->name() + TABLE_INDEX_SUFFIX;
 
     if (unlink(index_file.c_str()) != 0) {
       LOG_ERROR("Failed to remove meta file = %s, error=%d",path.c_str(),errno);
@@ -174,8 +169,7 @@ RC Table::open(Db *db, const char *meta_file, const char *base_dir)
 {
   // 加载元数据文件
   fstream fs;
-  string  meta_file_path =
-      string(base_dir) + common::FILE_PATH_SPLIT_STR + meta_file;
+  string  meta_file_path = string(base_dir) + common::FILE_PATH_SPLIT_STR + meta_file;
   fs.open(meta_file_path, ios_base::in | ios_base::binary);
   if (!fs.is_open()) {
     LOG_ERROR("Failed to open meta file for read. file name=%s, errmsg=%s", meta_file_path.c_str(), strerror(errno));
@@ -216,14 +210,10 @@ RC Table::open(Db *db, const char *meta_file, const char *base_dir)
       index_fields_meta.push_back(field_meta);
     }
 
-    BplusTreeIndex *index = new BplusTreeIndex();
-    string index_file = table_index_file(base_dir, name(), index_meta->name());
+    BplusTreeIndex *index      = new BplusTreeIndex();
+    string          index_file = table_index_file(base_dir, name(), index_meta->name());
 
-    rc = index->open(this,
-        index_file.c_str(),
-        *index_meta,
-        index_fields_meta,
-        index_meta->unique());
+    rc = index->open(this, index_file.c_str(), *index_meta, index_fields_meta, index_meta->unique());
     if (rc != RC::SUCCESS) {
       delete index;
       LOG_ERROR("Failed to open index. table=%s, index=%s, file=%s, rc=%s",
@@ -241,8 +231,7 @@ RC Table::open(Db *db, const char *meta_file, const char *base_dir)
 RC Table::insert_record(Record &record)
 {
   RC rc = RC::SUCCESS;
-  rc    = record_handler_->insert_record(
-      record.data(), table_meta_.record_size(), &record.rid());
+  rc    = record_handler_->insert_record(record.data(), table_meta_.record_size(), &record.rid());
   if (rc != RC::SUCCESS) {
     LOG_ERROR("Insert record failed. table name=%s, rc=%s", table_meta_.name(), strrc(rc));
     return rc;
@@ -250,8 +239,7 @@ RC Table::insert_record(Record &record)
 
   rc = insert_entry_of_indexes(record.data(), record.rid());
   if (rc != RC::SUCCESS) {  // 可能出现了键值重复
-    RC rc2 = delete_entry_of_indexes(
-        record.data(), record.rid(), false /*error_on_not_exists*/);
+    RC rc2 = delete_entry_of_indexes(record.data(), record.rid(), false /*error_on_not_exists*/);
     if (rc2 != RC::SUCCESS) {
       LOG_ERROR("Failed to rollback index data when insert index entries failed. table name=%s, rc=%d:%s",
                 name(), rc2, strrc(rc2));
@@ -300,8 +288,7 @@ RC Table::get_record(const RID &rid, Record &record)
 RC Table::recover_insert_record(Record &record)
 {
   RC rc = RC::SUCCESS;
-  rc    = record_handler_->recover_insert_record(
-      record.data(), table_meta_.record_size(), record.rid());
+  rc    = record_handler_->recover_insert_record(record.data(), table_meta_.record_size(), record.rid());
   if (rc != RC::SUCCESS) {
     LOG_ERROR("Insert record failed. table name=%s, rc=%s", table_meta_.name(), strrc(rc));
     return rc;
@@ -357,14 +344,23 @@ RC Table::make_record(int value_num, const Value *values, Record &record)
             table_meta_.name(), field->name(), value.to_string().c_str());
         break;
       }
-      real_value.resize(field->len());
-      rc = set_value_to_record(record_data, real_value, field);
+      rc = real_value.resize(field->len());
+      if (rc == RC::SUCCESS) {
+        rc = set_value_to_record(record_data, real_value, field);
+      } else {
+        LOG_WARN("resize failed.");
+      }
     } else {
       Value real_value = value;
-      real_value.resize(field->len());
-      rc = set_value_to_record(record_data, real_value, field);
+      rc               = real_value.resize(field->len());
+      if (rc == RC::SUCCESS) {
+        rc = set_value_to_record(record_data, real_value, field);
+      } else {
+        LOG_WARN("resize failed.");
+      }
     }
   }
+
   if (OB_FAIL(rc)) {
     LOG_WARN("failed to make record. table name:%s", table_meta_.name());
     free(record_data);
@@ -375,8 +371,7 @@ RC Table::make_record(int value_num, const Value *values, Record &record)
   return RC::SUCCESS;
 }
 
-RC Table::set_value_to_record(
-    char *record_data, const Value &value, const FieldMeta *field)
+RC Table::set_value_to_record(char *record_data, const Value &value, const FieldMeta *field)
 {
   size_t       copy_len = field->len();
   const size_t data_len = value.length();
@@ -399,8 +394,7 @@ RC Table::init_record_handler(const char *base_dir)
   string data_file = table_data_file(base_dir, table_meta_.name());
 
   BufferPoolManager &bpm = db_->buffer_pool_manager();
-  RC                 rc =
-      bpm.open_file(db_->log_handler(), data_file.c_str(), data_buffer_pool_);
+  RC                 rc  = bpm.open_file(db_->log_handler(), data_file.c_str(), data_buffer_pool_);
   if (rc != RC::SUCCESS) {
     LOG_ERROR("Failed to open disk buffer pool for file:%s. rc=%d:%s", data_file.c_str(), rc, strrc(rc));
     return rc;
@@ -408,8 +402,7 @@ RC Table::init_record_handler(const char *base_dir)
 
   record_handler_ = new RecordFileHandler(table_meta_.storage_format());
 
-  rc = record_handler_->init(
-      *data_buffer_pool_, db_->log_handler(), &table_meta_);
+  rc = record_handler_->init(*data_buffer_pool_, db_->log_handler(), &table_meta_);
   if (rc != RC::SUCCESS) {
     LOG_ERROR("Failed to init record handler. rc=%s", strrc(rc));
     data_buffer_pool_->close_file();
@@ -422,31 +415,25 @@ RC Table::init_record_handler(const char *base_dir)
   return rc;
 }
 
-RC Table::get_record_scanner(
-    RecordFileScanner &scanner, Trx *trx, ReadWriteMode mode)
+RC Table::get_record_scanner(RecordFileScanner &scanner, Trx *trx, ReadWriteMode mode)
 {
-  RC rc = scanner.open_scan(
-      this, *data_buffer_pool_, trx, db_->log_handler(), mode, nullptr);
+  RC rc = scanner.open_scan(this, *data_buffer_pool_, trx, db_->log_handler(), mode, nullptr);
   if (rc != RC::SUCCESS) {
     LOG_ERROR("failed to open scanner. rc=%s", strrc(rc));
   }
   return rc;
 }
 
-RC Table::get_chunk_scanner(
-    ChunkFileScanner &scanner, Trx *trx, ReadWriteMode mode)
+RC Table::get_chunk_scanner(ChunkFileScanner &scanner, Trx *trx, ReadWriteMode mode)
 {
-  RC rc = scanner.open_scan_chunk(
-      this, *data_buffer_pool_, db_->log_handler(), mode);
+  RC rc = scanner.open_scan_chunk(this, *data_buffer_pool_, db_->log_handler(), mode);
   if (rc != RC::SUCCESS) {
     LOG_ERROR("failed to open scanner. rc=%s", strrc(rc));
   }
   return rc;
 }
 
-RC Table::create_index(Trx               *trx,
-    const std::vector<const FieldMeta *> &fields_meta, const char *index_name,
-    bool unique)
+RC Table::create_index(Trx *trx, const std::vector<const FieldMeta *> &fields_meta, const char *index_name, bool unique)
 {
   if (common::is_blank(index_name)) {
     LOG_INFO("Invalid input arguments, table name is %s, index_name is blank or attribute_name is blank", name());
@@ -463,11 +450,10 @@ RC Table::create_index(Trx               *trx,
   }
 
   // 创建索引相关数据
-  BplusTreeIndex *index = new BplusTreeIndex();
-  string index_file = table_index_file(base_dir_.c_str(), name(), index_name);
+  BplusTreeIndex *index      = new BplusTreeIndex();
+  string          index_file = table_index_file(base_dir_.c_str(), name(), index_name);
 
-  rc = index->create(
-      this, index_file.c_str(), new_index_meta, fields_meta, unique);
+  rc = index->create(this, index_file.c_str(), new_index_meta, fields_meta, unique);
   if (rc != RC::SUCCESS) {
     delete index;
     LOG_ERROR("Failed to create bplus tree index. file name=%s, rc=%d:%s", index_file.c_str(), rc, strrc(rc));
@@ -606,8 +592,7 @@ RC Table::insert_entry_of_indexes(const char *record, const RID &rid)
   return rc;
 }
 
-RC Table::delete_entry_of_indexes(
-    const char *record, const RID &rid, bool error_on_not_exists)
+RC Table::delete_entry_of_indexes(const char *record, const RID &rid, bool error_on_not_exists)
 {
   RC rc = RC::SUCCESS;
   for (Index *index : indexes_) {
@@ -633,8 +618,7 @@ Index *Table::find_index(const char *index_name) const
   return nullptr;
 }
 
-Index *Table::find_index_by_field(
-    const std::vector<std::string> &fields_name) const
+Index *Table::find_index_by_field(const std::vector<std::string> &fields_name) const
 {
   const TableMeta &table_meta = this->table_meta();
   const IndexMeta *index_meta = table_meta.find_index_by_field(fields_name);

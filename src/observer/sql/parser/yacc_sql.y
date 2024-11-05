@@ -536,6 +536,9 @@ attr_def:
       $$->length = $4;
 
       if ($$->type == AttrType::VECTORS) {
+        if ($$->length > MAX_VECTOR_LENGTH) {
+          yyerror (&yylloc, sql_string, sql_result, scanner, "vector length too large");
+        }
         $$->length *= VECTOR_UNIT_SIZE;
       }
       $$->nullable = $6;
@@ -1127,15 +1130,18 @@ expression:
     }
     | L2_DISTANCE_T LBRACE expression COMMA expression RBRACE
     {
-      $$ = nullptr;
+      $$ = new VectorFunctionExpr($3, $5, VectorFunctionExpr::Type::L2_DISTANCE);
+      $$->set_name(token_name(sql_string, &@$));
     }
     | COSINE_DISTANCE_T LBRACE expression COMMA expression RBRACE
     {
-      $$ = nullptr;
+      $$ = new VectorFunctionExpr($3, $5, VectorFunctionExpr::Type::COSINE_DISTANCE);
+      $$->set_name(token_name(sql_string, &@$));
     }
     | INNER_PRODUCT_T LBRACE expression COMMA expression RBRACE
     {
-      $$ = nullptr;
+      $$ = new VectorFunctionExpr($3, $5, VectorFunctionExpr::Type::INNER_PRODUCT);
+      $$->set_name(token_name(sql_string, &@$));
     }
     // your code here
     ;

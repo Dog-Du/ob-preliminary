@@ -19,20 +19,16 @@ See the Mulan PSL v2 for more details. */
 #include "storage/table/table.h"
 #include "storage/table/table_meta.h"
 
-InsertStmt::InsertStmt(
-    Table *table, const std::vector<std::vector<Value>> &values)
-    : table_(table), values_(values)
-{}
+InsertStmt::InsertStmt(Table *table, const std::vector<std::vector<Value>> &values) : table_(table), values_(values) {}
 
-RC check_and_convert_rows(Table           *table,
-    const std::vector<std::vector<Value>> &values,
-    std::vector<std::vector<Value>>       &result)
+RC check_and_convert_rows(
+    Table *table, const std::vector<std::vector<Value>> &values, std::vector<std::vector<Value>> &result)
 {
   result.clear();
-  RC               rc         = RC::SUCCESS;
-  const TableMeta &table_meta = table->table_meta();
-  const int field_num     = table_meta.field_num() - table_meta.sys_field_num();
-  const int sys_field_num = table_meta.sys_field_num();
+  RC               rc            = RC::SUCCESS;
+  const TableMeta &table_meta    = table->table_meta();
+  const int        field_num     = table_meta.field_num() - table_meta.sys_field_num();
+  const int        sys_field_num = table_meta.sys_field_num();
 
   for (auto &value : values) {
     const int value_num = static_cast<int>(value.size());
@@ -63,7 +59,11 @@ RC check_and_convert_rows(Table           *table,
         }
       }
 
-      tmp.resize(field_meta->len());
+      rc = tmp.resize(field_meta->len());
+      if (rc != RC::SUCCESS) {
+        LOG_WARN("resize failed.");
+        return rc;
+      }
       tmp_value.push_back(tmp);
     }
 
@@ -90,7 +90,7 @@ RC InsertStmt::create(Db *db, const InsertSqlNode &inserts, Stmt *&stmt)
   }
 
   std::vector<std::vector<Value>> result;
-  RC rc = check_and_convert_rows(table, inserts.values, result);
+  RC                              rc = check_and_convert_rows(table, inserts.values, result);
 
   if (rc != RC::SUCCESS) {
     LOG_WARN("check_and_convert_rows failed.");

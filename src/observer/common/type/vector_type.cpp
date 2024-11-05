@@ -1,5 +1,6 @@
 #include "common/type/vector_type.h"
 #include "common/lang/string.h"
+#include "common/rc.h"
 #include "common/type/attr_type.h"
 #include "common/value.h"
 #include "common/log/log.h"
@@ -66,6 +67,7 @@ int VectorType::compare(const Value &left, const Value &right) const
 {
   ASSERT(left.attr_type() == AttrType::VECTORS && right.attr_type() == AttrType::VECTORS,"");
   ASSERT(left.length_ % VECTOR_UNIT_SIZE==0 && right.length_ % VECTOR_UNIT_SIZE==0,"");
+
   int left_size  = left.length_ / VECTOR_UNIT_SIZE;
   int right_size = right.length_ / VECTOR_UNIT_SIZE;
 
@@ -84,6 +86,12 @@ RC VectorType::add(const Value &left, const Value &right, Value &result) const
 {
   ASSERT(left.attr_type() == AttrType::VECTORS && right.attr_type() == AttrType::VECTORS,"");
   ASSERT(left.length_ % VECTOR_UNIT_SIZE==0 && right.length_ % VECTOR_UNIT_SIZE==0,"");
+
+  if (left.length_ != right.length_) {
+    LOG_WARN("vector length not equal.");
+    return RC::INVALID_ARGUMENT;
+  }
+
   result.attr_type_ = AttrType::VECTORS;
 
   if (left.length_ != right.length_) {
@@ -109,6 +117,7 @@ RC VectorType::subtract(const Value &left, const Value &right, Value &result) co
   result.attr_type_ = AttrType::VECTORS;
 
   if (left.length_ != right.length_) {
+    LOG_WARN("vector length not equal.");
     return RC::INVALID_ARGUMENT;
   }
 
@@ -139,4 +148,25 @@ RC VectorType::to_string(const Value &val, string &result) const
   return RC::SUCCESS;
 }
 
-RC VectorType::multiply(const Value &left, const Value &right, Value &result) const { return RC::INTERNAL; }
+RC VectorType::multiply(const Value &left, const Value &right, Value &result) const
+{
+  ASSERT(left.attr_type() == AttrType::VECTORS && right.attr_type() == AttrType::VECTORS,"");
+  ASSERT(left.length_ % VECTOR_UNIT_SIZE==0 && right.length_ % VECTOR_UNIT_SIZE==0,"");
+  result.attr_type_ = AttrType::VECTORS;
+
+  if (left.length_ != right.length_) {
+    LOG_WARN("vector length not equal.");
+    return RC::INVALID_ARGUMENT;
+  }
+
+  int size = left.length_ / VECTOR_UNIT_SIZE;
+
+  std::vector<vector_unit_t> values(size);
+
+  for (int i = 0; i < size; ++i) {
+    values[i] = left.value_.vector_pointer_[i] * right.value_.vector_pointer_[i];
+  }
+
+  result.set_vector(values.data(), size * VECTOR_UNIT_SIZE);
+  return RC::SUCCESS;
+}

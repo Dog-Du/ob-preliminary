@@ -20,7 +20,8 @@ See the Mulan PSL v2 for more details. */
 
 #include "common/value.h"
 
-#define TEXT_LENGTH 1024 * 8 * 8  // 65536 bytes
+static const int TEXT_LENGTH       = 1024 * 8 * 8;  // 65536 bytes
+static const int MAX_VECTOR_LENGTH = 16000;         // vector最长为 16000 个维度
 
 class Expression;
 

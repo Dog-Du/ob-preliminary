@@ -68,7 +68,7 @@ public:
   Value &operator=(Value &&other);
 
   void reset();
-  void resize(int len);
+  RC resize(int len);
 
   static bool is_null(const Value &val) { return DataType::type_instance(val.attr_type())->is_null(val); }
 
