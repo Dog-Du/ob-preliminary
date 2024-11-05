@@ -17,7 +17,9 @@ See the Mulan PSL v2 for more details. */
 #include "common/type/attr_type.h"
 #include "sql/operator/order_by_physical_operator.h"
 #include "sql/operator/physical_operator.h"
+#include "sql/operator/project_physical_operator.h"
 #include "sql/operator/table_scan_physical_operator.h"
+#include <cstdint>
 #include <sstream>
 
 using namespace std;
@@ -97,6 +99,7 @@ void ExplainPhysicalOperator::to_string(
       os << "│ ";
     }
   }
+
   if (level > 0) {
     if (last_child) {
       os << "└─";
@@ -122,13 +125,28 @@ void ExplainPhysicalOperator::to_string(
       }
     }
   }
-  
+
   os << oper->name();
   std::string param = oper->param();
   if (!param.empty()) {
     os << "(" << param << ")";
   }
   os << '\n';
+
+  if (oper->type() == PhysicalOperatorType::PROJECT) {
+    auto project_oper = static_cast<ProjectPhysicalOperator *>(oper);
+    if (project_oper->limit() != INT32_MAX) {
+      ++level;
+      for (int i = 0; i < level - 1; i++) {
+        if (ends[i]) {
+          os << "  ";
+        } else {
+          os << "│ ";
+        }
+      }
+      os << "└─" << "LIMIT\n";
+    }
+  }
 
   if (static_cast<int>(ends.size()) < level + 2) {
     ends.resize(level + 2);

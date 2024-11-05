@@ -17,6 +17,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/expr/expression.h"
 #include "sql/operator/physical_operator.h"
 #include "sql/expr/expression_tuple.h"
+#include <cstdint>
 
 /**
  * @brief 选择/投影物理算子
@@ -40,7 +41,8 @@ public:
 
   Tuple *current_tuple() override;
 
-  RC tuple_schema(TupleSchema &schema) const override;
+  RC      tuple_schema(TupleSchema &schema) const override;
+  int32_t limit() const { return limit_; }
 
 private:
   std::vector<std::shared_ptr<Expression>>     expressions_;
