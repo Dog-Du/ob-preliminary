@@ -68,7 +68,7 @@ RC CosineDistanceWorker::compute_result(const Value &left, const Value &right, V
   left_m  = std::sqrt(left_m);
   right_m = std::sqrt(right_m);
 
-  float res = mul / (left_m * right_m);
+  float res = 1 - mul / (left_m * right_m);
 
   result.set_data((const char *)&res, sizeof(res));
   return RC::SUCCESS;

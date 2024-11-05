@@ -177,6 +177,7 @@ RC SelectStmt::create(
   bool have_agg            = false;
   bool have_not_agg        = false;
   bool now_is_agg          = false;
+  bool need_mark           = true;
 
   std::function<void(Expression *)> check_projections = [&](Expression *expression) {
     if (!need_continue_check) {
@@ -187,7 +188,9 @@ RC SelectStmt::create(
       case ExprType::FIELD: {
         if (!now_is_agg) {
           have_not_agg = true;
-          field_exprs.push_back(static_cast<FieldExpr *>(expression));
+          if (need_mark) {
+            field_exprs.push_back(static_cast<FieldExpr *>(expression));
+          }
         }
         rc = static_cast<FieldExpr *>(expression)->check_field(table_map, default_table, tables, alias_map);
         if (rc != RC::SUCCESS) {
@@ -229,7 +232,10 @@ RC SelectStmt::create(
         have_agg   = true;
         now_is_agg = true;
         auto *expr = static_cast<AggregateExpr *>(expression);
-        agg_exprs.push_back(expr);
+
+        if (need_mark) {
+          agg_exprs.push_back(expr);
+        }
         if (expr->child() != nullptr) {
           check_projections(expr->child().get());
         }
@@ -341,17 +347,14 @@ RC SelectStmt::create(
     group_by.push_back(field_expr);
   }
 
-  std::vector<std::shared_ptr<FieldExpr>> order_by;
-  std::vector<OrderByType>                order_by_type_;
+  std::vector<std::shared_ptr<Expression>> order_by;
+  std::vector<OrderByType>                 order_by_type_;
+  need_mark = false;
+
   for (auto &x : select_sql.order_by) {
-    std::shared_ptr<FieldExpr> field_expr(new FieldExpr(x.relation_name, x.attribute_name, x.alias));
-    rc = field_expr->check_field(table_map, default_table, tables, alias_map);
-    if (rc != RC::SUCCESS) {
-      LOG_WARN("check_field failed.");
-      return rc;
-    }
-    order_by.push_back(field_expr);
-    order_by_type_.push_back(x.order_by_type);
+    x.order_by_expression->check_or_get(check_projections);
+    order_by.push_back(x.order_by_expression);
+    order_by_type_.push_back(x.type);
   }
 
   FilterStmt *having_filter = nullptr;

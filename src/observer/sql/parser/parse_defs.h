@@ -50,7 +50,7 @@ struct RelAttrSqlNode
   std::string relation_name;   ///< relation name (may be NULL) 表名
   std::string attribute_name;  ///< attribute name              属性名
   std::string alias;           // 用于在 from relations 中。
-  OrderByType order_by_type;   // 用于排序
+  // OrderByType order_by_type;   // 用于排序
 };
 
 /**
@@ -107,6 +107,11 @@ struct JoinSqlNode  // 用expression * 可以使用多态，更方便一些。
   std::vector<std::shared_ptr<Expression>> conditions;
 };
 
+struct OrderByNode
+{
+  OrderByType                 type;
+  std::shared_ptr<Expression> order_by_expression;
+};
 /**
  * @brief 描述一个select语句
  * @ingroup SQLParser
@@ -118,7 +123,6 @@ struct JoinSqlNode  // 用expression * 可以使用多态，更方便一些。
  * conditions，这里表示使用AND串联起来多个条件。正常的SQL语句会有OR，NOT等，
  * 甚至可以包含复杂的表达式。
  */
-
 struct SelectSqlNode
 {
   std::vector<std::shared_ptr<Expression>> expressions;  ///< 查询的表达式
@@ -127,8 +131,9 @@ struct SelectSqlNode
   // std::vector<std::shared_ptr<Expression>> group_by;  ///< group by clause
   std::vector<RelAttrSqlNode> group_by;
   std::shared_ptr<Expression> having;
-  std::vector<RelAttrSqlNode> order_by;  // order_by 其实可以根据
-                                         // 聚合进行排序，但是测试中只有列名，所以不考虑聚合。
+  // std::vector<RelAttrSqlNode> order_by;  // order_by 其实可以根据
+  std::vector<OrderByNode> order_by;
+  // 聚合进行排序，但是测试中只有列名，所以不考虑聚合。
   int32_t limit;
 };
 

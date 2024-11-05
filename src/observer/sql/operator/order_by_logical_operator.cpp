@@ -19,7 +19,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/expr/expression.h"
 
 OrderByLogicalOperator::OrderByLogicalOperator(
-    std::vector<std::shared_ptr<FieldExpr>> &orderby_fields, std::vector<OrderByType> &order_by_type)
+    std::vector<std::shared_ptr<Expression>> &orderby_fields, std::vector<OrderByType> &order_by_type)
 {
   order_by_      = orderby_fields;
   order_by_type_ = order_by_type;

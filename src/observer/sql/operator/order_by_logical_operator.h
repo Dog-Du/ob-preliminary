@@ -29,17 +29,17 @@ class OrderByLogicalOperator : public LogicalOperator
 {
 public:
   OrderByLogicalOperator(
-      std::vector<std::shared_ptr<FieldExpr>> &orderby_fields, std::vector<OrderByType> &order_by_type);
+      std::vector<std::shared_ptr<Expression>> &orderby_fields, std::vector<OrderByType> &order_by_type);
   virtual ~OrderByLogicalOperator() = default;
 
-  LogicalOperatorType                      type() const override { return LogicalOperatorType::ORDER_BY; }
-  std::vector<std::shared_ptr<FieldExpr>> &order_by() { return order_by_; }
-  std::vector<OrderByType>                &order_by_type() { return order_by_type_; }
+  LogicalOperatorType                       type() const override { return LogicalOperatorType::ORDER_BY; }
+  std::vector<std::shared_ptr<Expression>> &order_by() { return order_by_; }
+  std::vector<OrderByType>                 &order_by_type() { return order_by_type_; }
   // std::vector<std::shared_ptr<FieldExpr>>     &field_exprs() { return field_exprs_; }
 
 private:
-  std::vector<std::shared_ptr<FieldExpr>> order_by_;
-  std::vector<OrderByType>                order_by_type_;
+  std::vector<std::shared_ptr<Expression>> order_by_;
+  std::vector<OrderByType>                 order_by_type_;
   // std::vector<std::shared_ptr<AggregateExpr>> agg_exprs_;
   // std::vector<std::shared_ptr<FieldExpr>>     field_exprs_;
 };

@@ -211,6 +211,8 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
   float                                      floats;
   bool                                       boolean;
   OrderByType                                order_by_type;
+  OrderByNode*                               order_by_node;
+  std::vector<OrderByNode> *                 order_by_list;
 }
 
 %token <number> NUMBER
@@ -227,6 +229,9 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
 %type <join_node>           join_list
 %type <number>              type
 %type <number>              limit
+%type <order_by_node>       order_by_node
+%type <order_by_list>       order_by_list
+%type <order_by_list>       order_by
 /* %type <string>              alias_name */
 %type <expression>          condition_list
 %type <index_attr_list>     index_attr_list
@@ -251,7 +256,7 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
 %type <expression>          expression
 %type <expression_list>     expression_list
 %type <rel_attr_list>       group_by
-%type <rel_attr_list>       order_by
+/* %type <rel_attr_list>       order_by */
 %type <rel_attr_list>       rel_attr_list
 %type <expression>          having
 %type <sql_node>            calc_stmt
@@ -830,16 +835,54 @@ order_by:
   {
     $$ = nullptr;
   }
-  | ORDER_T BY rel_attr rel_attr_list
+  | ORDER_T BY order_by_node order_by_list
   {
     if ($4 != nullptr) {
       $$ = $4;
     } else {
-      $$ = new std::vector<RelAttrSqlNode>();
+      $$ = new std::vector<OrderByNode>();
     }
     $$->push_back(*$3);
     delete $3;
     std::reverse($$->begin(), $$->end());
+  }
+  ;
+
+order_by_list:
+  /* empty */
+  {
+    $$ = nullptr;
+  }
+  | COMMA order_by_node order_by_list
+  {
+    if ($3 != nullptr) {
+      $$ = $3;
+    } else {
+      $$ = new std::vector<OrderByNode>();
+    }
+    $$->push_back(*$2);
+    delete $2;
+  }
+  ;
+
+order_by_node:
+  expression
+  {
+    $$ = new OrderByNode();
+    $$->order_by_expression.reset($1);
+    $$->type = OrderByType::ASC;
+  }
+  | expression ASC_T
+  {
+    $$ = new OrderByNode();
+    $$->order_by_expression.reset($1);
+    $$->type = OrderByType::ASC;
+  }
+  | expression DESC_T
+  {
+    $$ = new OrderByNode();
+    $$->order_by_expression.reset($1);
+    $$->type = OrderByType::DESC;
   }
   ;
 
@@ -1165,9 +1208,11 @@ rel_attr:
     ID {
       $$ = new RelAttrSqlNode;
       $$->attribute_name = $1;
-      $$->order_by_type = OrderByType::ASC;
+      // $$->order_by_type = OrderByType::ASC;
       free($1);
     }
+
+/*
     | ID ASC_T {
       $$ = new RelAttrSqlNode;
       $$->attribute_name = $1;
@@ -1180,8 +1225,6 @@ rel_attr:
       $$->order_by_type = OrderByType::DESC;
       free($1);
     }
-
-/*
     | ID ID {
       $$ = new RelAttrSqlNode;
       $$->attribute_name = $1;
@@ -1231,11 +1274,12 @@ rel_attr:
       free($3);
     }
 */
+
     | ID DOT ID {
       $$ = new RelAttrSqlNode;
       $$->relation_name  = $1;
       $$->attribute_name = $3;
-      $$->order_by_type = OrderByType::ASC;
+      // $$->order_by_type = OrderByType::ASC;
       free($1);
       free($3);
     }
@@ -1243,9 +1287,11 @@ rel_attr:
       $$ = new RelAttrSqlNode;
       $$->relation_name  = $1;
       $$->attribute_name = "*";
-      $$->order_by_type = OrderByType::ASC;
+      // $$->order_by_type = OrderByType::ASC;
       free($1);
     }
+
+/*
     | ID DOT ID ASC_T {
       $$ = new RelAttrSqlNode;
       $$->relation_name  = $1;
@@ -1276,7 +1322,6 @@ rel_attr:
       $$->order_by_type = OrderByType::DESC;
       free($1);
     }
-/*
     | ID DOT ID ID {
       $$ = new RelAttrSqlNode;
       $$->relation_name  = $1;

@@ -26,7 +26,7 @@ See the Mulan PSL v2 for more details. */
 #include <cstddef>
 
 OrderByPhysicalOperator::OrderByPhysicalOperator(
-    std::vector<std::shared_ptr<FieldExpr>> &field_expression, std::vector<OrderByType> &order_by_type)
+    std::vector<std::shared_ptr<Expression>> &field_expression, std::vector<OrderByType> &order_by_type)
     : field_expressions_(field_expression), order_by_type_(order_by_type)
 {}
 
@@ -41,6 +41,7 @@ RC OrderByPhysicalOperator::open(Trx *trx)
   RC    rc    = child->open(trx);
   if (rc != RC::SUCCESS) {
     LOG_WARN("order_by open failed.");
+    child->close();
     return rc;
   }
 
@@ -71,9 +72,20 @@ RC OrderByPhysicalOperator::open(Trx *trx)
   std::vector<int> field_index;  // 这些个field都在tuple的第几列，直接得到，减少查找开销。
   for (auto &field : field_expressions_) {
     TupleCellSpec tmp_cell(field->table_name(), field->field_name());
-    for (int i = 0; i < tuple_cells_.size(); ++i) {
+    int           i;
+    for (i = 0; i < tuple_cells_.size(); ++i) {
       if (tuple_cells_[i].equals(tmp_cell)) {
         field_index.push_back(i);
+        break;
+      }
+    }
+
+    if (i == tuple_cells_.size()) {
+      field_index.push_back(-1);  // 说明应该是函数。
+      if (field->type() != ExprType::VECTOR_FUNCTION) {
+        LOG_WARN("should be vector_function");
+        child->close();
+        return RC::INVALID_ARGUMENT;
       }
     }
   }
@@ -102,14 +114,33 @@ RC OrderByPhysicalOperator::open(Trx *trx)
     tuples_index_[i] = i;
   }
 
-  auto cmp = [this, &field_index](int lhs, int rhs) {
+  Value      left_value;
+  Value      right_value;
+  ShellTuple left_tuple;
+  ShellTuple right_tuple;
+  left_tuple.set_names(&tuple_cells_);
+  right_tuple.set_names(&tuple_cells_);
+
+  auto cmp = [this, &field_index, &left_value, &right_value, &left_tuple, &right_tuple](int lhs, int rhs) {
     int result = 0;
     for (size_t i = 0; i < field_index.size(); ++i) {
-      auto &left  = tuples_[lhs][field_index[i]];
-      auto &right = tuples_[rhs][field_index[i]];
+      Value *left;
+      Value *right;
 
-      result = left.compare(right);
-      result = (left.is_null(left) && right.is_null(right)) ? 0 : result;
+      if (field_index[i] == -1) {
+        left_tuple.set_cells(&tuples_[lhs]);
+        right_tuple.set_cells(&tuples_[rhs]);
+        field_expressions_[i]->get_value(left_tuple, left_value);
+        field_expressions_[i]->get_value(right_tuple, right_value);
+        left  = &left_value;
+        right = &right_value;
+      } else {
+        left  = &tuples_[lhs][field_index[i]];
+        right = &tuples_[rhs][field_index[i]];
+      }
+
+      result = left->compare(*right);
+      result = (left->is_null(*left) && right->is_null(*right)) ? 0 : result;
       if (result == 0) {
         continue;
       }

@@ -165,8 +165,10 @@ union YYSTYPE
   float                                      floats;
   bool                                       boolean;
   OrderByType                                order_by_type;
+  OrderByNode*                               order_by_node;
+  std::vector<OrderByNode> *                 order_by_list;
 
-#line 170 "yacc_sql.hpp"
+#line 172 "yacc_sql.hpp"
 
 };
 typedef union YYSTYPE YYSTYPE;
