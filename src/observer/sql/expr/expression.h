@@ -21,7 +21,6 @@ See the Mulan PSL v2 for more details. */
 #include "common/type/attr_type.h"
 #include "common/value.h"
 
-#include "sql/parser/parse_defs.h"
 #include "storage/field/field.h"
 #include "sql/expr/aggregator.h"
 #include "storage/common/chunk.h"

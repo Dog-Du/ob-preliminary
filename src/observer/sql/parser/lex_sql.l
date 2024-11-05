@@ -125,6 +125,11 @@ BY                                      RETURN_TOKEN(BY);
 STORAGE                                 RETURN_TOKEN(STORAGE);
 FORMAT                                  RETURN_TOKEN(FORMAT);
 
+PROBES                                  RETURN_TOKEN(PROBES_T);
+LISTS                                   RETURN_TOKEN(LISTS_T);
+TYPE                                    RETURN_TOKEN(TYPE_T);
+WITH                                    RETURN_TOKEN(WITH_T);
+DISTANCE                                RETURN_TOKEN(DISTANCE_T);
 LIMIT                                   RETURN_TOKEN(LIMIT_T);
 L2_DISTANCE                             RETURN_TOKEN(L2_DISTANCE_T);
 COSINE_DISTANCE                         RETURN_TOKEN(COSINE_DISTANCE_T);

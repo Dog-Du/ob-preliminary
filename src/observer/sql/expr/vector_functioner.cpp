@@ -55,6 +55,9 @@ RC CosineDistanceWorker::compute_result(const Value &left, const Value &right, V
   const vector_unit_t *left_value  = (const vector_unit_t *)left.data();
   const vector_unit_t *right_value = (const vector_unit_t *)right.data();
 
+  // eg : [1,1,1] [1,1,1]
+  // left_m = 根号3 right_m = 根号3 mul = 3
+  // res =
   float left_m  = 0;
   float right_m = 0;
   float mul     = 0;
@@ -68,7 +71,7 @@ RC CosineDistanceWorker::compute_result(const Value &left, const Value &right, V
   left_m  = std::sqrt(left_m);
   right_m = std::sqrt(right_m);
 
-  float res = 1 - mul / (left_m * right_m);
+  float res = 1 - mul / (left_m * right_m);  // 好像哪里出了问题？
 
   result.set_data((const char *)&res, sizeof(res));
   return RC::SUCCESS;

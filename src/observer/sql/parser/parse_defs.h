@@ -228,7 +228,12 @@ struct CreateIndexSqlNode
   std::string              index_name;     ///< Index name
   std::string              relation_name;  ///< Relation name
   std::vector<std::string> attr_names;
-  bool                     unique = false;
+  bool                     unique          = false;
+  bool                     is_vector_index = false;
+  std::string              distance_type;
+  std::string              algorithm_type;
+  int                      lists;
+  int                      probes;
 };
 
 /**

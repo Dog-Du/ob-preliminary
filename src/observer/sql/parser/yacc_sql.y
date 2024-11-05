@@ -121,6 +121,11 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
         L2_DISTANCE_T
         COSINE_DISTANCE_T
         INNER_PRODUCT_T
+        DISTANCE_T
+        TYPE_T
+        PROBES_T
+        LISTS_T
+        WITH_T
         ORDER_T
         HAVING_T
         LIKE_T
@@ -415,6 +420,31 @@ create_index_stmt:    /*create index 语句的语法解析树*/
       create_index.unique = true;
       create_index.attr_names.push_back(std::string($8));
       std::reverse(create_index.attr_names.begin(), create_index.attr_names.end());
+      free($4);
+      free($6);
+      free($8);
+    }
+    | CREATE VECTOR_T INDEX ID ON ID LBRACE ID index_attr_list RBRACE WITH_T LBRACE DISTANCE_T EQ ID /* 15 */ COMMA TYPE_T EQ ID /* 19 */ COMMA LISTS_T EQ NUMBER /* 23 */ COMMA PROBES_T EQ NUMBER /* 27 */ RBRACE
+    {
+      $$ = new ParsedSqlNode(SCF_CREATE_INDEX);
+      CreateIndexSqlNode &create_index = $$->create_index;
+      create_index.index_name = $4;
+      create_index.relation_name = $6;
+
+      if ($9 != nullptr) {
+        create_index.attr_names = *$9;
+        delete $9;
+      }
+
+      create_index.unique = false;
+      create_index.attr_names.push_back(std::string($8));
+      std::reverse(create_index.attr_names.begin(), create_index.attr_names.end());
+      create_index.distance_type = $15;
+      create_index.algorithm_type = $19;
+      create_index.lists = $23;
+      create_index.probes = $27;
+      free($15);
+      free($19);
       free($4);
       free($6);
       free($8);
