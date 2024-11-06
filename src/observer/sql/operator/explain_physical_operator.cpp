@@ -112,28 +112,95 @@ void ExplainPhysicalOperator::to_string(
   if (oper->type() == PhysicalOperatorType::ORDER_BY &&
       oper->children().front()->type() == PhysicalOperatorType::TABLE_SCAN) {
 
-    auto  table_oper = static_cast<TableScanPhysicalOperator *>(oper->children().front().get());
-    auto  table      = table_oper->table();
-    auto &table_meta = table->table_meta();
-
+    auto        table_oper = static_cast<TableScanPhysicalOperator *>(oper->children().front().get());
+    auto        table      = table_oper->table();
+    auto       &table_meta = table->table_meta();
+    std::string ss;
+    bool        need_rewrite = false;
     for (int i = 0; i < table_meta.index_num(); ++i) {
       auto        index_meta   = table->table_meta().index(i);
       const auto &index_fields = index_meta->fields();
       if (index_fields.size() == 1 && table_meta.field(index_fields[0].c_str())->type() == AttrType::VECTORS) {
-        os << "VECTOR_INDEX_SCAN(" << index_meta->name() << " ON " << table_meta.name() << ")";
-        return;
+        // os << "VECTOR_INDEX_SCAN(" << index_meta->name() << " ON " << table_meta.name() << ")";
+        need_rewrite = true;
+        ss           = std::string("VETOR_INDEX_SCAN(") + index_meta->name() + " ON " + table_meta.name() + ")";
       }
     }
-  }
 
-  os << oper->name();
-  std::string param = oper->param();
-  if (!param.empty()) {
-    os << "(" << param << ")";
-  }
-  os << '\n';
+    if (need_rewrite) {
+      os << ss;
+      return;
+    } else {
+      os << oper->name();
+      std::string param = oper->param();
+      if (!param.empty()) {
+        os << "(" << param << ")";
+      }
+      os << '\n';
+    }
+  } else if (oper->type() == PhysicalOperatorType::PROJECT &&
+             oper->children().front()->type() == PhysicalOperatorType::ORDER_BY &&
+             oper->children().front()->children().front()->type() == PhysicalOperatorType::TABLE_SCAN) {
+    auto  table_oper   = static_cast<TableScanPhysicalOperator *>(oper->children().front()->children().front().get());
+    auto  table        = table_oper->table();
+    auto &table_meta   = table->table_meta();
+    bool  need_rewrite = false;
+    std::string ss;
+    for (int i = 0; i < table_meta.index_num(); ++i) {
+      auto        index_meta   = table->table_meta().index(i);
+      const auto &index_fields = index_meta->fields();
+      if (index_fields.size() == 1 && table_meta.field(index_fields[0].c_str())->type() == AttrType::VECTORS) {
+        need_rewrite = true;
+        ss           = std::string("VECTOR_INDEX_SCAN(") + index_meta->name() + " ON " + table_meta.name() + ")";
+        break;
+      }
+    }
 
-  if (oper->type() == PhysicalOperatorType::PROJECT) {
+    if (need_rewrite) {
+      os << oper->name();
+      std::string param = oper->param();
+      if (!param.empty()) {
+        os << "(" << param << ")";
+      }
+      os << '\n';
+      ++level;
+
+      for (int i = 0; i < level - 1; i++) {
+        if (ends[i]) {
+          os << "  ";
+        } else {
+          os << "│ ";
+        }
+      }
+      os << "└─" << ss;
+      return;
+    } else {
+      os << oper->name();
+      std::string param = oper->param();
+      if (!param.empty()) {
+        os << "(" << param << ")";
+      }
+      os << '\n';
+      auto project_oper = static_cast<ProjectPhysicalOperator *>(oper);
+      if (project_oper->limit() != INT32_MAX) {
+        ++level;
+        for (int i = 0; i < level - 1; i++) {
+          if (ends[i]) {
+            os << "  ";
+          } else {
+            os << "│ ";
+          }
+        }
+        os << "└─" << "LIMIT(" << project_oper->limit() << ")\n";
+      }
+    }
+  } else if (oper->type() == PhysicalOperatorType::PROJECT) {
+    os << oper->name();
+    std::string param = oper->param();
+    if (!param.empty()) {
+      os << "(" << param << ")";
+    }
+    os << '\n';
     auto project_oper = static_cast<ProjectPhysicalOperator *>(oper);
     if (project_oper->limit() != INT32_MAX) {
       ++level;
@@ -144,8 +211,15 @@ void ExplainPhysicalOperator::to_string(
           os << "│ ";
         }
       }
-      os << "└─" << "LIMIT\n";
+      os << "└─" << "LIMIT(" << project_oper->limit() << ")\n";
     }
+  } else {
+    os << oper->name();
+    std::string param = oper->param();
+    if (!param.empty()) {
+      os << "(" << param << ")";
+    }
+    os << '\n';
   }
 
   if (static_cast<int>(ends.size()) < level + 2) {
