@@ -1,0 +1,27 @@
+{
+	"fields" : 
+	[
+		{
+			"FIELD_id" : 0,
+			"len" : 4,
+			"name" : "id",
+			"nullable" : true,
+			"offset" : 0,
+			"type" : "ints",
+			"visible" : true
+		},
+		{
+			"FIELD_id" : 1,
+			"len" : 3136,
+			"name" : "embedding",
+			"nullable" : true,
+			"offset" : 4,
+			"type" : "vectors",
+			"visible" : true
+		}
+	],
+	"indexes" : null,
+	"storage_format" : 1,
+	"table_id" : 0,
+	"table_name" : "items"
+}

@@ -8,6 +8,6 @@ float:
     name: miniob
     run_groups:
       base:
-        arg_groups: [{unix_socket: "/home/miniob/miniob_test/players/data/miniob.sock"}]
+        arg_groups: [{unix_socket: "/tmp/miniob.sock"}]
         args: {}
         query_args: [[1]]
