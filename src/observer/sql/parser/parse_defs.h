@@ -236,6 +236,12 @@ struct CreateIndexSqlNode
   int                      probes;
 };
 
+struct CreateViewSqlNode
+{
+  std::string              view_name;
+  std::vector<std::string> attr_names;
+};
+
 /**
  * @brief 描述一个drop index语句
  * @ingroup SQLParser
@@ -332,6 +338,7 @@ enum SqlCommandFlag
   SCF_HELP,
   SCF_EXIT,
   SCF_EXPLAIN,
+  SCF_CREATE_VIEW,
   SCF_SET_VARIABLE,  ///< 设置变量
 };
 /**
@@ -356,6 +363,7 @@ public:
   LoadDataSqlNode     load_data;
   ExplainSqlNode      explain;
   SetVariableSqlNode  set_variable;
+  CreateViewSqlNode   create_view;
 
 public:
   ParsedSqlNode();

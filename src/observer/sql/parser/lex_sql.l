@@ -125,6 +125,7 @@ BY                                      RETURN_TOKEN(BY);
 STORAGE                                 RETURN_TOKEN(STORAGE);
 FORMAT                                  RETURN_TOKEN(FORMAT);
 
+VIEW                                    RETURN_TOKEN(VIEW_T);
 PROBES                                  RETURN_TOKEN(PROBES_T);
 LISTS                                   RETURN_TOKEN(LISTS_T);
 TYPE                                    RETURN_TOKEN(TYPE_T);

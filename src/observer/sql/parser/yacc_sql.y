@@ -118,6 +118,7 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
         BY
         CREATE
         LIMIT_T
+        VIEW_T
         L2_DISTANCE_T
         COSINE_DISTANCE_T
         INNER_PRODUCT_T
@@ -276,6 +277,7 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
 %type <sql_node>            desc_table_stmt
 %type <sql_node>            create_index_stmt
 %type <sql_node>            drop_index_stmt
+%type <sql_node>            create_view_stmt
 %type <sql_node>            sync_stmt
 %type <sql_node>            begin_stmt
 %type <sql_node>            commit_stmt
@@ -328,7 +330,33 @@ command_wrapper:
   | set_variable_stmt
   | help_stmt
   | exit_stmt
+  | create_view_stmt
     ;
+
+create_view_stmt:
+  CREATE VIEW_T ID AS_T select_stmt
+  {
+    $$ = $5;
+    $$->flag = SCF_CREATE_VIEW;
+    $$->create_view.view_name = $3;
+    free($3);
+  }
+  | CREATE VIEW_T ID LBRACE ID index_attr_list RBRACE AS_T select_stmt
+  {
+    $$ = $9;
+    $$->flag = SCF_CREATE_VIEW;
+    $$->create_view.view_name = $3;
+
+    if ($6 != nullptr) {
+      $$->create_view.attr_names.swap(*$6);
+      delete $6;
+    }
+    $$->create_view.attr_names.push_back($5);
+    std::reverse($$->create_view.attr_names.begin(), $$->create_view.attr_names.end());
+    free($3);
+    free($5);
+  }
+  ;
 
 exit_stmt:
     EXIT {
