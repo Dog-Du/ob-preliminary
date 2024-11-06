@@ -3,6 +3,8 @@
 ./deps/googletest
 ./deps/jsoncpp
 ./deps/benchmark
+miniob/*
+observer.*
 .vscode
 !.vscode/tasks.json
 !.vscode/launch.json
