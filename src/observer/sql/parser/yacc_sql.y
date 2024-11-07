@@ -398,7 +398,13 @@ drop_table_stmt:    /*drop table 语句的语法解析树*/
       $$ = new ParsedSqlNode(SCF_DROP_TABLE);
       $$->drop_table.relation_name = $3;
       free($3);
-    };
+    }
+    | DROP VIEW_T ID {
+      $$ = new ParsedSqlNode(SCF_DROP_TABLE);
+      $$->drop_table.relation_name = $3;
+      free($3);
+    }
+    ;
 
 show_tables_stmt:
     SHOW TABLES {
@@ -772,7 +778,8 @@ value:
       free($1);
     }
     |NULL_T {
-      $$ = new Value(INT_NULL);
+      $$ = new Value();
+      *$$ = Value::NULL_VALUE();
       @$ = @1;
     }
     |VECTOR_VALUE {

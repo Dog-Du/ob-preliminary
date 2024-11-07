@@ -29,6 +29,7 @@ class Table;
 class LogHandler;
 class BufferPoolManager;
 class TrxKit;
+class Field;
 
 /**
  * @brief 一个DB实例负责管理一批表
@@ -66,12 +67,15 @@ public:
   RC create_table(const char *table_name, span<const AttrInfoSqlNode> attributes,
       const StorageFormat storage_format = StorageFormat::ROW_FORMAT);
 
+  RC create_view(const char *view_name, bool can_write, const std::vector<Field> &fields,
+      const SelectSqlNode &select_sql, span<const AttrInfoSqlNode> attributes,
+      const StorageFormat storage_format = StorageFormat::ROW_FORMAT);
   /**
    * @brief 根据表名查找表
    */
   Table *find_table(const char *table_name) const;
 
-  RC drop_table(const char *table_name);
+  RC drop_table(const char *table_name);  // 因为view继承于table，所以这个函数可以原模原样的使用于view
 
   /**
    * @brief 根据表ID查找表

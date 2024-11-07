@@ -74,6 +74,8 @@ public:
     return rc;
   }
 
+  RID rid() const override { return child_tuple_->rid(); }
+
 private:
   RC get_value(const ExprPointerType &expression, Value &value) const
   {

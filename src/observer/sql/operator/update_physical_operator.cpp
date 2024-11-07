@@ -22,8 +22,37 @@ See the Mulan PSL v2 for more details. */
 #include "storage/field/field_meta.h"
 #include "storage/record/record.h"
 #include "storage/table/table.h"
+#include "storage/table/view.h"
 #include "storage/trx/trx.h"
 #include <cstddef>
+
+// 把view得到的record转化为table的record，
+// 先用table->get_record得到原来的record，然后覆盖对应值。
+RC convert_view_record_to_table_record(Table *t, Record &view_record, Record &table_record)
+{
+  if (!t->is_view()) {
+    table_record = view_record;
+    return RC::SUCCESS;
+  }
+
+  View  *view  = static_cast<View *>(t);
+  Table *table = view->table();
+
+  RC rc = table->get_record(view_record.rid(), table_record);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("get_record failed.");
+    return rc;
+  }
+
+  auto &view_fields = view->fields();
+  auto &view_meta   = *view->table_meta().field_metas();
+  for (int i = 0; i < view_fields.size(); ++i) {
+    table_record.set_field(
+        view_fields[i].meta()->offset(), view_fields[i].meta()->len(), view_record.data() + view_meta[i].offset());
+  }
+  table_record.set_rid(view_record.rid());
+  return RC::SUCCESS;
+}
 
 RC UpdatePhysicalOperator::convert_expression_to_values()
 {
@@ -52,8 +81,7 @@ RC UpdatePhysicalOperator::convert_expression_to_values()
       rc = expr->next(tuple, tmp);
 
       if (rc == RC::RECORD_EOF) {
-        tmp.set_type(AttrType::INTS);
-        tmp.set_data((const char *)&INT_NULL, sizeof(INT_NULL));
+        tmp = Value::NULL_VALUE();
         expr->close();
       } else if (rc != RC::SUCCESS) {
         LOG_WARN("error");
@@ -148,8 +176,21 @@ RC UpdatePhysicalOperator::open(Trx *trx)
     for (size_t i = 0; i < fields_meta_.size(); ++i) {
       memcpy(new_record.data() + fields_meta_[i]->offset(), values_[i].data(), fields_meta_[i]->len());
     }
-    old_records.emplace_back(old_record);
-    new_records.emplace_back(new_record);
+
+    Record old_table_record;
+    Record new_table_record;
+    rc = convert_view_record_to_table_record(table_, old_record, old_table_record);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("convert view record failed.");
+      return rc;
+    }
+    rc = convert_view_record_to_table_record(table_, new_record, new_table_record);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("convert view record failed.");
+      return rc;
+    }
+    old_records.emplace_back(old_table_record);
+    new_records.emplace_back(new_table_record);
   }
 
   if (rc != RC::SUCCESS) {
@@ -168,14 +209,34 @@ RC UpdatePhysicalOperator::open(Trx *trx)
   }
 
   for (size_t i = 0; i < old_records.size(); ++i) {
-    rc = table_->delete_record(old_records[i]);
+    if (table_->is_view()) {
+      Record record;
+      rc = table_->table()->get_record(old_records[i].rid(), record);
+      if (rc != RC::SUCCESS) {
+        LOG_WARN("get_record failed.");
+        return rc;
+      }
+      rc = table_->table()->delete_record(record);
+    } else {
+      rc = table_->delete_record(old_records[i]);
+    }
     // rc = table_->update_record(old_records[i].rid(), old_records[i], new_records[i]);
     if (rc != RC::SUCCESS) {
       LOG_WARN("delete_record failed. something wrong maybe duplicate key.");
       // 回滚。
       RC rc2 = RC::SUCCESS;
       for (int j = i - 1; j >= 0; --j) {
-        rc2 = table_->insert_record(old_records[j]);
+        if (table_->is_view()) {
+          Record record;
+          rc = table_->table()->get_record(old_records[i].rid(), record);
+          if (rc != RC::SUCCESS) {
+            LOG_WARN("get_record failed.");
+            return rc;
+          }
+          rc2 = table_->insert_record(record);
+        } else {
+          rc2 = table_->insert_record(old_records[j]);
+        }
         // rc2 = table_->update_record(new_records[j].rid(), new_records[j], old_records[j]);
         if (rc2 != RC::SUCCESS) {
           LOG_WARN("rollback failed while update_record.");

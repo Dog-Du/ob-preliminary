@@ -32,6 +32,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/order_by_logical_operator.h"
 #include "sql/operator/update_logical_operator.h"
 #include "sql/operator/create_table_logical_operator.h"
+#include "sql/operator/view_get_logical_operator.h"
 
 #include "sql/stmt/calc_stmt.h"
 #include "sql/stmt/create_table_stmt.h"
@@ -46,6 +47,7 @@ See the Mulan PSL v2 for more details. */
 
 #include "sql/expr/expression_iterator.h"
 #include "sql/stmt/update_stmt.h"
+#include "storage/table/view.h"
 #include "storage/field/field_meta.h"
 
 using namespace std;
@@ -135,11 +137,27 @@ RC LogicalPlanGenerator::create_plan(CalcStmt *calc_stmt, std::shared_ptr<Logica
 }
 
 RC LogicalPlanGenerator::join_table_in_tree(
-    std::shared_ptr<LogicalOperator> &oper, Table *table, FilterStmt *filter_stmt)
+    std::shared_ptr<LogicalOperator> &oper, Table *table, FilterStmt *filter_stmt, SelectStmt *view_select_stmt)
 {
   RC                               rc = RC::SUCCESS;
   std::vector<Field>               fields;
-  std::shared_ptr<LogicalOperator> table_get_oper(new TableGetLogicalOperator(table, ReadWriteMode::READ_ONLY));
+  std::shared_ptr<LogicalOperator> table_get_oper;
+
+  rc = RC::SUCCESS;
+  if (table->is_view()) {
+    ASSERT(view_select_stmt != nullptr, "");
+    shared_ptr<LogicalOperator> view_get_oper;
+    rc = create_plan(view_select_stmt, view_get_oper);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("create_plan view failed.");
+      return rc;
+    }
+    table_get_oper.reset(new ViewGetLogicalOperator(static_cast<View *>(table), ReadWriteMode::READ_WRITE));
+    table_get_oper->add_child(view_get_oper);
+  } else {
+    table_get_oper.reset(new TableGetLogicalOperator(table, ReadWriteMode::READ_WRITE));
+  }
+
   std::shared_ptr<LogicalOperator> this_table_predicate_oper;
 
   if (nullptr != filter_stmt) {
@@ -209,7 +227,8 @@ RC LogicalPlanGenerator::create_plan(SelectStmt *select_stmt, shared_ptr<Logical
     std::shared_ptr<LogicalOperator> oper;
 
     for (size_t j = 0; j < join_node.tables_.size(); ++j) {
-      rc = join_table_in_tree(oper, join_node.tables_[j], join_node.conditions_[j].get());
+      rc = join_table_in_tree(
+          oper, join_node.tables_[j], join_node.conditions_[j].get(), join_node.view_select_stmts_[j].get());
 
       if (rc != RC::SUCCESS) {
         return rc;
@@ -380,13 +399,27 @@ RC LogicalPlanGenerator::create_plan(InsertStmt *insert_stmt, shared_ptr<Logical
 
 RC LogicalPlanGenerator::create_plan(UpdateStmt *update_stmt, std::shared_ptr<LogicalOperator> &logical_operator)
 {
-  Table                      *table       = update_stmt->table();
-  FilterStmt                 *filter_stmt = update_stmt->filter_stmt();
-  shared_ptr<LogicalOperator> table_get_oper(new TableGetLogicalOperator(table, ReadWriteMode::READ_WRITE));
+  Table      *table       = update_stmt->table();
+  FilterStmt *filter_stmt = update_stmt->filter_stmt();
+
+  shared_ptr<LogicalOperator> table_get_oper;
+  RC                          rc = RC::SUCCESS;
+  if (update_stmt->view() != nullptr) {
+    shared_ptr<LogicalOperator> view_get_oper;
+    rc = create_plan(update_stmt->view_select_stmt().get(), view_get_oper);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("create_plan view failed.");
+      return rc;
+    }
+    table_get_oper.reset(new ViewGetLogicalOperator(update_stmt->view(), ReadWriteMode::READ_WRITE));
+    table_get_oper->add_child(view_get_oper);
+  } else {
+    table_get_oper.reset(new TableGetLogicalOperator(table, ReadWriteMode::READ_WRITE));
+  }
 
   shared_ptr<LogicalOperator> predicate_oper;
 
-  RC rc = create_plan(filter_stmt, predicate_oper);
+  rc = create_plan(filter_stmt, predicate_oper);
   if (rc != RC::SUCCESS) {
     return rc;
   }
@@ -437,11 +470,25 @@ RC LogicalPlanGenerator::create_plan(DeleteStmt *delete_stmt, shared_ptr<Logical
 {
   Table                      *table       = delete_stmt->table();
   FilterStmt                 *filter_stmt = delete_stmt->filter_stmt();
-  shared_ptr<LogicalOperator> table_get_oper(new TableGetLogicalOperator(table, ReadWriteMode::READ_WRITE));
+  shared_ptr<LogicalOperator> table_get_oper;
+
+  RC rc = RC::SUCCESS;
+  if (delete_stmt->view() != nullptr) {
+    shared_ptr<LogicalOperator> view_get_oper;
+    rc = create_plan(delete_stmt->view_select_stmt().get(), view_get_oper);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("create_plan view failed.");
+      return rc;
+    }
+    table_get_oper.reset(new ViewGetLogicalOperator(delete_stmt->view(), ReadWriteMode::READ_WRITE));
+    table_get_oper->add_child(view_get_oper);
+  } else {
+    table_get_oper.reset(new TableGetLogicalOperator(table, ReadWriteMode::READ_WRITE));
+  }
 
   shared_ptr<LogicalOperator> predicate_oper;
 
-  RC rc = create_plan(filter_stmt, predicate_oper);
+  rc = create_plan(filter_stmt, predicate_oper);
   if (rc != RC::SUCCESS) {
     return rc;
   }

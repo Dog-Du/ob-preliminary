@@ -16,14 +16,21 @@ See the Mulan PSL v2 for more details. */
 #include "common/log/log.h"
 #include "common/value.h"
 #include "sql/expr/expression.h"
+#include "sql/stmt/select_stmt.h"
 #include "storage/db/db.h"
 #include "storage/field/field_meta.h"
 #include "storage/table/table.h"
 #include "sql/stmt/filter_stmt.h"
+#include "storage/table/view.h"
 
 UpdateStmt::UpdateStmt(Table *table, std::vector<const FieldMeta *> &fields,
-    std::vector<std::shared_ptr<Expression>> &value, FilterStmt *filter_stmt)
-    : table_(table), fields_meta_(fields), expressions_(value), filter_stmt_(filter_stmt)
+    std::vector<std::shared_ptr<Expression>> &value, FilterStmt *filter_stmt, SelectStmt *select_stmt, View *view)
+    : view_(view),
+      table_(table),
+      fields_meta_(fields),
+      expressions_(value),
+      filter_stmt_(filter_stmt),
+      view_select_stmt_(select_stmt)
 {}
 
 RC UpdateStmt::create(Db *db, const UpdateSqlNode &update_sql, Stmt *&stmt)
@@ -38,6 +45,11 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update_sql, Stmt *&stmt)
   if (nullptr == table) {
     LOG_WARN("no such table. db=%s, table_name=%s", db->name(), table_name);
     return RC::SCHEMA_TABLE_NOT_EXIST;
+  }
+
+  if (!table->can_write()) {
+    LOG_WARN("this view can not write.");
+    return RC::INVALID_ARGUMENT;
   }
 
   std::vector<const FieldMeta *>           fields_meta;
@@ -104,6 +116,17 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update_sql, Stmt *&stmt)
     }
   }
 
-  stmt = new UpdateStmt(table, fields_meta, expressions, filter_stmt);
+  Stmt *select_stmt = nullptr;
+  View *view        = nullptr;
+  if (table->is_view()) {
+    view = static_cast<View *>(table);
+    rc   = SelectStmt::create(db, view->select_sql(), select_stmt);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("view create failed.");
+      return rc;
+    }
+  }
+
+  stmt = new UpdateStmt(table, fields_meta, expressions, filter_stmt, static_cast<SelectStmt *>(select_stmt), view);
   return RC::SUCCESS;
 }

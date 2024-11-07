@@ -23,8 +23,7 @@ RC SumAggregator::accumulate(const Value &value)
 {
   // 初始化。
   if (value_.attr_type() == AttrType::UNDEFINED) {
-    value_.set_type(AttrType::INTS);
-    value_.set_data((const char *)&INT_NULL, sizeof(INT_NULL));
+    value_ = Value::NULL_VALUE();
   }
 
   if (value.is_null(value)) {
@@ -46,8 +45,7 @@ RC SumAggregator::accumulate(const Value &value)
 RC SumAggregator::evaluate(Value &result)
 {
   if (value_.attr_type() == AttrType::UNDEFINED) {
-    value_.set_type(AttrType::INTS);
-    value_.set_data((const char *)&INT_NULL, sizeof(INT_NULL));
+    value_ = Value::NULL_VALUE();
   }
   result = value_;
   return RC::SUCCESS;
@@ -56,8 +54,7 @@ RC SumAggregator::evaluate(Value &result)
 RC MinAggregator::accumulate(const Value &value)
 {
   if (value_.attr_type() == AttrType::UNDEFINED) {
-    value_.set_type(AttrType::INTS);
-    value_.set_data((const char *)&INT_NULL, sizeof(INT_NULL));
+    value_ = Value::NULL_VALUE();
   }
 
   if (value.is_null(value)) {
@@ -81,8 +78,7 @@ RC MinAggregator::accumulate(const Value &value)
 RC MinAggregator::evaluate(Value &result)
 {
   if (value_.attr_type() == AttrType::UNDEFINED) {
-    value_.set_type(AttrType::INTS);
-    value_.set_data((const char *)&INT_NULL, sizeof(INT_NULL));
+    value_ = Value::NULL_VALUE();
   }
   result = value_;
   return RC::SUCCESS;
@@ -91,8 +87,7 @@ RC MinAggregator::evaluate(Value &result)
 RC MaxAggregator::accumulate(const Value &value)
 {
   if (value_.attr_type() == AttrType::UNDEFINED) {
-    value_.set_type(AttrType::INTS);
-    value_.set_data((const char *)&INT_NULL, sizeof(INT_NULL));
+    value_ = Value::NULL_VALUE();
   }
 
   if (value.is_null(value)) {
@@ -116,8 +111,7 @@ RC MaxAggregator::accumulate(const Value &value)
 RC MaxAggregator::evaluate(Value &result)
 {
   if (value_.attr_type() == AttrType::UNDEFINED) {
-    value_.set_type(AttrType::INTS);
-    value_.set_data((const char *)&INT_NULL, sizeof(INT_NULL));
+    value_ = Value::NULL_VALUE();
   }
   result = value_;
   return RC::SUCCESS;
@@ -127,7 +121,7 @@ RC CountAggregator::accumulate(const Value &value)
 {
   if (value_.attr_type() == AttrType::UNDEFINED) {
     value_.set_type(AttrType::INTS);
-    int32_t x=0;
+    int32_t x = 0;
     value_.set_data((const char *)&x, sizeof(x));
   }
 
@@ -188,7 +182,7 @@ RC CountStarAggregator::evaluate(Value &result)
   if (value_.attr_type() == AttrType::UNDEFINED) {
     value_.set_type(AttrType::INTS);
     int32_t x = 0;
-    value_.set_data((const char *)&x, sizeof(INT_NULL));
+    value_.set_data((const char *)&x, sizeof(x));
   }
   result = value_;
   return RC::SUCCESS;
@@ -199,8 +193,7 @@ RC AvgAggregator::accumulate(const Value &value)
   // 初始化。
   if (value_.attr_type() == AttrType::UNDEFINED) {
     count_ = 0;
-    value_.set_type(AttrType::INTS);
-    value_.set_data((const char *)&INT_NULL, sizeof(INT_NULL));
+    value_ = Value::NULL_VALUE();
   }
 
   if (value.is_null(value)) {

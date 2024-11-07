@@ -25,6 +25,7 @@ See the Mulan PSL v2 for more details. */
 #include "storage/field/field_meta.h"
 #include "storage/table/table.h"
 #include "sql/parser/expression_binder.h"
+#include "storage/table/view.h"
 #include <cstddef>
 #include <memory>
 #include <string>
@@ -70,11 +71,49 @@ RC check_alias_and_joins(Db *db, std::unordered_map<std::string, std::string> &a
     return RC::SUCCESS;
   };
 
+  auto push_and_check_view = [&](RelAttrSqlNode &table_name, JoinNodes &join) {
+    if (table_name.relation_name.empty()) {
+      LOG_WARN("error, table_name empty");
+      return RC::SCHEMA_TABLE_NOT_EXIST;
+    }
+
+    Table *table = db->find_table(table_name.relation_name.c_str());
+
+    if (nullptr == table) {
+      LOG_WARN("table not exist. table_name=%s.", table_name.relation_name.c_str());
+      return RC::SCHEMA_TABLE_NOT_EXIST;
+    }
+
+    if (!table->is_view()) {
+      join.view_select_stmts_.push_back(nullptr);
+      return RC::SUCCESS;
+    }
+
+    View *view        = static_cast<View *>(table);
+    Stmt *select_stmt = nullptr;
+    RC    rc          = SelectStmt::create(db, view->select_sql(), select_stmt);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("view create failed.");
+      return rc;
+    }
+
+    join.view_select_stmts_.push_back(std::shared_ptr<SelectStmt>(static_cast<SelectStmt *>(select_stmt)));
+    return RC::SUCCESS;
+  };
+
   auto check_table = [&](RelAttrSqlNode &table, std::shared_ptr<Expression> conditions, JoinNodes &join) {
     RC rc = RC::SUCCESS;
     rc    = push_and_check_table(table);
 
     if (rc != RC::SUCCESS) {
+      LOG_WARN("push_and_check_table failed.");
+      return rc;
+    }
+
+    rc = push_and_check_view(table, join);
+
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("push_and_check_view failed.");
       return rc;
     }
 

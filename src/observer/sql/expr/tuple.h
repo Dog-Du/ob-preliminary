@@ -25,6 +25,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/parser/parse.h"
 #include "common/value.h"
 #include "storage/record/record.h"
+#include "storage/table/view.h"
 
 class Table;
 
@@ -79,6 +80,7 @@ public:
    */
   virtual int cell_num() const = 0;
 
+  virtual RID rid() const = 0;
   /**
    * @brief 获取指定位置的Cell
    *
@@ -183,9 +185,22 @@ public:
       delete spec;
     }
     this->speces_.clear();
+
     this->speces_.reserve(fields->size());
     for (const FieldMeta &field : *fields) {
       speces_.push_back(new FieldExpr(table, &field));
+    }
+  }
+
+  void set_schema(const View *view)
+  {
+    ASSERT(view != nullptr, "");
+    table_ = view;
+    speces_.clear();
+    auto fields = view->table_meta().field_metas();
+    speces_.reserve(fields->size());
+    for (auto &field : *fields) {
+      speces_.push_back(new FieldExpr(table_, &field));
     }
   }
 
@@ -245,6 +260,7 @@ public:
   Record &record() { return *record_; }
 
   const Record &record() const { return *record_; }
+  RID           rid() const override { return record_->rid(); }
 
 private:
   Record                  *record_ = nullptr;
@@ -306,6 +322,9 @@ public:
     return RC::SUCCESS;
   }
 #endif
+
+  RID rid() const override { return tuple_->rid(); }
+
 private:
   std::vector<std::unique_ptr<Expression>> expressions_;
   Tuple                                   *tuple_ = nullptr;
@@ -396,6 +415,8 @@ public:
     return RC::SUCCESS;
   }
 
+  RID rid() const override { return RID{-1, -1}; }
+
 private:
   std::vector<Value>         cells_;
   std::vector<TupleCellSpec> specs_;
@@ -446,6 +467,8 @@ public:
     }
     return RC::NOTFOUND;
   }
+
+  RID rid() const override { return RID{-1, -1}; }
 
 private:
   const std::vector<Value>         *cells_;
@@ -506,6 +529,8 @@ public:
 
     return right_->find_cell(spec, value);
   }
+
+  RID rid() const override { return RID{-1, -1}; }
 
 private:
   const Tuple *left_  = nullptr;

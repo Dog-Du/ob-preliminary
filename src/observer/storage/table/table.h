@@ -40,7 +40,7 @@ class Table
 {
 public:
   Table() = default;
-  ~Table();
+  virtual ~Table();
 
   /**
    * 创建一个表
@@ -50,17 +50,16 @@ public:
    * @param attribute_count 字段个数
    * @param attributes 字段
    */
-  RC create(Db *db, int32_t table_id, const char *path, const char *name,
-      const char *base_dir, span<const AttrInfoSqlNode> attributes,
-      StorageFormat storage_format);
+  RC create(Db *db, int32_t table_id, const char *path, const char *name, const char *base_dir,
+      span<const AttrInfoSqlNode> attributes, StorageFormat storage_format);
 
-  RC drop(const char *path);
+  virtual RC drop(const char *path);
   /**
    * 打开一个表
    * @param meta_file 保存表元数据的文件完整路径
    * @param base_dir 表所在的文件夹，表记录数据文件、索引数据文件存放位置
    */
-  RC open(Db *db, const char *meta_file, const char *base_dir);
+  virtual RC open(Db *db, const char *meta_file, const char *base_dir);
 
   /**
    * @brief 根据给定的字段生成一个记录/行
@@ -86,11 +85,9 @@ public:
   RC recover_insert_record(Record &record);
 
   // TODO refactor
-  RC create_index(Trx *trx, const std::vector<const FieldMeta *> &fields_meta,
-      const char *index_name, bool unique);
+  RC create_index(Trx *trx, const std::vector<const FieldMeta *> &fields_meta, const char *index_name, bool unique);
 
-  RC get_record_scanner(
-      RecordFileScanner &scanner, Trx *trx, ReadWriteMode mode);
+  RC get_record_scanner(RecordFileScanner &scanner, Trx *trx, ReadWriteMode mode);
 
   RC get_chunk_scanner(ChunkFileScanner &scanner, Trx *trx, ReadWriteMode mode);
 
@@ -106,21 +103,23 @@ public:
   RC visit_record(const RID &rid, function<bool(Record &)> visitor);
 
 public:
-  int32_t     table_id() const { return table_meta_.table_id(); }
-  const char *name() const;
+  virtual int32_t     table_id() const { return table_meta_.table_id(); }
+  virtual const char *name() const;
 
-  Db *db() const { return db_; }
+  virtual Db *db() const { return db_; }
 
-  const TableMeta &table_meta() const;
+  virtual const TableMeta &table_meta() const;
 
-  RC sync();
+  virtual RC sync();
+
+  virtual bool   is_view() const { return false; }
+  virtual bool   can_write() const { return true; }
+  virtual Table *table() { return this; }
 
 private:
   RC insert_entry_of_indexes(const char *record, const RID &rid);
-  RC delete_entry_of_indexes(
-      const char *record, const RID &rid, bool error_on_not_exists);
-  RC set_value_to_record(
-      char *record_data, const Value &value, const FieldMeta *field);
+  RC delete_entry_of_indexes(const char *record, const RID &rid, bool error_on_not_exists);
+  RC set_value_to_record(char *record_data, const Value &value, const FieldMeta *field);
 
 private:
   RC init_record_handler(const char *base_dir);
@@ -128,11 +127,14 @@ private:
 public:
   Index *find_index(const char *index_name) const;
   Index *find_index_by_field(const std::vector<std::string> &fields_name) const;
+
 private:
-  Db       *db_ = nullptr;
-  string    base_dir_;
-  TableMeta table_meta_;
-  DiskBufferPool *data_buffer_pool_ = nullptr;  /// 数据文件关联的buffer pool
-  RecordFileHandler *record_handler_ = nullptr;  /// 记录操作
+  Db                *db_ = nullptr;
+  string             base_dir_;
+  TableMeta          table_meta_;
+  DiskBufferPool    *data_buffer_pool_ = nullptr;  /// 数据文件关联的buffer pool
+  RecordFileHandler *record_handler_   = nullptr;  /// 记录操作
   vector<Index *>    indexes_;
 };
+
+

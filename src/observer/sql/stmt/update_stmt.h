@@ -15,8 +15,10 @@ See the Mulan PSL v2 for more details. */
 #pragma once
 
 #include "sql/expr/expression.h"
+#include "sql/stmt/select_stmt.h"
 #include "sql/stmt/stmt.h"
 
+class View;
 class Table;
 class FieldMeta;
 class Value;
@@ -31,7 +33,7 @@ class UpdateStmt : public Stmt
 public:
   UpdateStmt() = default;
   UpdateStmt(Table *table, std::vector<const FieldMeta *> &fields, std::vector<std::shared_ptr<Expression>> &value,
-      FilterStmt *filter_stmt);
+      FilterStmt *filter_stmt, SelectStmt *select_stmt, View *view = nullptr);
 
   StmtType type() const override { return StmtType::UPDATE; }
 
@@ -43,11 +45,14 @@ public:
   auto  filter_stmt() { return filter_stmt_; }
   auto &expressions() { return expressions_; }
   auto &fields_meta() { return fields_meta_; }
+  auto  view() { return view_; }
+  auto  view_select_stmt() { return view_select_stmt_; }
 
 private:
-  
+  View                                    *view_  = nullptr;
   Table                                   *table_ = nullptr;
   std::vector<const FieldMeta *>           fields_meta_;
   std::vector<std::shared_ptr<Expression>> expressions_;
   FilterStmt                              *filter_stmt_;
+  std::shared_ptr<SelectStmt>              view_select_stmt_;
 };

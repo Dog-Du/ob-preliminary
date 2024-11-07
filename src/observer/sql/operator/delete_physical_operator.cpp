@@ -14,6 +14,7 @@ See the Mulan PSL v2 for more details. */
 
 #include "sql/operator/delete_physical_operator.h"
 #include "common/log/log.h"
+#include "storage/record/record.h"
 #include "storage/table/table.h"
 #include "storage/trx/trx.h"
 
@@ -47,12 +48,32 @@ RC DeletePhysicalOperator::open(Trx *trx)
 
   child->close();
 
-  // 先收集记录再删除
-  // 记录的有效性由事务来保证，如果事务不保证删除的有效性，那说明此事务类型不支持并发控制，比如VacuousTrx
-  for (Record &record : records_) {
-    rc = trx_->delete_record(table_, record);
+  if (!table_->is_view()) {
+    // 先收集记录再删除
+    // 记录的有效性由事务来保证，如果事务不保证删除的有效性，那说明此事务类型不支持并发控制，比如VacuousTrx
+    for (Record &record : records_) {
+      rc = trx_->delete_record(table_, record);
+      if (rc != RC::SUCCESS) {
+        LOG_WARN("failed to delete record: %s", strrc(rc));
+        return rc;
+      }
+    }
+
+    return RC::SUCCESS;
+  }
+
+  View *view = static_cast<View *>(table_);
+  for (Record &view_record : records_) {
+    Record record;
+    rc = view->table()->get_record(view_record.rid(), record);  // 拿到原来的record。
     if (rc != RC::SUCCESS) {
-      LOG_WARN("failed to delete record: %s", strrc(rc));
+      LOG_WARN("failed to get record.");
+      return rc;
+    }
+
+    rc = trx_->delete_record(view->table(), record);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("failed to delete record");
       return rc;
     }
   }
@@ -60,12 +81,6 @@ RC DeletePhysicalOperator::open(Trx *trx)
   return RC::SUCCESS;
 }
 
-RC DeletePhysicalOperator::next()
-{
-  return RC::RECORD_EOF;
-}
+RC DeletePhysicalOperator::next() { return RC::RECORD_EOF; }
 
-RC DeletePhysicalOperator::close()
-{
-  return RC::SUCCESS;
-}
+RC DeletePhysicalOperator::close() { return RC::SUCCESS; }

@@ -15,10 +15,12 @@ See the Mulan PSL v2 for more details. */
 #pragma once
 
 #include "sql/parser/parse_defs.h"
+#include "sql/stmt/select_stmt.h"
 #include "sql/stmt/stmt.h"
 
 class Table;
 class FilterStmt;
+class View;
 
 /**
  * @brief Delete 语句
@@ -27,18 +29,22 @@ class FilterStmt;
 class DeleteStmt : public Stmt
 {
 public:
-  DeleteStmt(Table *table, FilterStmt *filter_stmt);
+  DeleteStmt(Table *table, FilterStmt *filter_stmt, SelectStmt *select_stmt, View *view);
   ~DeleteStmt() override;
 
   Table      *table() const { return table_; }
   FilterStmt *filter_stmt() const { return filter_stmt_; }
 
   StmtType type() const override { return StmtType::DELETE; }
+  auto    &view_select_stmt() { return view_select_stmt_; }
+  auto     view() { return view_; }
 
 public:
   static RC create(Db *db, const DeleteSqlNode &delete_sql, Stmt *&stmt);
 
 private:
-  Table      *table_       = nullptr;
-  FilterStmt *filter_stmt_ = nullptr;
+  Table                      *table_       = nullptr;
+  FilterStmt                 *filter_stmt_ = nullptr;
+  std::shared_ptr<SelectStmt> view_select_stmt_;
+  View                       *view_;
 };

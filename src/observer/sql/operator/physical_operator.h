@@ -57,6 +57,7 @@ enum class PhysicalOperatorType
   GROUP_BY_VEC,
   AGGREGATE_VEC,
   EXPR_VEC,
+  VIEW_SCAN,
   CREATE_TABLE,
   UPDATE,
 };

@@ -545,8 +545,7 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value) const
       rc = expr->next(tuple, value);
 
       if (rc == RC::RECORD_EOF) {  // 空表
-        value.set_type(AttrType::INTS);
-        value.set_data((const char *)&INT_NULL, sizeof(INT_NULL));
+        value = Value::NULL_VALUE();
         expr->close();
       } else if (rc != RC::SUCCESS) {  // 出错
         expr->close();
@@ -1096,8 +1095,7 @@ RC SubQuery_ValueList_Expression::get_value(const Tuple &tuple, Value &value) co
     RC rc = sub_physical_operator_->next();
 
     if (rc == RC::RECORD_EOF) {  // 子查询如果为EOF，直接为空。
-      value.set_type(AttrType::INTS);
-      value.set_data((const char *)&INT_NULL, sizeof(INT_NULL));
+      value = Value::NULL_VALUE();
       return rc;
     }
 

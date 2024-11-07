@@ -12,8 +12,11 @@ See the Mulan PSL v2 for more details. */
 // Created by Meiyi & Longda & Wangyunlai on 2021/5/12.
 //
 
+#include "storage/field/field.h"
+#include "storage/table/view.h"
 #include "storage/db/db.h"
 
+#include <cstdint>
 #include <fcntl.h>
 #include <string>
 #include <sys/stat.h>
@@ -31,6 +34,7 @@ See the Mulan PSL v2 for more details. */
 #include "storage/trx/trx.h"
 #include "storage/clog/disk_log_handler.h"
 #include "storage/clog/integrated_log_replayer.h"
+#include "storage/table/view.h"
 
 using namespace common;
 
@@ -136,6 +140,29 @@ RC Db::init(const char *name, const char *dbpath, const char *trx_kit_name, cons
   }
 
   return rc;
+}
+
+RC Db::create_view(const char *view_name, bool can_write, const std::vector<Field> &fields,
+    const SelectSqlNode &select_sql, span<const AttrInfoSqlNode> attributes, const StorageFormat storage_format)
+{
+  if (opened_tables_.count(view_name) != 0) {
+    LOG_WARN("%s has been opened before.", view_name);
+    return RC::SCHEMA_TABLE_EXIST;
+  }
+
+  View   *view     = new View();
+  int32_t table_id = next_table_id_++;
+  RC      rc       = view->create(
+      this, table_id, nullptr, view_name, nullptr, attributes, fields, select_sql, storage_format, can_write);
+
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("create_view failed.");
+    delete view;
+    return rc;
+  }
+
+  opened_tables_[view_name] = view;
+  return RC::SUCCESS;
 }
 
 RC Db::create_table(const char *table_name, span<const AttrInfoSqlNode> attributes, const StorageFormat storage_format)

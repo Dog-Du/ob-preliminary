@@ -43,6 +43,7 @@ enum class LogicalOperatorType
   GROUP_BY,    ///< 分组
   CREATE_TABLE,
   ORDER_BY,
+  VIEW_GET,
   UPDATE,
 };
 

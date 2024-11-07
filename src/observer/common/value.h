@@ -68,9 +68,20 @@ public:
   Value &operator=(Value &&other);
 
   void reset();
-  RC resize(int len);
+  RC   resize(int len);
 
   static bool is_null(const Value &val) { return DataType::type_instance(val.attr_type())->is_null(val); }
+
+  static const Value &NULL_VALUE()
+  {
+    static std::unique_ptr<Value> null;
+    if (null == nullptr) {
+      null.reset(new Value());
+      null->attr_type_        = AttrType::INTS;
+      null->value_.int_value_ = INT_NULL;
+    }
+    return *null;
+  }
 
   static RC add(const Value &left, const Value &right, Value &result)
   {

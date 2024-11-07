@@ -15,10 +15,15 @@ See the Mulan PSL v2 for more details. */
 #include "sql/stmt/delete_stmt.h"
 #include "common/log/log.h"
 #include "sql/stmt/filter_stmt.h"
+#include "sql/stmt/select_stmt.h"
+#include "sql/stmt/stmt.h"
 #include "storage/db/db.h"
 #include "storage/table/table.h"
+#include "storage/table/view.h"
 
-DeleteStmt::DeleteStmt(Table *table, FilterStmt *filter_stmt) : table_(table), filter_stmt_(filter_stmt) {}
+DeleteStmt::DeleteStmt(Table *table, FilterStmt *filter_stmt, SelectStmt *view_select_stmt, View *view)
+    : table_(table), filter_stmt_(filter_stmt), view_select_stmt_(view_select_stmt), view_(view)
+{}
 
 DeleteStmt::~DeleteStmt()
 {
@@ -37,25 +42,42 @@ RC DeleteStmt::create(Db *db, const DeleteSqlNode &delete_sql, Stmt *&stmt)
   }
 
   // check whether the table exists
-  Table *table = db->find_table(table_name);
-  if (nullptr == table) {
+  Table *table_or_view = db->find_table(table_name);
+  if (nullptr == table_or_view) {
     LOG_WARN("no such table. db=%s, table_name=%s", db->name(), table_name);
     return RC::SCHEMA_TABLE_NOT_EXIST;
   }
 
+  if (!table_or_view->can_write()) {
+    LOG_WARN("this view can not write.");
+    return RC::INVALID_ARGUMENT;
+  }
+
   std::unordered_map<std::string, Table *> table_map;
-  table_map.insert(std::pair<std::string, Table *>(std::string(table_name), table));
+  table_map.insert(std::pair<std::string, Table *>(std::string(table_name), table_or_view));
 
   RC          rc          = RC::SUCCESS;
   FilterStmt *filter_stmt = nullptr;
 
   if (delete_sql.conditions != nullptr) {
-    rc = FilterStmt::create(db, table, &table_map, delete_sql.conditions, filter_stmt);
+    rc = FilterStmt::create(db, table_or_view, &table_map, delete_sql.conditions, filter_stmt);
     if (rc != RC::SUCCESS) {
       return rc;
     }
   }
 
-  stmt = new DeleteStmt(table, filter_stmt);
+  View *view             = nullptr;
+  Stmt *view_select_stmt = nullptr;
+
+  if (table_or_view->is_view()) {
+    view = static_cast<View *>(table_or_view);
+    rc   = SelectStmt::create(db, view->select_sql(), view_select_stmt);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("view create failed.");
+      return rc;
+    }
+  }
+
+  stmt = new DeleteStmt(table_or_view, filter_stmt, static_cast<SelectStmt *>(view_select_stmt), view);
   return rc;
 }
