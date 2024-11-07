@@ -86,6 +86,7 @@ RC check_alias_and_joins(Db *db, std::unordered_map<std::string, std::string> &a
 
     if (!table->is_view()) {
       join.view_select_stmts_.push_back(nullptr);
+      join.alias_.push_back(table_name.alias);
       return RC::SUCCESS;
     }
 
@@ -97,6 +98,7 @@ RC check_alias_and_joins(Db *db, std::unordered_map<std::string, std::string> &a
       return rc;
     }
 
+    join.alias_.push_back(table_name.alias);
     join.view_select_stmts_.push_back(std::shared_ptr<SelectStmt>(static_cast<SelectStmt *>(select_stmt)));
     return RC::SUCCESS;
   };
@@ -120,7 +122,7 @@ RC check_alias_and_joins(Db *db, std::unordered_map<std::string, std::string> &a
     FilterStmt *filter = nullptr;
 
     if (nullptr != conditions) {
-      rc = FilterStmt::create(db, all_tables[table.relation_name], &all_tables, conditions, filter);
+      rc = FilterStmt::create(db, all_tables[table.relation_name], &all_tables, tables, conditions, filter);
       if (rc != RC::SUCCESS) {
         LOG_WARN("create filter stmt failed.");
         return rc;
@@ -369,7 +371,7 @@ RC SelectStmt::create(
   FilterStmt *filter_stmt = nullptr;
 
   if (select_sql.conditions != nullptr) {
-    rc = FilterStmt::create(db, default_table, &table_map, select_sql.conditions, filter_stmt);
+    rc = FilterStmt::create(db, default_table, &table_map, tables, select_sql.conditions, filter_stmt);
     if (rc != RC::SUCCESS) {
       return rc;
     }
@@ -400,7 +402,7 @@ RC SelectStmt::create(
 
   // 让having走一遍FilterStmt进行一定的检查和FieldExpr的初始化，但是只需要其中的expression。
   if (select_sql.having != nullptr) {
-    rc = FilterStmt::create(db, default_table, &table_map, select_sql.having, having_filter);
+    rc = FilterStmt::create(db, default_table, &table_map, tables, select_sql.having, having_filter);
     if (rc != RC::SUCCESS) {
       LOG_WARN("having filter create failed.");
       return rc;

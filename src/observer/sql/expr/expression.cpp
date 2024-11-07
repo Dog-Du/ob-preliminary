@@ -70,7 +70,7 @@ bool match_str(const std::string &pattern, const std::string &text)
 
 RC FieldExpr::get_value(const Tuple &tuple, Value &value) const
 {
-  return tuple.find_cell(TupleCellSpec(table_name(), field_name()), value);
+  return tuple.find_cell(TupleCellSpec(table_name(), field_name(), alias()), value);
 }
 
 bool FieldExpr::equal(const Expression &other) const
@@ -121,15 +121,25 @@ RC FieldExpr::check_field(const std::unordered_map<std::string, Table *> &all_ta
     return RC::SCHEMA_FIELD_NOT_EXIST;
   }
 
-  if (strlen(Expression::alias()) > 0) {
-    set_name(Expression::alias());
+  if (tables.size() > 1) {
+    set_name(std::string(table_name) + "." + field_name);
   } else {
-    if (tables.size() > 1) {
-      set_name(std::string(table_name) + "." + field_name);
-    } else {
-      set_name(field_name);
-    }
+    set_name(field_name);
   }
+
+  if (strlen(Expression::alias()) == 0) {
+    set_alias(tables.size() == 1 ? field_name : std::string(table_name) + "." + field_name);
+  }
+
+  // if (strlen(Expression::alias()) > 0) {
+  //   set_name(Expression::alias());
+  // } else {
+  //   if (tables.size() > 1) {
+  //     set_name(std::string(table_name) + "." + field_name);
+  //   } else {
+  //     set_name(field_name);
+  //   }
+  // }
 
   set_table_name(table_name);
   set_field_name(field_name);

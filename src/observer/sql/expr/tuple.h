@@ -176,7 +176,7 @@ public:
 
   void set_record(Record *record) { this->record_ = record; }
 
-  void set_schema(const Table *table, const std::vector<FieldMeta> *fields)
+  void set_schema(const Table *table, const std::vector<FieldMeta> *fields, const std::string &alias = "")
   {
     table_ = table;
     // fix:join当中会多次调用右表的open,open当中会调用set_scheme，从而导致tuple当中会存储
@@ -190,6 +190,7 @@ public:
     for (const FieldMeta &field : *fields) {
       speces_.push_back(new FieldExpr(table, &field));
     }
+    alias_ = alias;
   }
 
   void set_schema(const View *view)
@@ -235,6 +236,13 @@ public:
       return RC::NOTFOUND;
     }
 
+    const std::string spec_alias = spec.alias();
+
+    if (!spec_alias.empty() && spec_alias != std::string(spec.table_name()) + "." + spec.field_name() &&
+        spec_alias.find('.') != std::string::npos && spec_alias.substr(0, spec_alias.find('.')) != alias_) {
+      return RC::NOTFOUND;
+    }
+
     for (size_t i = 0; i < speces_.size(); ++i) {
       const FieldExpr *field_expr = speces_[i];
       const Field     &field      = field_expr->field();
@@ -266,6 +274,7 @@ private:
   Record                  *record_ = nullptr;
   const Table             *table_  = nullptr;
   std::vector<FieldExpr *> speces_;
+  std::string              alias_;
 };
 
 /**

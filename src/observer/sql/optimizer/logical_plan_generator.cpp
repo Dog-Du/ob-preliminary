@@ -136,8 +136,8 @@ RC LogicalPlanGenerator::create_plan(CalcStmt *calc_stmt, std::shared_ptr<Logica
   return RC::SUCCESS;
 }
 
-RC LogicalPlanGenerator::join_table_in_tree(
-    std::shared_ptr<LogicalOperator> &oper, Table *table, FilterStmt *filter_stmt, SelectStmt *view_select_stmt)
+RC LogicalPlanGenerator::join_table_in_tree(std::shared_ptr<LogicalOperator> &oper, Table *table,
+    FilterStmt *filter_stmt, SelectStmt *view_select_stmt, const std::string &alias)
 {
   RC                               rc = RC::SUCCESS;
   std::vector<Field>               fields;
@@ -155,7 +155,7 @@ RC LogicalPlanGenerator::join_table_in_tree(
     table_get_oper.reset(new ViewGetLogicalOperator(static_cast<View *>(table), ReadWriteMode::READ_WRITE));
     table_get_oper->add_child(view_get_oper);
   } else {
-    table_get_oper.reset(new TableGetLogicalOperator(table, ReadWriteMode::READ_WRITE));
+    table_get_oper.reset(new TableGetLogicalOperator(table, ReadWriteMode::READ_WRITE, alias));
   }
 
   std::shared_ptr<LogicalOperator> this_table_predicate_oper;
@@ -227,8 +227,11 @@ RC LogicalPlanGenerator::create_plan(SelectStmt *select_stmt, shared_ptr<Logical
     std::shared_ptr<LogicalOperator> oper;
 
     for (size_t j = 0; j < join_node.tables_.size(); ++j) {
-      rc = join_table_in_tree(
-          oper, join_node.tables_[j], join_node.conditions_[j].get(), join_node.view_select_stmts_[j].get());
+      rc = join_table_in_tree(oper,
+          join_node.tables_[j],
+          join_node.conditions_[j].get(),
+          join_node.view_select_stmts_[j].get(),
+          join_node.alias_[j]);
 
       if (rc != RC::SUCCESS) {
         return rc;

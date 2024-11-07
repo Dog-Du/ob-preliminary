@@ -110,7 +110,7 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update_sql, Stmt *&stmt)
   FilterStmt *filter_stmt = nullptr;
 
   if (update_sql.conditions != nullptr) {
-    rc = FilterStmt::create(db, table, &table_map, update_sql.conditions, filter_stmt);
+    rc = FilterStmt::create(db, table, &table_map, {table}, update_sql.conditions, filter_stmt);
     if (rc != RC::SUCCESS) {
       return rc;
     }

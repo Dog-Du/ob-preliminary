@@ -39,8 +39,8 @@ public:
   std::shared_ptr<Expression> get_conditions() { return conditions_; }
 
 public:
-  static RC create(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
-      std::shared_ptr<Expression> conditions, FilterStmt *&stmt);
+  static RC create(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *all_tables,
+      const std::vector<Table *> &tables, std::shared_ptr<Expression> conditions, FilterStmt *&stmt);
 
   // static RC create_filter_unit(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
   //     const ConditionSqlNode &condition, FilterUnit *&filter_unit);

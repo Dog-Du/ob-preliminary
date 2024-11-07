@@ -60,7 +60,7 @@ RC DeleteStmt::create(Db *db, const DeleteSqlNode &delete_sql, Stmt *&stmt)
   FilterStmt *filter_stmt = nullptr;
 
   if (delete_sql.conditions != nullptr) {
-    rc = FilterStmt::create(db, table_or_view, &table_map, delete_sql.conditions, filter_stmt);
+    rc = FilterStmt::create(db, table_or_view, &table_map, {table_or_view}, delete_sql.conditions, filter_stmt);
     if (rc != RC::SUCCESS) {
       return rc;
     }

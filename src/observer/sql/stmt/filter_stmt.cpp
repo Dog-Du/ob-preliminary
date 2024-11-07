@@ -44,8 +44,8 @@ RC check_comparison_invalid(Expression *left_expr, Expression *right_expr)
   return RC::SUCCESS;
 }
 
-RC FilterStmt::create(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
-    std::shared_ptr<Expression> conditions, FilterStmt *&stmt)
+RC FilterStmt::create(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *all_tables,
+    const std::vector<Table *> &tables, std::shared_ptr<Expression> conditions, FilterStmt *&stmt)
 {
   RC rc = RC::SUCCESS;
   stmt  = nullptr;
@@ -54,101 +54,100 @@ RC FilterStmt::create(Db *db, Table *default_table, std::unordered_map<std::stri
   }
 
   bool                              need_continue_check = true;
-  std::function<void(Expression *)> check_condition =
-      [&rc, &need_continue_check, tables, default_table, &check_condition, db](Expression *expression) {
+  std::function<void(Expression *)> check_condition     = [&](Expression *expression) {
+    if (!need_continue_check) {
+      return;
+    }
+
+    switch (expression->type()) {
+      case ExprType::FIELD: {
+        auto expr = static_cast<FieldExpr *>(expression);
+        rc        = expr->check_field(*all_tables, default_table, tables, {});
+
+        if (rc != RC::SUCCESS) {
+          LOG_WARN("check_field failed.");
+          need_continue_check = false;
+        }
+      } break;
+      case ExprType::COMPARISON: {
+        ComparisonExpr *expr = static_cast<ComparisonExpr *>(expression);
+        if (expr->left() != nullptr) {
+          check_condition(expr->left().get());
+        }
+
+        if (expr->right() != nullptr) {
+          check_condition(expr->right().get());
+        }
+
         if (!need_continue_check) {
+          LOG_WARN("something wrong before check_comparison_invalid.");
           return;
         }
 
-        switch (expression->type()) {
-          case ExprType::FIELD: {
-            auto expr = static_cast<FieldExpr *>(expression);
-            rc        = expr->check_field(*tables, default_table, {}, {});
-
-            if (rc != RC::SUCCESS) {
-              LOG_WARN("check_field failed.");
-              need_continue_check = false;
-            }
-          } break;
-          case ExprType::COMPARISON: {
-            ComparisonExpr *expr = static_cast<ComparisonExpr *>(expression);
-            if (expr->left() != nullptr) {
-              check_condition(expr->left().get());
-            }
-
-            if (expr->right() != nullptr) {
-              check_condition(expr->right().get());
-            }
-
-            if (!need_continue_check) {
-              LOG_WARN("something wrong before check_comparison_invalid.");
-              return;
-            }
-
-            rc = check_comparison_invalid(expr->left().get(), expr->right().get());
-            if (rc != RC::SUCCESS) {
-              LOG_WARN("check_comparison_invalid failed.");
-              need_continue_check = false;
-              return;
-            }
-          } break;
-          case ExprType::ARITHMETIC: {
-            auto *expr = static_cast<ArithmeticExpr *>(expression);
-            if (expr->left() != nullptr) {
-              check_condition(expr->left().get());
-            }
-
-            if (expr->right() != nullptr) {
-              check_condition(expr->right().get());
-            }
-          } break;
-          case ExprType::CONJUNCTION: {
-            auto *expr = static_cast<ConjunctionExpr *>(expression);
-            for (auto &child : expr->children()) {
-              check_condition(child.get());
-            }
-          } break;
-          case ExprType::VALUE: {
-
-          } break;
-          case ExprType::SUBQUERY_OR_VALUELIST: {
-            auto expr = static_cast<SubQuery_ValueList_Expression *>(expression);
-
-            rc = expr->create_stmt(db, *tables);
-            if (rc != RC::SUCCESS) {
-              need_continue_check = false;
-              LOG_WARN("sub_query in filter creat_stmt wrong.");
-              return;
-            }
-          } break;
-          case ExprType::AGGREGATION: {
-            auto expr = static_cast<AggregateExpr *>(expression);
-
-            if (expr->child() != nullptr) {
-              check_condition(expr->child().get());
-            }
-          } break;
-          case ExprType::VECTOR_FUNCTION: {
-            auto *expr = static_cast<VectorFunctionExpr *>(expression);
-            if (expr->left() != nullptr) {
-              check_condition(expr->left().get());
-            }
-
-            if (expr->right() != nullptr) {
-              check_condition(expr->right().get());
-            }
-
-            if (expr->left()->value_type() != AttrType::VECTORS || expr->right()->value_type() != AttrType::VECTORS) {
-              need_continue_check = false;
-              rc                  = RC::INVALID_ARGUMENT;
-              LOG_WARN("vector functionexpr failed.");
-            }
-          } break;
-          default: {
-
-          } break;
+        rc = check_comparison_invalid(expr->left().get(), expr->right().get());
+        if (rc != RC::SUCCESS) {
+          LOG_WARN("check_comparison_invalid failed.");
+          need_continue_check = false;
+          return;
         }
-      };
+      } break;
+      case ExprType::ARITHMETIC: {
+        auto *expr = static_cast<ArithmeticExpr *>(expression);
+        if (expr->left() != nullptr) {
+          check_condition(expr->left().get());
+        }
+
+        if (expr->right() != nullptr) {
+          check_condition(expr->right().get());
+        }
+      } break;
+      case ExprType::CONJUNCTION: {
+        auto *expr = static_cast<ConjunctionExpr *>(expression);
+        for (auto &child : expr->children()) {
+          check_condition(child.get());
+        }
+      } break;
+      case ExprType::VALUE: {
+
+      } break;
+      case ExprType::SUBQUERY_OR_VALUELIST: {
+        auto expr = static_cast<SubQuery_ValueList_Expression *>(expression);
+
+        rc = expr->create_stmt(db, *all_tables);
+        if (rc != RC::SUCCESS) {
+          need_continue_check = false;
+          LOG_WARN("sub_query in filter creat_stmt wrong.");
+          return;
+        }
+      } break;
+      case ExprType::AGGREGATION: {
+        auto expr = static_cast<AggregateExpr *>(expression);
+
+        if (expr->child() != nullptr) {
+          check_condition(expr->child().get());
+        }
+      } break;
+      case ExprType::VECTOR_FUNCTION: {
+        auto *expr = static_cast<VectorFunctionExpr *>(expression);
+        if (expr->left() != nullptr) {
+          check_condition(expr->left().get());
+        }
+
+        if (expr->right() != nullptr) {
+          check_condition(expr->right().get());
+        }
+
+        if (expr->left()->value_type() != AttrType::VECTORS || expr->right()->value_type() != AttrType::VECTORS) {
+          need_continue_check = false;
+          rc                  = RC::INVALID_ARGUMENT;
+          LOG_WARN("vector functionexpr failed.");
+        }
+      } break;
+      default: {
+
+      } break;
+    }
+  };
 
   conditions->check_or_get(check_condition);
 

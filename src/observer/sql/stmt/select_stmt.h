@@ -33,6 +33,7 @@ class Table;
 struct JoinNodes
 {
   std::vector<Table *>                     tables_;
+  std::vector<std::string>                 alias_;
   std::vector<std::shared_ptr<SelectStmt>> view_select_stmts_;
   std::vector<std::shared_ptr<FilterStmt>> conditions_;  // on的条件
 };
