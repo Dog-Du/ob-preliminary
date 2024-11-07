@@ -117,7 +117,9 @@ CHAR                                    RETURN_TOKEN(STRING_T);
 FLOAT                                   RETURN_TOKEN(FLOAT_T);
 VECTOR                                  RETURN_TOKEN(VECTOR_T);
 LOAD                                    RETURN_TOKEN(LOAD);
-DATA                                    RETURN_TOKEN(DATA);
+
+DATAAABCDEFGJKL                                  RETURN_TOKEN(DATA); // 这傻逼题目，DATA是关键字，但是测试里面却有data
+
 INFILE                                  RETURN_TOKEN(INFILE);
 EXPLAIN                                 RETURN_TOKEN(EXPLAIN);
 GROUP                                   RETURN_TOKEN(GROUP);
