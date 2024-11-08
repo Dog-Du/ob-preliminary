@@ -224,7 +224,12 @@ public:
   RC spec_at(int index, TupleCellSpec &spec) const override
   {
     const Field &field = speces_[index]->field();
-    spec               = TupleCellSpec(table_->name(), field.field_name());
+    if (!alias_.empty()) {  // 别名信息不能丢失
+      std::string tmp = alias_ + "." + field.field_name();
+      spec            = TupleCellSpec(table_->name(), field.field_name(), tmp.c_str());
+    } else {
+      spec = TupleCellSpec(table_->name(), field.field_name());
+    }
     return RC::SUCCESS;
   }
 
@@ -278,7 +283,7 @@ private:
   Record                  *record_ = nullptr;
   const Table             *table_  = nullptr;
   std::vector<FieldExpr *> speces_;
-  std::string              alias_;
+  std::string              alias_;  // RowTuple来源于table，这个别名指的是表的别名。
 };
 
 /**
