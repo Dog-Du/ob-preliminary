@@ -162,7 +162,7 @@ private:
   std::string name_;
   std::string table_name_;
   std::string field_name_;
-  std::string alias_;
+  std::string alias_; 
 };
 
 class StarExpr : public Expression

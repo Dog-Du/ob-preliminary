@@ -38,7 +38,7 @@ SelectStmt::~SelectStmt() {}
 
 RC check_alias_and_joins(Db *db, std::unordered_map<std::string, std::string> &alias_map,
     std::unordered_map<std::string, Table *> &all_tables, std::vector<Table *> &tables,
-    std::vector<JoinSqlNode> &from_list, std::vector<JoinNodes> &join_tabes)
+    std::vector<std::string> &table_alias, std::vector<JoinSqlNode> &from_list, std::vector<JoinNodes> &join_tabes)
 {
   std::unordered_set<std::string> alias_set;  // 别名，表名是否重复
 
@@ -66,6 +66,7 @@ RC check_alias_and_joins(Db *db, std::unordered_map<std::string, std::string> &a
       all_tables.emplace(std::make_pair(table_name.alias, table));
     }
 
+    table_alias.push_back(table_name.alias);
     tables.push_back(table);
     all_tables.emplace(std::make_pair(table_name.relation_name, table));
     return RC::SUCCESS;
@@ -176,9 +177,10 @@ RC SelectStmt::create(
   std::unordered_map<std::string, std::string> alias_map;
   std::unordered_map<std::string, Table *>     table_map = all_tables;
   std::vector<JoinNodes>                       join_tables;  // 连接表。
+  std::vector<std::string>                     table_alias;
 
   // 获取别名和连接表。
-  RC rc = check_alias_and_joins(db, alias_map, table_map, tables, select_sql.relations, join_tables);
+  RC rc = check_alias_and_joins(db, alias_map, table_map, tables, table_alias, select_sql.relations, join_tables);
 
   if (rc != RC::SUCCESS) {
     LOG_WARN("check_alias_and_joins failed in select stmt.");
@@ -204,10 +206,13 @@ RC SelectStmt::create(
         FieldExpr *field_expr = new FieldExpr(table, field);
         if (tables.size() == 1) {
           field_expr->set_name(field_expr->field_name());  // should same as origin
+          field_expr->set_alias(field_expr->field_name());
         } else if (alias.empty()) {
           field_expr->set_name(std::string(field_expr->table_name()) + "." + field_expr->field_name());
+          field_expr->set_alias(field_expr->name());
         } else {
-          field_expr->set_name(alias + "." + field_expr->field_name());
+          field_expr->set_name(std::string(field_expr->table_name()) + "." + field_expr->field_name());
+          field_expr->set_alias(alias + "." + field_expr->field_name());
         }
         projects.push_back(std::shared_ptr<Expression>(field_expr));
       }
@@ -316,12 +321,9 @@ RC SelectStmt::create(
         if (tables.empty() || (strlen(field_expression->alias()) > 0 && strcmp(field_expression->alias(), "*") != 0)) {
           return RC::INVALID_ARGUMENT;  // not allow: select *; select * as xxx;
         }
-        for (const Table *table : tables) {
-          if (alias_map.count(table->name())) {
-            fulls_tables(table, alias_map[table->name()]);
-          } else {
-            fulls_tables(table, std::string());
-          }
+
+        for (size_t i = 0; i < tables.size(); ++i) {
+          fulls_tables(tables[i], table_alias[i]);
         }
       } else if (0 == strcmp(field_name, "*")) {
         auto iter = table_map.find(table_name);

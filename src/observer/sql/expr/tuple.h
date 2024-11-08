@@ -230,23 +230,27 @@ public:
 
   RC find_cell(const TupleCellSpec &spec, Value &cell) const override
   {
-    const char *table_name = spec.table_name();
-    const char *field_name = spec.field_name();
-    if (0 != strcmp(table_name, table_->name())) {
+    const char *spec_table_name = spec.table_name();
+    const char *spec_field_name = spec.field_name();
+    if (0 != strcmp(spec_table_name, table_->name())) {
       return RC::NOTFOUND;
     }
 
     const std::string spec_alias = spec.alias();
 
-    if (!spec_alias.empty() && spec_alias != std::string(spec.table_name()) + "." + spec.field_name() &&
-        spec_alias.find('.') != std::string::npos && spec_alias.substr(0, spec_alias.find('.')) != alias_) {
-      return RC::NOTFOUND;
+    // 有别名，同时，别名不等于本身的table_name + field_name的组合，说明别名存在，需要比较别名。
+    // 如果别名中的表名不等于本表表名，则报错。
+    if (spec_alias.find('.') != std::string::npos &&
+        spec_alias != std::string(spec_table_name) + "." + spec_field_name) {
+      if (spec_alias.substr(0, spec_alias.find('.')) != alias_) {
+        return RC::NOTFOUND;
+      }
     }
 
     for (size_t i = 0; i < speces_.size(); ++i) {
       const FieldExpr *field_expr = speces_[i];
       const Field     &field      = field_expr->field();
-      if (0 == strcmp(field_name, field.field_name())) {
+      if (0 == strcmp(spec_field_name, field.field_name())) {
         return cell_at(i, cell);
       }
     }
