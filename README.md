@@ -1,5 +1,6 @@
 # MiniOB 介绍
 
+
 <div align="left">
 
 [![Chinese Doc](https://img.shields.io/badge/文档-简体中文-blue)](https://oceanbase.github.io/miniob/)
@@ -93,7 +94,7 @@ OceanBase 社区热情欢迎每一位对数据库技术热爱的开发者，期�
 
 # License
 
-MiniOB 采用 [木兰宽松许可证，第2版](https://license.coscl.org.cn/MulanPSL2), 可以自由拷贝和使用源码, 当做修改或分发时, 请遵守 [木兰宽松许可证，第2版](https://license.coscl.org.cn/MulanPSL2). 
+MiniOB 采用 [木兰宽松许可证，第2版](https://license.coscl.org.cn/MulanPSL2), 可以自由拷贝和使用源码, 当做修改或分发时, 请遵守 [木兰宽松许可证，第2版](https://license.coscl.org.cn/MulanPSL2).
 
 # 社区组织
 
