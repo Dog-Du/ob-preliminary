@@ -128,7 +128,11 @@ RC FieldExpr::check_field(const std::unordered_map<std::string, Table *> &all_ta
   }
 
   if (strlen(Expression::alias()) == 0) {
-    set_alias(table_name + "." + field_name);
+    if (strlen(Expression::table_name()) == 0) {
+      set_alias(tables.size() == 1 ? field_name : table_name + "." + field_name);
+    } else {
+      set_alias(tables.size() == 1 ? field_name : std::string(Expression::table_name()) + "." + field_name);
+    }
   }
 
   // if (strlen(Expression::alias()) > 0) {

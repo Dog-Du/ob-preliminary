@@ -71,7 +71,7 @@ RC OrderByPhysicalOperator::open(Trx *trx)
 
   std::vector<int> field_index;  // 这些个field都在tuple的第几列，直接得到，减少查找开销。
   for (auto &field : field_expressions_) {
-    TupleCellSpec tmp_cell(field->table_name(), field->field_name());
+    TupleCellSpec tmp_cell(field->table_name(), field->field_name(), field->alias());
     int           i;
     for (i = 0; i < tuple_cells_.size(); ++i) {
       if (tuple_cells_[i].equals(tmp_cell)) {
