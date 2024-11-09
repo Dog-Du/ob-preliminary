@@ -1,3 +1,7 @@
+# 初赛总结
+总结：https://github.com/Dog-Du/ob-preliminary/issues/1
+![image](https://github.com/user-attachments/assets/ec58e086-3fb1-4ea7-b742-f36952ff8edb)
+
 # MiniOB 介绍
 
 
